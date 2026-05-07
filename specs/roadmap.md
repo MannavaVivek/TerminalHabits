@@ -6,14 +6,14 @@
 
 ## Phase 0 — Bootstrap (≈ 1 week)
 
-> After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit per `constitution.md §7`.
+**Completed: 2026-05-07**
 
 **Goal:** an empty-but-themed Flutter desktop app that boots on macOS into the splash screen and accepts no input besides "click to onboard."
 
 ### Scope
 - Initialize Flutter project: `flutter create --platforms=macos,linux,android terminal_habits`.
 - Create folder structure per [tech_stack.md](tech_stack.md) §2.
-- Add core dependencies (`flutter_riverpod`, `freezed`, `drift`, `google_fonts`, `window_manager`).
+- Add core dependencies (`flutter_riverpod`, `google_fonts`, `window_manager`, `shared_preferences`).
 - Wire root `MaterialApp` with `ThemeData.dark()` + JetBrains Mono + `splashFactory: NoSplash.splashFactory`.
 - Implement `theme/tokens.dart` with the Matrix palette from [design_spec.md](design_spec.md).
 - Implement `WindowChrome` (frameless, custom titlebar with traffic lights) on macOS only.
@@ -21,12 +21,16 @@
 - Implement `OnboardingView` as a stub (4 empty steps, "skip" button).
 - No persistence layer yet beyond `shared_preferences` for `seenSplash`.
 
+### Notes
+- JetBrains Mono bundled locally (`assets/fonts/`) with `GoogleFonts.config.allowRuntimeFetching = false`. macOS sandbox blocks outgoing TCP without the network entitlement; bundling avoids the dependency entirely and is consistent with local-first policy.
+- `freezed` and `drift` deferred to Phase 1 when models and DB are first needed.
+
 ### Exit criteria
-- [ ] `flutter run -d macos` shows the frameless window with the traffic lights and centered ASCII logo.
-- [ ] Clicking "yours to shape." pushes onboarding and sets `seenSplash=true`.
-- [ ] Window minimum size is enforced at 1080×680.
-- [ ] App launches in under 1.5s on a 2020+ MacBook.
-- [ ] `flutter analyze` clean, `flutter test` passes (even with one trivial test).
+- [x] `flutter run -d macos` shows the frameless window with the traffic lights and centered ASCII logo.
+- [x] Clicking "yours to shape." pushes onboarding and sets `seenSplash=true`.
+- [x] Window minimum size is enforced at 1080×680.
+- [x] App launches in under 1.5s on a 2020+ MacBook.
+- [x] `flutter analyze` clean, `flutter test` passes (even with one trivial test).
 
 ### Out of scope
 - Linux build, Android build, any habit features.
