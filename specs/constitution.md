@@ -123,22 +123,19 @@ A phase or feature is **done** when the user explicitly confirms it works as exp
 3. **Commit all changes.** Stage everything (source, assets, updated specs) and create a git commit. Commit message format:
 
    ```
-   phase N: <one-line summary>
-
-   Verified by user on YYYY-MM-DD.
-   Exit criteria: <roadmap.md §Phase N>.
+   phase N: <concise one-line description>
    ```
 
-   Co-author line must be included (see git workflow below).
+   Single line only. No body, no author lines. Use multiple commits to separate logical units rather than one large commit.
 
 4. **Tag releases.** At the end of each full phase (not mid-phase features), create an annotated tag: `git tag -a v0.N.0 -m "Phase N complete"`.
 
 ### Git commit style
 
-- One commit per verified phase or logical feature unit. Don't commit unverified work.
-- Commit message: imperative subject line ≤72 chars, blank line, then body with what changed and the verification note.
-- Never `--amend` a commit that has already been shared or tagged.
-- Stage files explicitly by name. Never `git add -A` blindly — the build artifacts in `build/` are gitignored but double-check before staging.
+- One-line messages only: imperative, ≤72 chars, descriptive enough to understand without reading the diff.
+- Multiple small commits are preferred over one large commit per phase.
+- Never `--amend` a commit that has already been tagged.
+- Stage files explicitly by name. Never `git add -A` blindly — double-check before staging.
 
 ### What goes in git
 
