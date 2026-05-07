@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/tokens.dart';
 import '../widgets/ascii_art.dart';
+import 'app_scaffold.dart';
 import 'onboarding_view.dart';
 
 class SplashView extends ConsumerStatefulWidget {
@@ -50,8 +51,15 @@ class _SplashViewState extends ConsumerState<SplashView>
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('seenSplash', true);
     if (!mounted) return;
+    final seenOnboarding = prefs.getBool('seenOnboarding') ?? false;
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(builder: (_) => const OnboardingView()),
+      PageRouteBuilder<void>(
+        pageBuilder: (_, __, ___) => seenOnboarding
+            ? const AppScaffold()
+            : const OnboardingView(),
+        transitionDuration: Duration.zero,
+        reverseTransitionDuration: Duration.zero,
+      ),
     );
   }
 

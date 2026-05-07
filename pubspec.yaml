@@ -24,10 +24,21 @@ dependencies:
   # Persistent simple flags (seenSplash)
   shared_preferences: ^2.3.2
 
+  # Local database
+  drift: ^2.22.0
+  sqlite3_flutter_libs: ^0.5.28
+  path_provider: ^2.1.5
+
+  # Utilities
+  intl: ^0.19.0
+  uuid: ^4.5.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  drift_dev: ^2.22.0
+  build_runner: ^2.4.13
 
 flutter:
   uses-material-design: true

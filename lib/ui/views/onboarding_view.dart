@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/tokens.dart';
 import '../widgets/prompt_line.dart';
+import 'app_scaffold.dart';
 
 // Phase 0 stub: 4-step onboarding skeleton.
 // Full implementation (name input, theme pick, starter habits) is Phase 1.
@@ -26,14 +28,21 @@ class _OnboardingViewState extends State<OnboardingView> {
     if (_step < _totalSteps - 1) {
       setState(() => _step++);
     } else {
-      _finish();
+      _finish(); // unawaited: navigates away on completion
     }
   }
 
-  void _finish() {
-    // Phase 1 will push DailyView here.
-    // For Phase 0, return to splash so we can test the round-trip.
-    Navigator.of(context).pop();
+  Future<void> _finish() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('seenOnboarding', true);
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder<void>(
+        pageBuilder: (_, __, ___) => const AppScaffold(),
+        transitionDuration: Duration.zero,
+        reverseTransitionDuration: Duration.zero,
+      ),
+    );
   }
 
   @override

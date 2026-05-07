@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:window_manager/window_manager.dart';
 import 'app.dart';
+import 'data/database.dart';
+import 'state/providers.dart';
 import 'theme/tokens.dart';
 
 void main() async {
@@ -30,9 +32,14 @@ void main() async {
     });
   }
 
+  final db = await openAppDatabase();
+
   runApp(
-    const ProviderScope(
-      child: App(),
+    ProviderScope(
+      overrides: [
+        dbProvider.overrideWithValue(db),
+      ],
+      child: const App(),
     ),
   );
 }
