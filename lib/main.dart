@@ -1,12 +1,16 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:window_manager/window_manager.dart';
 import 'app.dart';
 import 'theme/tokens.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Fonts are bundled in assets/fonts/ — never fetch from the network.
+  GoogleFonts.config.allowRuntimeFetching = false;
 
   if (Platform.isMacOS || Platform.isLinux) {
     await windowManager.ensureInitialized();

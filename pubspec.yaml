@@ -34,3 +34,14 @@ flutter:
 
   assets:
     - assets/ascii/
+
+  fonts:
+    - family: JetBrains Mono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/JetBrainsMono-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/JetBrainsMono-Italic.ttf
+          weight: 400
+          style: italic
