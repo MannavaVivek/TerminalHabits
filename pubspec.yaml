@@ -1,0 +1,36 @@
+name: terminal_habits
+description: A terminal-themed habit tracker for macOS, Linux, and Android.
+publish_to: none
+
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.11.5
+  flutter: ">=3.24.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management
+  flutter_riverpod: ^2.5.1
+
+  # Window control (desktop)
+  window_manager: ^0.3.9
+
+  # Fonts
+  google_fonts: ^6.2.1
+
+  # Persistent simple flags (seenSplash)
+  shared_preferences: ^2.3.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/ascii/
