@@ -4,6 +4,7 @@ import '../../data/database.dart';
 import '../../domain/streaks.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
+import '../modals/future_warn_dialog.dart';
 
 class HabitRow extends ConsumerWidget {
   final DailyHabit dailyHabit;
@@ -17,21 +18,35 @@ class HabitRow extends ConsumerWidget {
     final streak = dailyHabit.streaks.current;
     final shields = dailyHabit.streaks.shields;
 
-    return GestureDetector(
-      onTap: () {
+    void focus() =>
         ref.read(focusedHabitIdProvider.notifier).state = h.id;
-        _toggle(ref, h);
-      },
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: focus,
       child: Container(
         color: focused ? TH.bg2 : Colors.transparent,
         padding: const EdgeInsets.symmetric(
             horizontal: TH.s22, vertical: TH.s8),
         child: Row(
           children: [
-            Text(done ? '[✓]' : '[ ]',
-                style: TextStyle(
-                    color: done ? TH.green : TH.fgMute, fontSize: 13)),
-            const SizedBox(width: TH.s8),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () async {
+                focus();
+                await _toggle(context, ref, h);
+              },
+              child: Padding(
+                padding: const EdgeInsets.only(right: TH.s8),
+                child: SizedBox(
+                  width: 28,
+                  child: Text(done ? '[✓]' : '[ ]',
+                      style: TextStyle(
+                          color: done ? TH.green : TH.fgMute,
+                          fontSize: 13)),
+                ),
+              ),
+            ),
             Text(h.icon,
                 style: TextStyle(
                     color: _colorFor(h.color), fontSize: 13)),
@@ -63,10 +78,22 @@ class HabitRow extends ConsumerWidget {
     );
   }
 
-  void _toggle(WidgetRef ref, Habit h) {
+  Future<void> _toggle(
+      BuildContext context, WidgetRef ref, Habit h) async {
+    final selectedDay = ref.read(selectedDayProvider);
+    final now = DateTime.now();
+    final selDate =
+        DateTime(selectedDay.year, selectedDay.month, selectedDay.day);
+    final today = DateTime(now.year, now.month, now.day);
+
+    if (selDate.isAfter(today)) {
+      await confirmFutureToggle(context);
+      return;
+    }
+
     final db = ref.read(dbProvider);
-    final todayUtc = localMidnightUtc(DateTime.now());
-    db.toggleCompletion(h.id, todayUtc);
+    final dayUtc = localMidnightUtc(selectedDay);
+    await db.toggleCompletion(h.id, dayUtc);
   }
 
   static Color _colorFor(String color) {

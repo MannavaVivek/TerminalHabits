@@ -2,10 +2,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../domain/streaks.dart';
 import '../../shortcuts/intents.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
 import '../inspector/inspector_pane.dart';
+import '../modals/command_palette.dart';
+import '../modals/future_warn_dialog.dart';
 import '../modals/new_habit_dialog.dart';
 import '../nav/sidebar.dart';
 import '../widgets/status_bar.dart';
@@ -41,6 +44,20 @@ class AppScaffold extends ConsumerWidget {
           )
         : mainPane;
 
+    Widget content = Scaffold(
+      backgroundColor: TH.bg,
+      body: Column(
+        children: [
+          if (isDesktop) const WindowChrome(),
+          Expanded(child: body),
+          const StatusBar(),
+        ],
+      ),
+    );
+
+    // Touch-only platforms (Android) get no keyboard wiring.
+    if (!isDesktop) return content;
+
     return Shortcuts(
       shortcuts: <ShortcutActivator, Intent>{
         SingleActivator(LogicalKeyboardKey.digit1,
@@ -55,6 +72,15 @@ class AppScaffold extends ConsumerWidget {
         SingleActivator(LogicalKeyboardKey.keyN,
                 meta: isMeta, control: !isMeta):
             const NewHabitIntent(),
+        SingleActivator(LogicalKeyboardKey.keyK,
+                meta: isMeta, control: !isMeta):
+            const OpenPaletteIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyJ):
+            const FocusNextHabitIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyK):
+            const FocusPrevHabitIntent(),
+        const SingleActivator(LogicalKeyboardKey.space):
+            const ToggleFocusedHabitIntent(),
       },
       child: Actions(
         actions: {
@@ -71,21 +97,67 @@ class AppScaffold extends ConsumerWidget {
               return null;
             },
           ),
-        },
-        child: Focus(
-          autofocus: true,
-          child: Scaffold(
-            backgroundColor: TH.bg,
-            body: Column(
-              children: [
-                if (isDesktop) const WindowChrome(),
-                Expanded(child: body),
-                const StatusBar(),
-              ],
-            ),
+          OpenPaletteIntent: CallbackAction<OpenPaletteIntent>(
+            onInvoke: (_) {
+              CommandPalette.show(context);
+              return null;
+            },
           ),
-        ),
+          FocusNextHabitIntent: CallbackAction<FocusNextHabitIntent>(
+            onInvoke: (_) {
+              _moveFocus(ref, 1);
+              return null;
+            },
+          ),
+          FocusPrevHabitIntent: CallbackAction<FocusPrevHabitIntent>(
+            onInvoke: (_) {
+              _moveFocus(ref, -1);
+              return null;
+            },
+          ),
+          ToggleFocusedHabitIntent:
+              CallbackAction<ToggleFocusedHabitIntent>(
+            onInvoke: (_) {
+              _toggleFocused(context, ref);
+              return null;
+            },
+          ),
+        },
+        child: Focus(autofocus: true, child: content),
       ),
     );
+  }
+
+  void _moveFocus(WidgetRef ref, int delta) {
+    ref.read(dailyStateProvider).whenData((state) {
+      final flat = state.groups.expand((g) => g.habits).toList();
+      if (flat.isEmpty) return;
+      final focusedId = ref.read(focusedHabitIdProvider);
+      final idx = flat.indexWhere((h) => h.habit.id == focusedId);
+      final nextIdx = (idx + delta).clamp(0, flat.length - 1);
+      ref.read(focusedHabitIdProvider.notifier).state =
+          flat[nextIdx].habit.id;
+    });
+  }
+
+  Future<void> _toggleFocused(
+      BuildContext context, WidgetRef ref) async {
+    final focusedId = ref.read(focusedHabitIdProvider);
+    if (focusedId == null) return;
+
+    final selectedDay = ref.read(selectedDayProvider);
+    final now = DateTime.now();
+    final selDate =
+        DateTime(selectedDay.year, selectedDay.month, selectedDay.day);
+    final today = DateTime(now.year, now.month, now.day);
+
+    if (selDate.isAfter(today)) {
+      await confirmFutureToggle(context);
+      return;
+    }
+
+    final db = ref.read(dbProvider);
+    final dayUtc = localMidnightUtc(selectedDay);
+    await db.toggleCompletion(focusedId, dayUtc);
   }
 }

@@ -19,21 +19,18 @@ class Sidebar extends ConsumerWidget {
           const SizedBox(height: TH.s14),
           _NavItem(
             label: 'daily',
-            icon: '●',
             selected: view == 'daily',
             onTap: () =>
                 ref.read(currentViewProvider.notifier).state = 'daily',
           ),
           _NavItem(
             label: 'stats',
-            icon: '▸',
             selected: view == 'stats',
             onTap: () =>
                 ref.read(currentViewProvider.notifier).state = 'stats',
           ),
           _NavItem(
             label: 'profile',
-            icon: '◆',
             selected: view == 'profile',
             onTap: () =>
                 ref.read(currentViewProvider.notifier).state = 'profile',
@@ -49,13 +46,11 @@ class Sidebar extends ConsumerWidget {
 
 class _NavItem extends StatelessWidget {
   final String label;
-  final String icon;
   final bool selected;
   final VoidCallback onTap;
 
   const _NavItem({
     required this.label,
-    required this.icon,
     required this.selected,
     required this.onTap,
   });
@@ -71,8 +66,16 @@ class _NavItem extends StatelessWidget {
             horizontal: TH.s14, vertical: TH.s8),
         child: Row(
           children: [
-            Text(icon, style: TextStyle(color: fg, fontSize: 12)),
-            const SizedBox(width: TH.s8),
+            SizedBox(
+              width: 16,
+              child: selected
+                  ? const Text('▸',
+                      style: TextStyle(
+                          color: TH.amber,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600))
+                  : null,
+            ),
             Text(label,
                 style: TextStyle(
                     color: fg,

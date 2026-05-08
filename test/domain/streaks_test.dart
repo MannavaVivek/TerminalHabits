@@ -6,7 +6,7 @@ import 'package:terminal_habits/data/database.dart';
 // 2026-05-01 is a Friday.
 final _epoch = DateTime(2026, 1, 1); // created date for all test habits
 
-Habit _habit({String? schedule}) => Habit(
+Habit _habit({String? schedule, DateTime? createdAt}) => Habit(
       id: 1,
       groupId: 'g1',
       name: 'test',
@@ -19,7 +19,7 @@ Habit _habit({String? schedule}) => Habit(
       note: null,
       sortIndex: 0,
       healthSource: null,
-      createdAt: _epoch,
+      createdAt: createdAt ?? _epoch,
       archivedAt: null,
     );
 
@@ -49,11 +49,13 @@ void main() {
       final r = computeStreaks(_habit(), [], today, []);
       expect(r.current, 0);
       expect(r.longest, 0);
+      expect(r.shields, 0);
     });
 
     test('checked today only → streak 1', () {
       final r = computeStreaks(_habit(), [_done(today)], today, []);
       expect(r.current, 1);
+      expect(r.longest, 1);
     });
 
     test('continuous 14-day run ending today', () {
@@ -61,36 +63,48 @@ void main() {
       final r = computeStreaks(_habit(), _range(from, today), today, []);
       expect(r.current, 14);
       expect(r.longest, 14);
+      expect(r.shields, 2); // 14 / 7
     });
 
     test('missed today breaks streak (yesterday was last)', () {
       final yesterday = today.subtract(const Duration(days: 1));
       final r = computeStreaks(_habit(), [_done(yesterday)], today, []);
-      // Today is due but not completed → current streak = 0
       expect(r.current, 0);
       expect(r.longest, 1);
     });
-  });
 
-  group('shield absorption', () {
-    test('14-day run with one miss on day 8 — shield absorbs', () {
-      final from = today.subtract(const Duration(days: 13));
-      final completions = _range(from, today)
-        ..removeWhere((c) =>
-            c.day == localMidnightUtc(today.subtract(const Duration(days: 6))));
-      final r = computeStreaks(_habit(), completions, today, []);
-      // Shield earned at day 7, absorbs the miss at day 8 → streak still 14
-      expect(r.current, 14);
-    });
-
-    test('two misses in one 7-day window breaks streak on second miss', () {
+    test('any miss in middle resets current; longest preserves prior peak', () {
       final from = today.subtract(const Duration(days: 9));
       final completions = _range(from, today)
         ..removeWhere((c) =>
-            c.day == localMidnightUtc(today.subtract(const Duration(days: 3))) ||
-            c.day == localMidnightUtc(today.subtract(const Duration(days: 4))));
+            c.day == localMidnightUtc(today.subtract(const Duration(days: 6))));
+      // Days -9..-7 = 3-day run. -6 missed. -5..0 = 6-day run.
       final r = computeStreaks(_habit(), completions, today, []);
-      expect(r.current, lessThan(10));
+      expect(r.current, 6);
+      expect(r.longest, 6);
+    });
+
+    test('uncheck collapses both current and longest', () {
+      // 5-day run ending today, then uncheck the middle day.
+      final from = today.subtract(const Duration(days: 4));
+      final completions = _range(from, today)
+        ..removeWhere((c) =>
+            c.day == localMidnightUtc(today.subtract(const Duration(days: 2))));
+      // Days -4, -3 (run 2), gap, -1, 0 (run 2).
+      final r = computeStreaks(_habit(), completions, today, []);
+      expect(r.current, 2);
+      expect(r.longest, 2);
+    });
+  });
+
+  group('back-fill before createdAt', () {
+    test('completions older than createdAt extend the walk', () {
+      // Habit created today, but user back-fills the prior 4 days.
+      final from = today.subtract(const Duration(days: 4));
+      final habit = _habit(createdAt: today);
+      final r = computeStreaks(habit, _range(from, today), today, []);
+      expect(r.current, 5);
+      expect(r.longest, 5);
     });
   });
 
@@ -104,12 +118,23 @@ void main() {
           _habit(schedule: weekdaySchedule()), completions, today, []);
       expect(r.current, 3); // Mon, Tue, Wed
     });
+
+    test('weekend habit created mid-week tracks past weekends', () {
+      // today = Wed May 6. Last weekend = Sat May 2 + Sun May 3.
+      // Habit created today, but user back-fills last Sat + Sun.
+      final habit =
+          _habit(schedule: weekendSchedule(), createdAt: today);
+      final sat = DateTime(2026, 5, 2);
+      final sun = DateTime(2026, 5, 3);
+      final r = computeStreaks(habit, [_done(sat), _done(sun)], today, []);
+      expect(r.current, 2);
+      expect(r.longest, 2);
+    });
   });
 
   group('vacation', () {
     test('vacation days in middle of streak do not break it', () {
       final from = today.subtract(const Duration(days: 9));
-      // Completions for all days except vacation window
       final vacStart = today.subtract(const Duration(days: 5));
       final vacEnd = today.subtract(const Duration(days: 3));
       final vacation = Vacation(
@@ -125,9 +150,7 @@ void main() {
           return !d.isBefore(vacStart) && !d.isAfter(vacEnd);
         });
       final r = computeStreaks(_habit(), completions, today, [vacation]);
-      expect(r.current, greaterThan(0));
-      // Streak should span the vacation gap
-      expect(r.current, 10); // all 10 days including vacation buffer
+      expect(r.current, 10);
     });
   });
 }

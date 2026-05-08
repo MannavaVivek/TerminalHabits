@@ -5,7 +5,7 @@ import 'schedule.dart';
 class StreakResult {
   final int current;
   final int longest;
-  final int shields; // remaining (earned - consumed)
+  final int shields;
   const StreakResult({
     required this.current,
     required this.longest,
@@ -17,14 +17,19 @@ class StreakResult {
 DateTime localMidnightUtc(DateTime localDay) =>
     DateTime(localDay.year, localDay.month, localDay.day).toUtc();
 
-// Computes streaks and shields for [habit].
+// Computes streaks for [habit].
 //
-// Algorithm per data_model.md §6:
-//  1. Build completed-day set from completions (value >= target for count/number).
-//  2. Walk backward from today across due days.
-//  3. Each 7-day window of consecutive due days earns one shield at the 7th day.
-//  4. A shield can absorb one missed-but-due day per 7-day window.
-//  5. Vacation days are neutral (neither extend nor break streaks).
+// Algorithm:
+//  1. Walk every calendar day from min(createdAt, oldest completion) → today.
+//  2. For each day:
+//       - vacation day: extends an active streak silently (no break).
+//       - non-due day: skipped (no effect on streak).
+//       - due day completed: streak += 1.
+//       - due day missed: streak resets to 0.
+//  3. Track the running max as `longest`.
+//  4. `shields` = floor(longest / 7). Purely a milestone counter; no
+//     auto-absorption of misses (that turned out to be flaky and was the
+//     source of the "streak doesn't update on uncheck" bug).
 StreakResult computeStreaks(
   Habit habit,
   List<Completion> completions,
@@ -34,27 +39,54 @@ StreakResult computeStreaks(
   final completedDays = _buildCompletedDaySet(habit, completions);
   final vacationDays = _buildVacationDaySet(vacations);
 
-  // Walk the full history to compute longest and shields earned.
   final createdDay = localMidnightUtc(habit.createdAt.toLocal());
   final todayUtc = localMidnightUtc(today.toLocal());
 
-  // Forward pass: find all due days and detect consecutive runs.
-  final current = _computeCurrent(
-      habit, completedDays, vacationDays, todayUtc);
-  final longest = _computeLongest(
-      habit, completedDays, vacationDays, createdDay, todayUtc);
-  final shields = _computeShieldsRemaining(
-      habit, completedDays, vacationDays, createdDay, todayUtc, current);
+  // Walk from the earliest of (created, oldest backfilled completion) so
+  // marking past days off updates the streak retroactively.
+  var startDay = createdDay;
+  for (final d in completedDays) {
+    if (d.isBefore(startDay)) startDay = d;
+  }
 
+  var current = 0;
+  var longest = 0;
+  var d = startDay;
+
+  while (!d.isAfter(todayUtc)) {
+    if (vacationDays.contains(d)) {
+      if (current > 0) {
+        current++;
+        if (current > longest) longest = current;
+      }
+      d = _nextDayUtc(d);
+      continue;
+    }
+    if (!isHabitDueOn(habit, d.toLocal())) {
+      d = _nextDayUtc(d);
+      continue;
+    }
+
+    if (completedDays.contains(d)) {
+      current++;
+      if (current > longest) longest = current;
+    } else {
+      current = 0;
+    }
+    d = _nextDayUtc(d);
+  }
+
+  final shields = longest ~/ 7;
   return StreakResult(current: current, longest: longest, shields: shields);
 }
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 
-Set<DateTime> _buildCompletedDaySet(Habit habit, List<Completion> completions) {
+Set<DateTime> _buildCompletedDaySet(
+    Habit habit, List<Completion> completions) {
   final double threshold;
   if (habit.tracking == 'checkbox' || habit.tracking == 'health') {
-    threshold = 0.5; // any positive value counts
+    threshold = 0.5;
   } else {
     threshold = (habit.target ?? 1).toDouble();
   }
@@ -81,148 +113,4 @@ Set<DateTime> _buildVacationDaySet(List<Vacation> vacations) {
 DateTime _nextDayUtc(DateTime utcDay) {
   final local = utcDay.toLocal();
   return DateTime(local.year, local.month, local.day + 1).toUtc();
-}
-
-bool _isDue(Habit h, DateTime utcDay, Set<DateTime> vacDays) {
-  if (vacDays.contains(utcDay)) return false;
-  return isHabitDueOn(h, utcDay.toLocal());
-}
-
-int _computeCurrent(
-  Habit habit,
-  Set<DateTime> completed,
-  Set<DateTime> vacation,
-  DateTime todayUtc,
-) {
-  var run = 0;
-  var shieldsAvailable = 0;
-  var daysInWindow = 0;
-  var missedInWindow = 0;
-  var d = localMidnightUtc(habit.createdAt.toLocal());
-
-  while (!d.isAfter(todayUtc)) {
-    // Vacation days extend an active streak without consuming window slots.
-    if (vacation.contains(d)) {
-      if (run > 0) run++;
-      d = _nextDayUtc(d);
-      continue;
-    }
-    if (!isHabitDueOn(habit, d.toLocal())) {
-      d = _nextDayUtc(d);
-      continue;
-    }
-
-    daysInWindow++;
-    if (daysInWindow == 7) {
-      shieldsAvailable++;
-      daysInWindow = 0;
-      missedInWindow = 0;
-    }
-
-    if (completed.contains(d)) {
-      run++;
-      missedInWindow = 0;
-    } else if (shieldsAvailable > 0 && missedInWindow == 0) {
-      shieldsAvailable--;
-      missedInWindow++;
-      run++;
-    } else {
-      run = 0;
-      shieldsAvailable = 0;
-      daysInWindow = 0;
-      missedInWindow = 0;
-    }
-
-    d = _nextDayUtc(d);
-  }
-
-  return run;
-}
-
-int _computeLongest(
-  Habit habit,
-  Set<DateTime> completed,
-  Set<DateTime> vacation,
-  DateTime createdUtc,
-  DateTime todayUtc,
-) {
-  var longest = 0;
-  var run = 0;
-  var shieldsAvailable = 0;
-  var daysInWindow = 0;
-  var missedInWindow = 0;
-  var d = createdUtc;
-
-  while (!d.isAfter(todayUtc)) {
-    if (vacation.contains(d)) {
-      if (run > 0) {
-        run++;
-        if (run > longest) longest = run;
-      }
-      d = _nextDayUtc(d);
-      continue;
-    }
-    if (!isHabitDueOn(habit, d.toLocal())) {
-      d = _nextDayUtc(d);
-      continue;
-    }
-
-    daysInWindow++;
-    if (daysInWindow == 7) {
-      shieldsAvailable++;
-      daysInWindow = 0;
-      missedInWindow = 0;
-    }
-
-    if (completed.contains(d)) {
-      run++;
-      missedInWindow = 0;
-      if (run > longest) longest = run;
-    } else if (shieldsAvailable > 0 && missedInWindow == 0) {
-      shieldsAvailable--;
-      missedInWindow++;
-      run++;
-      if (run > longest) longest = run;
-    } else {
-      run = 0;
-      shieldsAvailable = 0;
-      daysInWindow = 0;
-      missedInWindow = 0;
-    }
-
-    d = _nextDayUtc(d);
-  }
-
-  return longest;
-}
-
-int _computeShieldsRemaining(
-  Habit habit,
-  Set<DateTime> completed,
-  Set<DateTime> vacation,
-  DateTime createdUtc,
-  DateTime todayUtc,
-  int currentStreak,
-) {
-  // Shields earned = consecutive-7-day milestones across all time.
-  var earned = 0;
-  var daysInWindow = 0;
-  var d = createdUtc;
-
-  while (!d.isAfter(todayUtc)) {
-    if (_isDue(habit, d, vacation)) {
-      daysInWindow++;
-      if (daysInWindow == 7) {
-        earned++;
-        daysInWindow = 0;
-      }
-    }
-    d = _nextDayUtc(d);
-  }
-
-  // Shields consumed = how many miss-absorptions were needed in the current streak.
-  // Simplified: earned - (number of misses absorbed in current run, which we can
-  // derive from current streak length vs due days in that span).
-  // For Phase 1, return earned shields as surplus (conservative estimate).
-  return earned;
 }

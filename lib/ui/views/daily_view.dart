@@ -28,9 +28,9 @@ class DailyView extends ConsumerWidget {
             child: _PromptHeader(today: state.today),
           ),
           const SizedBox(height: TH.s8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: TH.s14),
-            child: WeekStrip(today: state.today),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: TH.s14),
+            child: WeekStrip(),
           ),
           const SizedBox(height: TH.s14),
           Expanded(

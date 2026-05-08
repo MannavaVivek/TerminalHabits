@@ -21,7 +21,8 @@ class WindowChrome extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: TH.s14),
             child: Row(
               children: [
-                const _TrafficLights(),
+                // Native macOS traffic lights live here — leave room for them.
+                const SizedBox(width: 72),
                 const Expanded(
                   child: Center(
                     child: Text(
@@ -40,54 +41,6 @@ class WindowChrome extends StatelessWidget {
   }
 }
 
-class _TrafficLights extends StatelessWidget {
-  const _TrafficLights();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _TrafficLight(color: TH.red, onTap: () async => windowManager.close()),
-        const SizedBox(width: 6),
-        _TrafficLight(
-          color: TH.amber,
-          onTap: () async => windowManager.minimize(),
-        ),
-        const SizedBox(width: 6),
-        _TrafficLight(
-          color: TH.green,
-          onTap: () async {
-            if (await windowManager.isMaximized()) {
-              await windowManager.unmaximize();
-            } else {
-              await windowManager.maximize();
-            }
-          },
-        ),
-      ],
-    );
-  }
-}
-
-class _TrafficLight extends StatelessWidget {
-  final Color color;
-  final VoidCallback onTap;
-
-  const _TrafficLight({required this.color, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 12,
-        height: 12,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-      ),
-    );
-  }
-}
 
 class _VersionMeta extends StatelessWidget {
   const _VersionMeta();

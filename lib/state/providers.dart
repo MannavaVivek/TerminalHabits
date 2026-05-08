@@ -19,11 +19,6 @@ final habitsProvider = StreamProvider<List<Habit>>(
   (ref) => ref.watch(dbProvider).watchActiveHabits(),
 );
 
-final todayCompletionsProvider = StreamProvider<List<Completion>>((ref) {
-  final todayUtc = localMidnightUtc(DateTime.now());
-  return ref.watch(dbProvider).watchCompletionsForDay(todayUtc);
-});
-
 final recentCompletionsProvider =
     StreamProvider<Map<int, List<Completion>>>((ref) {
   final sinceUtc = localMidnightUtc(
@@ -44,6 +39,7 @@ final vacationsProvider = StreamProvider<List<Vacation>>(
 
 final currentViewProvider = StateProvider<String>((ref) => 'daily');
 final focusedHabitIdProvider = StateProvider<int?>((ref) => null);
+final selectedDayProvider = StateProvider<DateTime>((ref) => DateTime.now());
 
 // ── Domain models ─────────────────────────────────────────────────────────────
 
@@ -85,39 +81,48 @@ class DailyState {
 final dailyStateProvider = Provider<AsyncValue<DailyState>>((ref) {
   final groupsAV = ref.watch(groupsProvider);
   final habitsAV = ref.watch(habitsProvider);
-  final todayAV = ref.watch(todayCompletionsProvider);
   final recentAV = ref.watch(recentCompletionsProvider);
   final vacAV = ref.watch(vacationsProvider);
+  final selectedDay = ref.watch(selectedDayProvider);
 
-  for (final av in [groupsAV, habitsAV, todayAV, recentAV, vacAV]) {
+  for (final av in [groupsAV, habitsAV, recentAV, vacAV]) {
     if (av.isLoading) return const AsyncValue.loading();
     if (av.hasError) return AsyncValue.error(av.error!, av.stackTrace!);
   }
 
   final groups = groupsAV.requireValue;
   final habits = habitsAV.requireValue;
-  final todayComps = todayAV.requireValue;
   final recentMap = recentAV.requireValue;
   final vacList = vacAV.requireValue;
   final today = DateTime.now();
-  final todayCompMap = {for (final c in todayComps) c.habitId: c};
+  final selectedDayUtc = localMidnightUtc(selectedDay);
 
   final dailyGroups = groups
       .map((group) {
         final groupHabits = habits
             .where((h) => h.groupId == group.id)
-            .map((h) => DailyHabit(
-                  habit: h,
-                  todayCompletion: todayCompMap[h.id],
-                  streaks: computeStreaks(
-                      h, recentMap[h.id] ?? [], today, vacList),
-                ))
+            .where((h) => isHabitDueOn(h, selectedDay))
+            .map((h) {
+              final comps = recentMap[h.id] ?? const <Completion>[];
+              Completion? selectedComp;
+              for (final c in comps) {
+                if (c.day.toUtc() == selectedDayUtc) {
+                  selectedComp = c;
+                  break;
+                }
+              }
+              return DailyHabit(
+                habit: h,
+                todayCompletion: selectedComp,
+                streaks: computeStreaks(h, comps, today, vacList),
+              );
+            })
             .toList();
         return DailyGroup(group: group, habits: groupHabits);
       })
       .where((g) => g.habits.isNotEmpty)
       .toList();
 
-  return AsyncValue.data(DailyState(groups: dailyGroups, today: today));
+  return AsyncValue.data(DailyState(groups: dailyGroups, today: selectedDay));
 });
 
