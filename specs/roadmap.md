@@ -113,7 +113,7 @@
 - [x] No regressions from Phase 1.
 
 ### Out of scope
-- Habit editing UX, start dates, schedule history (Phase 3 / Phase 4).
+- Habit editing UX, start dates, schedule history (Phase 3 / Phase 5).
 - Stats view, vacation, settings dialog.
 
 ---
@@ -125,14 +125,14 @@
 **Goal:** any habit field is editable from the UI. Habits respect a start date, so back-dated views don't show habits that didn't exist yet.
 
 ### Scope
-- **Right-click on habit row** (PC) and **long-press** (Android stub, full coverage in Phase 9) → context menu: `edit`, `archive`, `delete`. Use `Listener` or `GestureDetector` with secondary-tap.
+- **Right-click on habit row** (PC) and **long-press** (Android stub, full coverage in Phase 10) → context menu: `edit`, `archive`, `delete`. Use `Listener` or `GestureDetector` with secondary-tap.
 - **`EditHabitDialog`**: same fields as `NewHabitDialog` plus:
   - `note` (textarea, multi-line).
   - `startDate` (date picker; defaults to `created_at` for existing habits).
   - `targetTime` (optional HH:mm picker).
   - `groupId` (dropdown of existing groups).
   - `tracking` (read-only in this phase if existing completions exist; editable only if completions table is empty for this habit).
-- **Schedule changes** in this phase do **not** preserve old data — they overwrite. The dialog warns: "Changing the schedule will overwrite past completion validity. Continue? (Phase 4 will preserve history.)" This warning is only shown if completions exist on days no longer covered by the new schedule.
+- **Schedule changes** in this phase do **not** preserve old data — they overwrite. The dialog warns: "Changing the schedule will overwrite past completion validity. Continue? (Phase 5 will preserve history.)" This warning is only shown if completions exist on days no longer covered by the new schedule.
 - **Start date enforcement**: `dailyStateProvider` filters habits by `selectedDay >= habit.startDate`. Streak engine only walks dates `>= startDate`.
 - **Archive flow**: sets `archivedAt`; archived habits stay in DB and remain visible in stats but don't appear in daily view.
 - **Delete flow**: confirmation dialog, then cascades — deletes habit + all its completions.
@@ -148,12 +148,45 @@
 - [ ] All Phase 1 / Phase 2 features still work.
 
 ### Out of scope
-- "Keep old progress" prompt for schedule changes (Phase 4).
-- Tracking-type changes when completions exist (Phase 4 once history exists).
+- "Keep old progress" prompt for schedule changes (Phase 5).
+- Tracking-type changes when completions exist (Phase 5 once history exists).
 
 ---
 
-## Phase 4 — Schedule history & progress preservation (≈ 1.5 weeks)
+## Phase 4 — Beautification: icon library, group icons, color palette (≈ 1 week)
+
+> After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit per `constitution.md §7`.
+
+**Goal:** habit and group rows feel visually distinct without relying on the user typing arbitrary unicode. An icon picker replaces the raw icon text field, groups gain icons, the per-habit color tints more than just the icon, and the color palette grows beyond the original six.
+
+### Scope
+- **Icon picker** (`IconPickerDialog`): grid of curated glyphs grouped by category (`productivity`, `health`, `mind`, `social`, `creative`, `chore`, `misc`). Source list lives in `lib/theme/icon_library.dart` (~80–120 entries; emoji + select monochrome glyphs). A search field filters by name/tag. Replaces the bare text field in `NewHabitDialog` and `EditHabitDialog`. A `[ custom ]` tab lets the user fall back to typing 1–2 characters.
+- **Group icons**: new `groups.icon TEXT NULL`. Same picker reused in the group-create / rename flow. Existing groups backfilled with `▸` so headers don't go blank. Group header now renders the icon next to the name.
+- **Color palette expansion**: grow from 6 to ~12 curated colors (`green / amber / blue / purple / teal / red / pink / cyan / orange / lime / sky / rose`). Defined in `lib/theme/palette.dart`. Existing habits keep their saved color string.
+- **Color-tinted row text** (opt-in): `habits.color` already tints the icon. New `colorIntensity` setting (`icon-only` (default) | `icon+text` | `bold-text`) controls whether the row's name text is also tinted, and at what weight. Stored in the `settings` table; the toggle's UI lands in Phase 6's settings dialog. Until Phase 6 the value defaults to `icon-only`.
+- **Habit-row note polish**: notes already render under the row. On desktop, hovering the row reveals a faint `+ note` chip when no note is set; right-click → `edit note` enters inline-edit mode (single-line `TextField` over the sub-line). Mobile note editing stays in the edit dialog (full inline edit comes in Phase 10's touch pass).
+- **Theme tokens**: extend `TH` with the new palette colors. Add dim variants (`TH.amberDim`, etc.) for when row text is tinted but should not compete with the active streak color.
+
+### Schema changes
+- Migration v4: add `groups.icon TEXT NULL`. Backfill `UPDATE groups SET icon = '▸'` so legacy rows aren't blank. The new picker writes any glyph; nullable means "no icon, render no slot".
+
+### Exit criteria
+- [ ] Icon picker shows ~100+ glyphs across 6+ categories; search narrows the grid live.
+- [ ] Selecting an icon updates the live preview in the create/edit dialog before save.
+- [ ] Existing habits keep their original icons (no migration on `habits.icon`).
+- [ ] Group header renders the chosen group icon; un-set falls back to `▸`.
+- [ ] Color picker shows the expanded palette; old habits keep their saved color string.
+- [ ] Right-click on a habit row → `edit note` enters inline edit mode and saves on Enter / blur.
+- [ ] No regressions from Phases 1–3.
+
+### Out of scope
+- User-uploaded custom icons (post-1.0).
+- Per-theme tinting that overrides the per-habit color (post-1.0).
+- Schedule history / progress preservation (Phase 5).
+
+---
+
+## Phase 5 — Schedule history & progress preservation (≈ 1.5 weeks)
 
 > After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit per `constitution.md §7`.
 
@@ -188,11 +221,11 @@
 ### Out of scope
 - Bulk schedule editing across multiple habits.
 - Editing `start_date` after history rows exist (block in this phase).
-- Surfacing schedule changes in stats view (Phase 6).
+- Surfacing schedule changes in stats view (Phase 7).
 
 ---
 
-## Phase 5 — Settings & preferences (≈ 1 week)
+## Phase 6 — Settings & preferences (≈ 1 week)
 
 > After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit per `constitution.md §7`.
 
@@ -225,11 +258,11 @@
 
 ### Out of scope
 - Per-habit settings (those live in the edit dialog from Phase 3).
-- Stats view, command palette polish, vacation mode, count/number tracking — all in Phase 6.
+- Stats view, command palette polish, vacation mode, count/number tracking — all in Phase 7.
 
 ---
 
-## Phase 6 — macOS Polish: stats, command palette, vacation, tracking types (≈ 2.5 weeks)
+## Phase 7 — macOS Polish: stats, command palette, vacation, tracking types (≈ 2.5 weeks)
 
 > After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit per `constitution.md §7`.
 
@@ -242,7 +275,7 @@
 - `VacationView` with palm-tree ASCII + extend/end actions.
 - `CommandPalette` polish: filter + arrow-nav + Enter dispatches; expand command set to include vacation, settings, archive, edit-focused.
 - Keyboard shortcuts wired per [input_spec.md](input_spec.md):
-  - `Cmd+V` vacation (settings already delivered in Phase 5).
+  - `Cmd+V` vacation (settings already delivered in Phase 6).
   - `space` to toggle focused habit row.
 - Tracking types: count, number, duration (`HH:mm` or `Nm` accumulator with target). (`health` still stubbed on Mac per D-007.)
 - Inspector pane content per current view.
@@ -259,7 +292,7 @@
 
 ---
 
-## Phase 7 — Per-day shield system (≈ 1.5 weeks)
+## Phase 8 — Per-day shield system (≈ 1.5 weeks)
 
 > After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit per `constitution.md §7`.
 
@@ -270,7 +303,7 @@
   - `day` is UTC-midnight-of-local-day (same convention as `completions.day`).
   - `source` ∈ `{'manual', 'auto'}`.
   - `UNIQUE` on `day` so a single day can hold at most one shield.
-- **Day-success definition** (depends on Phase 5 settings):
+- **Day-success definition** (depends on Phase 6 settings):
   - A day is *successful* when `dailyCompletionPct(day) >= minDailyCompletionPct` OR a row in `day_shields` exists for that day.
   - `dailyCompletionPct(day)` = `dueAndCompleted(day) / dueOnDay(day)` (vacation days excluded).
 - **Streak engine** is rewritten around day-success rather than per-habit completion. The new walker:
@@ -312,11 +345,11 @@
 
 ---
 
-## Phase 8 — Linux parity (≈ 1.5 weeks)
+## Phase 9 — Linux parity (≈ 1.5 weeks)
 
 > After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit per `constitution.md §7`.
 
-**Goal:** a `.deb` (and a tarball) that runs on Ubuntu 22.04+ with feature parity to macOS Phase 6.
+**Goal:** a `.deb` (and a tarball) that runs on Ubuntu 22.04+ with feature parity to macOS Phase 7.
 
 ### Scope
 - Linux build setup (clang, ninja, GTK 3, libsqlite3-dev).
@@ -329,7 +362,7 @@
 ### Exit criteria
 - [ ] `flutter build linux --release` produces a working binary.
 - [ ] `.deb` installs cleanly on Ubuntu 22.04 LTS (tested in VM).
-- [ ] Same feature set as Phase 6 works on Linux (run the same manual test script).
+- [ ] Same feature set as Phase 7 works on Linux (run the same manual test script).
 - [ ] System tray icon present and functional.
 - [ ] App launches under both Wayland and X11 sessions.
 
@@ -338,7 +371,7 @@
 
 ---
 
-## Phase 9 — Android adaptation (≈ 4 weeks)
+## Phase 10 — Android adaptation (≈ 4 weeks)
 
 > After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit per `constitution.md §7`.
 
@@ -377,7 +410,7 @@ This phase is the largest UX shift. See [input_spec.md](input_spec.md) §3 for t
 
 ---
 
-## Phase 10 — Optional cloud sync (post-1.0, deferred)
+## Phase 11 — Optional cloud sync (post-1.0, deferred)
 
 > After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit and tag `v1.0.0` per `constitution.md §7`.
 
@@ -396,7 +429,7 @@ This phase is the largest UX shift. See [input_spec.md](input_spec.md) §3 for t
 - [ ] Coming back online reconciles divergent edits without duplication.
 - [ ] Sign-out leaves the device fully usable in local-only mode.
 
-### Triggers to start Phase 10
+### Triggers to start Phase 11
 - Real user request for multi-device.
 - Phases 1–7 stable for at least 1 month.
 

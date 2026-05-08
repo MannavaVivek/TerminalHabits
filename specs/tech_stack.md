@@ -12,7 +12,7 @@
 | Dart | `>= 3.5.0` | Sealed classes + pattern matching are required for the command parser. |
 | Xcode | `>= 15.4` | macOS builds. |
 | Android SDK | compileSdk 34, minSdk 21, targetSdk 34 | See [build_spec.md](build_spec.md). |
-| Linux toolchain | clang, ninja, GTK 3 dev headers, `libsqlite3-dev` | Phase 8. |
+| Linux toolchain | clang, ninja, GTK 3 dev headers, `libsqlite3-dev` | Phase 9. |
 
 CI/CD is out of scope for v1 — local builds only. See `build_spec.md` §5.
 
@@ -62,11 +62,11 @@ Rules:
 |---|---|
 | `window_manager` | Frameless window, min size, transparency |
 | `macos_window_utils` | macOS-specific toolbar styles, vibrancy (Phase 1) |
-| `tray_manager` | System tray icon (Phase 8, Linux) |
-| `hotkey_manager` | Global show/hide hotkey (Phase 8+, optional) |
-| `multi_split_view` | Resizable sidebar/inspector (optional, Phase 6 polish) |
+| `tray_manager` | System tray icon (Phase 9, Linux) |
+| `hotkey_manager` | Global show/hide hotkey (Phase 9+, optional) |
+| `multi_split_view` | Resizable sidebar/inspector (optional, Phase 7 polish) |
 
-### Mobile only (Phase 9)
+### Mobile only (Phase 10)
 
 | Package | Purpose |
 |---|---|
@@ -90,7 +90,7 @@ Most charts (sparkline, contribution grid, day-of-week bars) are **custom-painte
 | `flutter_local_notifications` | No notifications in v1 (D-006). |
 | `firebase_*` | Use drift; Supabase is the eventual sync option, not Firebase. |
 | `provider`, `bloc`, `get`, `mobx` | Pick one state lib (Riverpod). |
-| `flutter_secure_storage` | No secrets to store in v1. Reintroduce with sync (Phase 10). |
+| `flutter_secure_storage` | No secrets to store in v1. Reintroduce with sync (Phase 11). |
 
 ---
 

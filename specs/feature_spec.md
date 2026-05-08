@@ -12,24 +12,27 @@
 | Daily view (checkbox habits) | Phase 1 | Core loop. |
 | Habit creation (checkbox tracking) | Phase 1 | `NewHabitDialog` (create only; edit/archive moved to Phase 3). |
 | Streaks for checkbox habits | Phase 1 | Pure-function recompute. |
-| Habit groups | Phase 1 | Read-only in Phase 1; editable in Phase 6. |
+| Habit groups | Phase 1 | Read-only in Phase 1; editable in Phase 7. |
 | UI refinement (header, week strip intensity, sidebar pointer) | Phase 2 | Visual baseline. Sidebar retains nav; daily view gets terminal-output-style header; week strip cells get a per-day completion-intensity bar. |
 | Group collapse + comment annotation | Phase 2 | `▼/▶` toggle persists; `groups.note` surfaces below header. |
 | Inline streak / clock annotation on rows | Phase 2 | `🔥 N` and `🕒 HH:mm` from `habits.target_time`. |
 | Habit editing (right-click / long-press) | Phase 3 | `EditHabitDialog` covers all fields. |
 | Habit start date | Phase 3 | `habits.start_date` filters back-dated daily view. |
-| Schedule history / progress preservation | Phase 4 | `habit_schedule_history` + "keep progress?" prompt. |
-| Tracking-type change with history | Phase 4 | Old completions remain valid under prior tracking. |
-| Settings (theme, font, behavior) | Phase 5 | `SettingsDialog` + typed `settings` table; includes `warnFutureToggle`, `firstDayOfWeek`, `weekStartsAtMidnight`. |
-| Stats view | Phase 6 | Overview, streaks, contributions, rates. |
-| Vacation mode | Phase 6 | Pause streak decay during a date range. |
-| Command palette (desktop) | Phase 6 | `Cmd+K` / `:` (basic palette stubbed in Phase 1). |
-| Count tracking | Phase 6 | "did N times today." |
-| Number tracking | Phase 6 | "logged N units" with unit string. |
-| Health tracking | Phase 9 | Auto-fill from Health Connect (Android). Manual entry on desktop. |
-| Mobile command grid | Phase 9 | Touch replacement for command palette. |
-| Tray icon | Phase 8 (Linux) | Show/hide window. |
-| Cloud sync | Phase 10 | Opt-in Supabase sync. |
+| Icon picker + group icons | Phase 4 | Curated `IconPickerDialog`; `groups.icon` adds icons to group headers. |
+| Expanded color palette + tinted text | Phase 4 | 12 colors instead of 6; opt-in `colorIntensity` setting tints row text. |
+| Inline note editing on rows | Phase 4 | Right-click → edit note. Mobile keeps dialog-based editing. |
+| Schedule history / progress preservation | Phase 5 | `habit_schedule_history` + "keep progress?" prompt. |
+| Tracking-type change with history | Phase 5 | Old completions remain valid under prior tracking. |
+| Settings (theme, font, behavior) | Phase 6 | `SettingsDialog` + typed `settings` table; includes `warnFutureToggle`, `firstDayOfWeek`, `weekStartsAtMidnight`. |
+| Stats view | Phase 7 | Overview, streaks, contributions, rates. |
+| Vacation mode | Phase 7 | Pause streak decay during a date range. |
+| Command palette (desktop) | Phase 7 | `Cmd+K` / `:` (basic palette stubbed in Phase 1). |
+| Count tracking | Phase 7 | "did N times today." |
+| Number tracking | Phase 7 | "logged N units" with unit string. |
+| Health tracking | Phase 10 | Auto-fill from Health Connect (Android). Manual entry on desktop. |
+| Mobile command grid | Phase 10 | Touch replacement for command palette. |
+| Tray icon | Phase 9 (Linux) | Show/hide window. |
+| Cloud sync | Phase 11 | Opt-in Supabase sync. |
 
 ---
 
@@ -124,7 +127,7 @@ Opened via `Cmd+N`, `:new`, or the `+` button (mobile).
 | Group | dropdown / new | yes | Falls back to "general" if not set. |
 | Icon | single char text | no | Defaults to `●`. Validated as 1 visible character. |
 | Color | enum | no | one of {green, amber, blue, purple, teal, red}. Default green. |
-| Tracking type | radio | yes | checkbox / count / number / health. (count/number Phase 6; health Phase 9.) |
+| Tracking type | radio | yes | checkbox / count / number / health. (count/number Phase 7; health Phase 10.) |
 | Target | int | conditional | required for count and number. |
 | Unit | text | conditional | shown only for number; e.g. "min", "pages", "ml". |
 | Schedule | toggle group | yes | Daily (default), Weekdays, Weekends, Custom (7 day toggles). |
@@ -193,7 +196,7 @@ Vacation days are ignored entirely (neither break nor extend streaks).
 
 ---
 
-## 7. Stats view (Phase 6)
+## 7. Stats view (Phase 7)
 
 Five blocks, stacked. Each block is a `DecoratedBox` with a 1px border.
 
@@ -224,7 +227,7 @@ Five blocks, stacked. Each block is a `DecoratedBox` with a 1px border.
 
 ---
 
-## 8. Settings dialog (Phase 6)
+## 8. Settings dialog (Phase 7)
 
 Two-pane modal. Left: section list. Right: section body.
 
@@ -245,7 +248,7 @@ Two-pane modal. Left: section list. Right: section body.
    - Version, build number, Flutter version.
    - Link to repo (URL — opens via `url_launcher`).
 
-No "sign in" section until Phase 10.
+No "sign in" section until Phase 11.
 
 ---
 

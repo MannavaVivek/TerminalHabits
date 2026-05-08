@@ -33,10 +33,10 @@ Re-run codegen any time a `freezed` or drift class changes.
 # macOS dev
 flutter run -d macos
 
-# Linux dev (Phase 8+)
+# Linux dev (Phase 9+)
 flutter run -d linux
 
-# Android dev (Phase 9+)
+# Android dev (Phase 10+)
 flutter run -d android   # device must be connected with USB debugging
 ```
 
@@ -56,7 +56,7 @@ flutter build macos --release
 | File | Setting |
 |---|---|
 | `macos/Runner/Info.plist` | `LSApplicationCategoryType = public.app-category.productivity`. `CFBundleName = TerminalHabits`. |
-| `macos/Runner/DebugProfile.entitlements` | `com.apple.security.app-sandbox = true`, `com.apple.security.network.client = true` (Phase 10 sync only — leave off until then). |
+| `macos/Runner/DebugProfile.entitlements` | `com.apple.security.app-sandbox = true`, `com.apple.security.network.client = true` (Phase 11 sync only — leave off until then). |
 | `macos/Runner/Release.entitlements` | Same as Debug, plus `com.apple.security.files.user-selected.read-write = true` for export/import. |
 | `macos/Runner/Base.lproj/MainMenu.xib` | Default Flutter — no edits. |
 | `macos/Podfile` | Set `platform :osx, '10.14'`. |
@@ -105,7 +105,7 @@ Until then, dogfooding builds will show the "unidentified developer" Gatekeeper 
 
 ---
 
-## 3. Linux (Phase 8+)
+## 3. Linux (Phase 9+)
 
 ### System dependencies
 
@@ -133,7 +133,7 @@ flutter_distributor package --platform linux --targets deb,zip
 # → dist/terminal-habits-<version>-linux.zip
 ```
 
-`distribute_options.yaml` lives at repo root. Phase 8 adds it.
+`distribute_options.yaml` lives at repo root. Phase 9 adds it.
 
 ### Tray icon
 
@@ -141,7 +141,7 @@ Place `assets/tray_icon.png` (32×32, monochrome). `tray_manager` reads it via `
 
 ### Wayland vs X11
 
-Frameless windows (`titleBarStyle: hidden`) work under both, but test both manually before declaring Phase 8 done. On older systems, force X11 with:
+Frameless windows (`titleBarStyle: hidden`) work under both, but test both manually before declaring Phase 9 done. On older systems, force X11 with:
 
 ```bash
 GDK_BACKEND=x11 ./terminal_habits
@@ -149,7 +149,7 @@ GDK_BACKEND=x11 ./terminal_habits
 
 ---
 
-## 4. Android (Phase 9+)
+## 4. Android (Phase 10+)
 
 ### Native config
 
@@ -179,7 +179,7 @@ flutter build appbundle --release
 # → build/app/outputs/bundle/release/app-release.aab
 ```
 
-### Signing (Phase 9 dogfooding)
+### Signing (Phase 10 dogfooding)
 
 For dogfooding, debug-signed APKs are fine (`flutter build apk --debug`). For release signing, generate a keystore once:
 
@@ -232,11 +232,12 @@ version: 0.1.0+1     # semver+build_number
 - Phase 3 → `0.2.2`
 - Phase 4 → `0.2.3`
 - Phase 5 → `0.2.4`
-- Phase 6 → `0.3.0`
-- Phase 7 → `0.3.1`
-- Phase 8 → `0.4.0`
-- Phase 9 → `0.5.0` (first cross-platform build)
-- Phase 10 → `1.0.0` (first sync-capable build)
+- Phase 6 → `0.2.5`
+- Phase 7 → `0.3.0`
+- Phase 8 → `0.3.1`
+- Phase 9 → `0.4.0`
+- Phase 10 → `0.5.0` (first cross-platform build)
+- Phase 11 → `1.0.0` (first sync-capable build)
 
 Build number increments on every release artifact, even pre-release. macOS reads it as `CFBundleVersion`; Android reads it as `versionCode`.
 
