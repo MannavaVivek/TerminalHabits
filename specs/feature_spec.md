@@ -10,19 +10,26 @@
 |---|---|---|
 | Splash + onboarding | Phase 0 | Decorative + first-run hook. |
 | Daily view (checkbox habits) | Phase 1 | Core loop. |
-| Habit CRUD (checkbox tracking) | Phase 1 | Create / edit / archive. |
+| Habit creation (checkbox tracking) | Phase 1 | `NewHabitDialog` (create only; edit/archive moved to Phase 3). |
 | Streaks for checkbox habits | Phase 1 | Pure-function recompute. |
-| Habit groups | Phase 1 | Editable, expandable. |
-| Stats view | Phase 2 | Overview, streaks, contributions, rates. |
-| Vacation mode | Phase 2 | Pause streak decay during a date range. |
-| Settings (theme, font) | Phase 2 | Theme switching, font size, font family. |
-| Command palette (desktop) | Phase 2 | `Cmd+K` / `:` |
-| Count tracking | Phase 2 | "did N times today." |
-| Number tracking | Phase 2 | "logged N units" with unit string. |
-| Health tracking | Phase 4 | Auto-fill from Health Connect (Android). Manual entry on desktop. |
-| Mobile command grid | Phase 4 | Touch replacement for command palette. |
-| Tray icon | Phase 3 (Linux) | Show/hide window. |
-| Cloud sync | Phase 5 | Opt-in Supabase sync. |
+| Habit groups | Phase 1 | Read-only in Phase 1; editable in Phase 6. |
+| UI refinement (top tabs, header, week strip intensity) | Phase 2 | Visual baseline matching `design_spec.md` mockup. |
+| Group collapse + comment annotation | Phase 2 | `▼/▶` toggle persists; `groups.note` surfaces below header. |
+| Inline streak / clock annotation on rows | Phase 2 | `🔥 N` and `🕒 HH:mm` from `habits.target_time`. |
+| Habit editing (right-click / long-press) | Phase 3 | `EditHabitDialog` covers all fields. |
+| Habit start date | Phase 3 | `habits.start_date` filters back-dated daily view. |
+| Schedule history / progress preservation | Phase 4 | `habit_schedule_history` + "keep progress?" prompt. |
+| Tracking-type change with history | Phase 4 | Old completions remain valid under prior tracking. |
+| Settings (theme, font, behavior) | Phase 5 | `SettingsDialog` + typed `settings` table; includes `warnFutureToggle`, `firstDayOfWeek`, `weekStartsAtMidnight`. |
+| Stats view | Phase 6 | Overview, streaks, contributions, rates. |
+| Vacation mode | Phase 6 | Pause streak decay during a date range. |
+| Command palette (desktop) | Phase 6 | `Cmd+K` / `:` (basic palette stubbed in Phase 1). |
+| Count tracking | Phase 6 | "did N times today." |
+| Number tracking | Phase 6 | "logged N units" with unit string. |
+| Health tracking | Phase 9 | Auto-fill from Health Connect (Android). Manual entry on desktop. |
+| Mobile command grid | Phase 9 | Touch replacement for command palette. |
+| Tray icon | Phase 8 (Linux) | Show/hide window. |
+| Cloud sync | Phase 10 | Opt-in Supabase sync. |
 
 ---
 
@@ -117,7 +124,7 @@ Opened via `Cmd+N`, `:new`, or the `+` button (mobile).
 | Group | dropdown / new | yes | Falls back to "general" if not set. |
 | Icon | single char text | no | Defaults to `●`. Validated as 1 visible character. |
 | Color | enum | no | one of {green, amber, blue, purple, teal, red}. Default green. |
-| Tracking type | radio | yes | checkbox / count / number / health. (count/number Phase 2; health Phase 4.) |
+| Tracking type | radio | yes | checkbox / count / number / health. (count/number Phase 6; health Phase 9.) |
 | Target | int | conditional | required for count and number. |
 | Unit | text | conditional | shown only for number; e.g. "min", "pages", "ml". |
 | Schedule | toggle group | yes | Daily (default), Weekdays, Weekends, Custom (7 day toggles). |
@@ -186,7 +193,7 @@ Vacation days are ignored entirely (neither break nor extend streaks).
 
 ---
 
-## 7. Stats view (Phase 2)
+## 7. Stats view (Phase 6)
 
 Five blocks, stacked. Each block is a `DecoratedBox` with a 1px border.
 
@@ -217,7 +224,7 @@ Five blocks, stacked. Each block is a `DecoratedBox` with a 1px border.
 
 ---
 
-## 8. Settings dialog (Phase 2)
+## 8. Settings dialog (Phase 6)
 
 Two-pane modal. Left: section list. Right: section body.
 
@@ -238,7 +245,7 @@ Two-pane modal. Left: section list. Right: section body.
    - Version, build number, Flutter version.
    - Link to repo (URL — opens via `url_launcher`).
 
-No "sign in" section until Phase 5.
+No "sign in" section until Phase 10.
 
 ---
 

@@ -39,7 +39,7 @@
 
 ## Phase 1 — macOS MVP: Daily view + habits CRUD (≈ 3 weeks)
 
-> After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit per `constitution.md §7`.
+**Completed: 2026-05-08**
 
 **Goal:** a usable daily habit tracker on macOS. You can create habits, see them today, check them off, and the streak count is correct tomorrow.
 
@@ -51,63 +51,270 @@
 - Three-pane layout (Sidebar | Main | Inspector). Inspector can be a stub showing "no selection."
 - `DailyView` with prompt line, week strip, habit groups, habit rows.
   - Tap to toggle completion (checkbox tracking type only in this phase).
-  - Long-press → context menu (edit, archive).
 - `NewHabitDialog` — checkbox tracking type only. Other types (count, number, health) show as disabled in this phase.
 - Streak engine for checkbox habits. Display in habit row + inspector.
 - Sidebar nav: Daily / Stats (stub) / Profile (stub).
 - Status bar with view name + version.
+- Day navigation: `selectedDayProvider`, week-strip arrows + day tap; toggle and habit-list filtering respect selected day.
+- Basic command palette stub (`⌘K`) and habit-row j/k keyboard navigation.
 
 ### Exit criteria
-- [ ] Create 5 habits in 3 groups; check 3 of them; quit and relaunch — state restored.
-- [ ] Streak count increments correctly the day after a check; resets the day after a miss.
-- [ ] Schedule honored: a "weekdays only" habit doesn't show on Saturday.
-- [ ] All `domain/` unit tests pass with ≥90% coverage.
-- [ ] No Material ripples visible anywhere; tap a habit row, no animation beyond a 1-frame opacity flash.
-- [ ] App data lives at `~/Library/Application Support/TerminalHabits/db.sqlite`.
+- [x] Create 5 habits in 3 groups; check 3 of them; quit and relaunch — state restored.
+- [x] Streak count increments correctly the day after a check; resets the day after a miss.
+- [x] Schedule honored: a "weekdays only" habit doesn't show on Saturday.
+- [x] All `domain/` unit tests pass with ≥90% coverage.
+- [x] No Material ripples visible anywhere; tap a habit row, no animation beyond a 1-frame opacity flash.
+- [x] App data lives at `~/Library/Application Support/TerminalHabits/db.sqlite`.
 
 ### Out of scope
-- Stats view, vacation, settings dialog, command palette, count/number/health tracking types.
+- Stats view, vacation, settings dialog, full command palette, count/number/health tracking types, habit editing, schedule history.
 
 ---
 
-## Phase 2 — macOS Polish: stats, command palette, settings (≈ 3 weeks)
+## Phase 2 — UI refinement: header, week strip, group polish (≈ 1 week)
 
 > After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit per `constitution.md §7`.
 
-**Goal:** the Mac app feels complete. All features in `feature_spec.md` work on macOS.
+**Goal:** the daily view matches the visual baseline in `design_spec.md` §UI-mockup. Header behaves like a real terminal output, the week strip is informative at a glance, and groups feel terminal-native.
+
+### Scope
+- **Top tab bar** in `WindowChrome` replaces the sidebar nav (habits / stats / profile), each underlined when active. Sidebar is removed; the `[ + new habit ]` button moves to a `+` icon at the right edge of the tab bar (or a top-right floating control). Native macOS traffic lights still occupy the left 72px.
+- **Daily view header** (in order, top to bottom):
+  - `{userName}@TerminalHabits $ daily` — terminal prompt line.
+  - `// {N} completions. {dynamic motivational comment}` — comment line; copy chosen from a fixed pool keyed off completion count buckets.
+  - `📆 {Weekday}, {Month} {Day} {Year}` — calendar icon + selected-day label.
+  - `🔥 {totalCurrentStreak} days * 🛡 {totalShields}` — aggregate streak/shield summary across active habits on the selected day.
+- **Week strip** redesign:
+  - Day-of-week labels above day numbers (`Mon` / `23`).
+  - Selected day prefixed with `*` and rendered with `TH.bg3` background.
+  - Below each day cell: a thin completion-intensity bar — width × height proportional to `completionsThatDay / habitsDueThatDay` (clamped 0..1), rendered with `TH.amber`.
+  - `<` / `>` arrows on either side, week-stride navigation.
+- **Habit groups**:
+  - Collapsible chevron `▼` (open) / `▶` (closed); state persists via `groups.collapsed` (column already exists; wire it up).
+  - Header shows `[done/total]` count next to the group icon and name.
+  - Optional comment annotation (`// after waking up`) — surfaced from a new `groups.note` text column.
+  - **Group CRUD**: `NewHabitDialog` and `EditHabitDialog` get a `Group` dropdown with an inline "+ new group" entry that creates a group on the spot. Long-press on a group header → menu (`rename`, `delete`). Deleting a group with habits prompts to reassign or cascade-delete.
+- **Habit rows**:
+  - Inline streak `🔥 N` aligned to the right of the habit name.
+  - Optional clock annotation `🕒 HH:mm` if a target time is set — surfaced from a new `habits.target_time` column.
+  - Sub-comment line (`// no snoozing`) below the row when `habits.note` is set.
+
+### Schema changes
+- Migration v2: add `groups.note TEXT NULL`, `habits.target_time TEXT NULL` (HH:mm string in 24-hour).
+
+### Exit criteria
+- [ ] Top tab bar replaces sidebar; ⌘1/2/3 still switches views.
+- [ ] Header renders prompt, comment, calendar date, and streak summary; values reflect `selectedDayProvider`.
+- [ ] Week strip intensity bars correctly reflect completion ratios across at least 30 days of seeded data.
+- [ ] Collapsing a group hides its rows and persists across restart.
+- [ ] Habit row shows streak/clock/note annotations from new columns.
+- [ ] No regressions from Phase 1.
+
+### Out of scope
+- Habit editing UX, start dates, schedule history (Phase 3 / Phase 4).
+- Stats view, vacation, settings dialog.
+
+---
+
+## Phase 3 — Habit editing & start date (≈ 1 week)
+
+> After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit per `constitution.md §7`.
+
+**Goal:** any habit field is editable from the UI. Habits respect a start date, so back-dated views don't show habits that didn't exist yet.
+
+### Scope
+- **Right-click on habit row** (PC) and **long-press** (Android stub, full coverage in Phase 9) → context menu: `edit`, `archive`, `delete`. Use `Listener` or `GestureDetector` with secondary-tap.
+- **`EditHabitDialog`**: same fields as `NewHabitDialog` plus:
+  - `note` (textarea, multi-line).
+  - `startDate` (date picker; defaults to `created_at` for existing habits).
+  - `targetTime` (optional HH:mm picker).
+  - `groupId` (dropdown of existing groups).
+  - `tracking` (read-only in this phase if existing completions exist; editable only if completions table is empty for this habit).
+- **Schedule changes** in this phase do **not** preserve old data — they overwrite. The dialog warns: "Changing the schedule will overwrite past completion validity. Continue? (Phase 4 will preserve history.)" This warning is only shown if completions exist on days no longer covered by the new schedule.
+- **Start date enforcement**: `dailyStateProvider` filters habits by `selectedDay >= habit.startDate`. Streak engine only walks dates `>= startDate`.
+- **Archive flow**: sets `archivedAt`; archived habits stay in DB and remain visible in stats but don't appear in daily view.
+- **Delete flow**: confirmation dialog, then cascades — deletes habit + all its completions.
+
+### Schema changes
+- Migration v3: add `habits.start_date DATETIME NOT NULL`. Backfill from `created_at` for existing rows.
+
+### Exit criteria
+- [ ] Right-click on a habit row opens the context menu; selecting `edit` opens `EditHabitDialog` populated with current values.
+- [ ] Saving the dialog persists changes immediately; UI updates without restart.
+- [ ] A habit with `startDate` 7 days ago does not appear when navigating to a day older than that.
+- [ ] Archive removes habit from daily view; delete removes it everywhere (with confirmation).
+- [ ] All Phase 1 / Phase 2 features still work.
+
+### Out of scope
+- "Keep old progress" prompt for schedule changes (Phase 4).
+- Tracking-type changes when completions exist (Phase 4 once history exists).
+
+---
+
+## Phase 4 — Schedule history & progress preservation (≈ 1.5 weeks)
+
+> After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit per `constitution.md §7`.
+
+**Goal:** changing a habit's schedule or tracking type can preserve past completion validity. A daily-then-weekend habit shows correctly on weekdays before the change and weekends after.
+
+### Scope
+- **New table** `habit_schedule_history`:
+  - `id INTEGER PK`, `habit_id INTEGER FK`, `effective_from DATETIME (UTC midnight)`, `schedule TEXT (JSON)`, `tracking TEXT`, `created_at DATETIME`.
+  - Index on `(habit_id, effective_from DESC)` for the lookup query.
+- **Insert-on-create**: when a habit is created, also insert one history row with `effective_from = start_date` and the current schedule + tracking.
+- **Edit dialog flow**: when the user changes `schedule` or `tracking` and saves, the dialog prompts:
+  > Keep progress for past days?
+  > [ keep history ] applies the new schedule from today forward; old completions stay valid on the days they were due.
+  > [ overwrite ] replaces the schedule retroactively for all dates.
+  - **keep history** → insert a new history row with `effective_from = today_utc`. Older rows untouched.
+  - **overwrite** → delete all history rows; insert a single row with `effective_from = start_date` and the new values.
+- **Lookup helper** `effectiveScheduleAt(habitId, dayUtc)` returns the most recent history row with `effective_from <= dayUtc`.
+- **Update `isHabitDueOn`** and **streak engine** to call `effectiveScheduleAt` per day instead of reading `habits.schedule` directly.
+- **Inspector pane** gains a "schedule history" section listing entries with their effective dates.
+
+### Schema changes
+- Migration v4: create `habit_schedule_history`. On migration: for every existing habit, insert one row with `effective_from = habit.start_date`, `schedule = habit.schedule`, `tracking = habit.tracking`.
+- Once the history table is the source of truth, `habits.schedule` and `habits.tracking` columns become **mirror columns** of the most-recent history row (kept for query convenience). Repository writes update both.
+
+### Exit criteria
+- [ ] Create a `daily` habit, log completions for a week, change to `weekends`, choose **keep history**: weekday completions remain visible and counted in streak; from the change date forward, the habit only appears Sat/Sun.
+- [ ] Change a checkbox habit to count, choose **keep history**: old checkbox completions remain visible and counted as 1.
+- [ ] Choosing **overwrite** wipes prior validity — past completions on no-longer-scheduled days disappear from the daily view.
+- [ ] `dailyStateProvider` and the streak engine produce the same results as Phase 1 for habits whose schedule has never changed (regression check via existing tests, augmented with backfilled history rows).
+- [ ] Inspector "schedule history" section lists entries with their effective dates.
+
+### Out of scope
+- Bulk schedule editing across multiple habits.
+- Editing `start_date` after history rows exist (block in this phase).
+- Surfacing schedule changes in stats view (Phase 6).
+
+---
+
+## Phase 5 — Settings & preferences (≈ 1 week)
+
+> After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit per `constitution.md §7`.
+
+**Goal:** a real settings surface where the user can change appearance and tweak app behavior. Replaces ad-hoc `SharedPreferences` keys scattered across the codebase with a single typed settings layer.
+
+### Scope
+- **`SettingsDialog`** (opened via `Cmd+,` or command-palette `settings`):
+  - **Appearance** group: theme switcher (6 themes), font size pills, font family preview cards. Theme switching is instant, no animation.
+  - **Behavior** group:
+    - `allowFutureMarking` (bool, default `false`) — overrides the hard-disable from Phase 1. When `false`, tapping the checkbox on a future day shows the "[ understood ]" notice. When `true`, marking is permitted with no warning.
+    - `minDailyCompletionPct` (int 0–100, default `60`) — the minimum percentage of due habits completed for a day to count as a "successful day" in stats and in the per-day shield system (see Backlog). Surfaces in the week-strip intensity bar and in stats grouping.
+    - `firstDayOfWeek` (enum, default `monday`) — controls week strip layout and stats grouping.
+    - `weekStartsAtMidnight` (bool, default `true`) — if false, "today" rolls over at a user-chosen hour (e.g. 4 AM for night-owls). Affects `localMidnightUtc` semantics.
+    - `confirmDestructive` (bool, default `true`) — show confirms for archive/delete (delete is always confirmed; archive becomes silent if false).
+  - **About** group: version, build mode, data location, "view memory" link to the data file.
+- **Settings persistence**: introduce a `SettingsRepository` backed by the existing `app_settings` Drift table (already in schema). All bool/string prefs migrate from `SharedPreferences` to this table over the course of the phase. `SharedPreferences` is then reserved for first-run flags only (`seenSplash`, `seenOnboarding`).
+- `settingsProvider` (Riverpod `AsyncNotifier`) exposes the settings record; UI watches it and writes back through the notifier.
+- `Cmd+,` keyboard shortcut wired on macOS / Linux. The command palette's "settings" command opens the same dialog.
+- Inspector pane shows nothing about settings (settings are global, not selection-scoped).
+
+### Schema changes
+- No table changes. The existing `settings (key TEXT PK, value TEXT)` table is reused; the repository typecasts on read.
+
+### Exit criteria
+- [ ] Settings dialog opens via `Cmd+,` and via the command palette.
+- [ ] Switching theme updates colors instantly across all visible widgets without restart.
+- [ ] Setting `allowFutureMarking = true` permits checkbox toggles on future days; `false` (default) keeps the "[ understood ]" notice.
+- [ ] All settings persist across app restart.
+- [ ] Old `SharedPreferences`-backed settings (e.g. `warnFutureToggle`) are migrated to the `settings` table on first launch after the upgrade.
+
+### Out of scope
+- Per-habit settings (those live in the edit dialog from Phase 3).
+- Stats view, command palette polish, vacation mode, count/number tracking — all in Phase 6.
+
+---
+
+## Phase 6 — macOS Polish: stats, command palette, vacation, tracking types (≈ 2.5 weeks)
+
+> After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit per `constitution.md §7`.
+
+**Goal:** the Mac app feels complete. All remaining features in `feature_spec.md` work on macOS.
 
 ### Scope
 - `StatsView` blocks: Overview, Streaks, Rates, Contributions (custom-painted), DayOfWeek bars.
 - `Sparkline` widget (custom-painted).
-- `ContributionGrid` widget (custom-painted, 5 levels of green via `Color.lerp`).
+- `ContributionGrid` widget (custom-painted, 5 levels of green via `Color.lerp`). Honors schedule history.
 - `VacationView` with palm-tree ASCII + extend/end actions.
-- `SettingsDialog`: theme switcher (6 themes), font size pills, font preview cards.
-- `CommandPalette` (`Cmd+K` / `:`): filter + arrow-nav + Enter dispatches.
+- `CommandPalette` polish: filter + arrow-nav + Enter dispatches; expand command set to include vacation, settings, archive, edit-focused.
 - Keyboard shortcuts wired per [input_spec.md](input_spec.md):
-  - `Cmd+1/2/3` view switch, `Cmd+N` new habit, `Cmd+V` vacation, `Cmd+,` settings.
-  - `j/k`/arrow + `space` for habit row navigation in DailyView.
-- Tracking types: count, number. (`health` still stubbed on Mac per D-007.)
+  - `Cmd+V` vacation (settings already delivered in Phase 5).
+  - `space` to toggle focused habit row.
+- Tracking types: count, number, duration (`HH:mm` or `Nm` accumulator with target). (`health` still stubbed on Mac per D-007.)
 - Inspector pane content per current view.
-- Theme switching (instant, no animation).
 
 ### Exit criteria
-- [ ] All 6 themes selectable and persist across restarts.
 - [ ] Command palette opens in <50 ms, filters live, Enter dispatches.
 - [ ] All keyboard shortcuts in `input_spec.md` table work.
-- [ ] Stats view contributions grid renders 365 days correctly across DST boundaries.
+- [ ] Stats view contributions grid renders 365 days correctly across DST boundaries and across schedule-history changes.
 - [ ] Vacation mode pauses streak decay (verified by test).
-- [ ] No regressions from Phase 1.
+- [ ] No regressions from Phases 1–5.
 
 ### Out of scope
 - Linux build, Android build, sync.
 
 ---
 
-## Phase 3 — Linux parity (≈ 1.5 weeks)
+## Phase 7 — Per-day shield system (≈ 1.5 weeks)
 
 > After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit per `constitution.md §7`.
 
-**Goal:** a `.deb` (and a tarball) that runs on Ubuntu 22.04+ with feature parity to macOS Phase 2.
+**Goal:** replace the per-habit shield counter (Phase 1) with a per-day shield concept that acts as a real recovery mechanism. A shielded day counts as a successful day for streak purposes whether you applied the shield manually, the system auto-applied one at end-of-day, or you back-filled the day to clear it on its own.
+
+### Scope
+- **New table** `day_shields(id INTEGER PK, day DATETIME UNIQUE, source TEXT, applied_at DATETIME)`.
+  - `day` is UTC-midnight-of-local-day (same convention as `completions.day`).
+  - `source` ∈ `{'manual', 'auto'}`.
+  - `UNIQUE` on `day` so a single day can hold at most one shield.
+- **Day-success definition** (depends on Phase 5 settings):
+  - A day is *successful* when `dailyCompletionPct(day) >= minDailyCompletionPct` OR a row in `day_shields` exists for that day.
+  - `dailyCompletionPct(day)` = `dueAndCompleted(day) / dueOnDay(day)` (vacation days excluded).
+- **Streak engine** is rewritten around day-success rather than per-habit completion. The new walker:
+  - Iterates from `min(habit.start_date, oldest completion)` to today (per-habit walk is replaced with a single per-day walk because shields are global).
+  - Skips non-due days (no habit due) and vacation days.
+  - For each "active" day: success → run++, miss → run = 0.
+  - Per-habit streaks become *derived* (consecutive completed-due days for that habit, with no shield logic).
+- **Shield earning**: every N consecutive successful days earns 1 shield to the available pool. `N` defaults to 7, configurable in settings (`shieldEarnInterval`). Earned shields live in a single `available_shields` counter (kept in `settings`).
+- **Manual apply / remove**: right-click on a day cell in the week strip → menu (`apply shield`, `remove shield`). On Android, long-press. Removing returns the shield to the available pool. Applying to a future day is allowed (planned travel).
+- **Auto-apply at end-of-day**: at app launch, scan all calendar days from the last-seen date to yesterday. For each:
+  - If success without shield → no-op.
+  - If miss and `available_shields > 0` → insert `day_shields(day, 'auto', now)` and decrement available pool.
+  - If miss and no shields → leave as miss (streak breaks normally).
+- **Auto-recovery**: when `dailyCompletionPct(day) >= min` for a day that has a `source='auto'` shield, the shield is released (row deleted, available pool incremented). Triggered by the same launch-scan and by any completion write that touches a previously-shielded day.
+- **UI surfacing**:
+  - Week-strip day cell renders a small `🛡` overlay when the day has a shield (color differs by `source`: amber for manual, dim for auto).
+  - Aggregate header reads `🛡 {available}` (the pool), not the old per-habit count.
+  - Inspector pane on a day-cell focus shows `applied_at` and `source`.
+- **Migration cleanup**:
+  - Drop the per-habit `StreakResult.shields` field (or keep it set to 0 for compatibility while UI moves over).
+  - Old habit-row `🛡 N` annotation is removed.
+
+### Schema changes
+- Migration v5: create `day_shields`. Add `available_shields` row to `settings` initialized to 0. Add `shieldEarnInterval` setting (default 7).
+
+### Exit criteria
+- [ ] Right-click a past day in the week strip → "apply shield"; the day's intensity bar gets a 🛡 overlay and the streak immediately recomputes through it.
+- [ ] Right-click again → "remove shield"; shield returns to the pool, streak recomputes without it.
+- [ ] Apply a shield to a future day; on the day itself, that shield holds even if no habits are completed.
+- [ ] Quit at end of day after a partial day (below `minDailyCompletionPct`) with shields available; relaunch next day → yesterday auto-shielded, banner notifies.
+- [ ] Back-fill an auto-shielded day to clear the threshold → shield auto-returns to pool.
+- [ ] Per-habit streak still computes correctly without shield interaction.
+- [ ] No regressions in Phases 1–6.
+
+### Out of scope
+- Earning shields by manual purchase or vacation conversion (Backlog).
+- Multiple shields per day.
+- Removing a shield from a past day that's load-bearing for a multi-week streak: allowed, the streak just breaks. No special warning in this phase.
+
+---
+
+## Phase 8 — Linux parity (≈ 1.5 weeks)
+
+> After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit per `constitution.md §7`.
+
+**Goal:** a `.deb` (and a tarball) that runs on Ubuntu 22.04+ with feature parity to macOS Phase 6.
 
 ### Scope
 - Linux build setup (clang, ninja, GTK 3, libsqlite3-dev).
@@ -120,7 +327,7 @@
 ### Exit criteria
 - [ ] `flutter build linux --release` produces a working binary.
 - [ ] `.deb` installs cleanly on Ubuntu 22.04 LTS (tested in VM).
-- [ ] Same feature set as Phase 2 works on Linux (run the same manual test script).
+- [ ] Same feature set as Phase 6 works on Linux (run the same manual test script).
 - [ ] System tray icon present and functional.
 - [ ] App launches under both Wayland and X11 sessions.
 
@@ -129,7 +336,7 @@
 
 ---
 
-## Phase 4 — Android adaptation (≈ 4 weeks)
+## Phase 9 — Android adaptation (≈ 4 weeks)
 
 > After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit per `constitution.md §7`.
 
@@ -139,13 +346,13 @@ This phase is the largest UX shift. See [input_spec.md](input_spec.md) §3 for t
 
 ### Scope
 - Single-pane layout under `LayoutBuilder` breakpoint `<720px`:
-  - Bottom tab bar replaces sidebar (Daily / Stats / Profile, 3 tabs).
+  - Bottom tab bar replaces top tabs (Daily / Stats / Profile, 3 tabs) on phones; the desktop top-tab pattern from Phase 2 is preserved on tablets.
   - Inspector content collapses into bottom-sheet drawer, opened via swipe-up or button.
   - Window chrome and status bar are hidden; system status bar styled to match.
 - `MobileCommandBridge`: a `GridView` of bordered command buttons that replaces the command palette. Buttons dispatch the same `Intent`s as the desktop palette.
 - Touch affordances:
   - Tap target minimum 48dp.
-  - Long-press → context menu (edit, archive).
+  - Long-press → context menu (edit, archive) — promoted from Phase 3 stub.
   - Swipe-right on habit row → quick edit.
   - Haptic light impact on every button press.
 - `health_connect` integration for the `[health]` tracking type (steps, sleep).
@@ -155,7 +362,7 @@ This phase is the largest UX shift. See [input_spec.md](input_spec.md) §3 for t
 
 ### Exit criteria
 - [ ] `.apk` installs and runs on Android 7.0 (minSdk 21) and Android 14.
-- [ ] Same feature set as Phase 2 + 3 works via touch only — no keyboard plugged in.
+- [ ] Same feature set as Phases 5 + 6 works via touch only — no keyboard plugged in.
 - [ ] One full week of dogfooding on a personal Android device with no critical bugs.
 - [ ] Health Connect wires `[health]` habits to step count.
 - [ ] `.apk` size under 30 MB.
@@ -168,14 +375,14 @@ This phase is the largest UX shift. See [input_spec.md](input_spec.md) §3 for t
 
 ---
 
-## Phase 5 — Optional cloud sync (post-1.0, deferred)
+## Phase 10 — Optional cloud sync (post-1.0, deferred)
 
 > After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit and tag `v1.0.0` per `constitution.md §7`.
 
 **Goal:** opt-in multi-device sync. User signs in once on each device; habits and completions converge.
 
 ### Scope (tentative)
-- Supabase project: `auth.users`, mirror tables for `habits`, `completions`, `groups`, `vacations`, `settings`.
+- Supabase project: `auth.users`, mirror tables for `habits`, `completions`, `groups`, `vacations`, `settings`, `habit_schedule_history`.
 - `SyncRepository` layer between `state/` and `data/`. Local writes are authoritative; sync is async.
 - Conflict resolution: last-write-wins per row, with a "last edited" timestamp column.
 - Sign-in UI in Settings; sign-out clears remote credentials but preserves local DB.
@@ -187,9 +394,9 @@ This phase is the largest UX shift. See [input_spec.md](input_spec.md) §3 for t
 - [ ] Coming back online reconciles divergent edits without duplication.
 - [ ] Sign-out leaves the device fully usable in local-only mode.
 
-### Triggers to start Phase 5
+### Triggers to start Phase 10
 - Real user request for multi-device.
-- Phases 1–4 stable for at least 1 month.
+- Phases 1–7 stable for at least 1 month.
 
 ---
 
@@ -206,3 +413,14 @@ Every phase must pass these before being considered complete:
 ## Velocity assumptions
 
 The week estimates above assume one developer working on this part-time. Treat them as relative sizing, not commitments. The exit criteria are the hard contract; weeks are not.
+
+---
+
+## Backlog (unphased)
+
+Ideas that are committed to ship eventually but not yet slotted into a phase. Promote to a numbered phase when prioritized; renumber subsequent phases as needed.
+
+### Other unphased ideas
+- Bulk import / export (`.json`).
+- Habit templates ("morning routine pack").
+- Per-habit reminders (revisit D-006 — only with explicit opt-in toggle).

@@ -146,6 +146,16 @@ MigrationStrategy get migration => MigrationStrategy(
 
 Migrations are append-only. Never edit a past migration once shipped — write a new one. Phase 1 ships with `schemaVersion = 1`.
 
+### Planned migrations (per [roadmap.md](roadmap.md))
+
+These are committed in scope; column-level details get fleshed out here in the PR that introduces each phase.
+
+| Version | Phase | Adds |
+|---|---|---|
+| v2 | Phase 2 | `groups.note TEXT NULL`; `habits.target_time TEXT NULL` (HH:mm 24h). |
+| v3 | Phase 3 | `habits.start_date DATETIME NOT NULL` (backfilled from `created_at`). |
+| v4 | Phase 4 | `habit_schedule_history(id, habit_id, effective_from, schedule, tracking, created_at)` with `(habit_id, effective_from DESC)` index. Backfills one row per habit. After v4, `habits.schedule` and `habits.tracking` mirror the most-recent history row. |
+
 ---
 
 ## 6. Streak algorithm
@@ -246,7 +256,7 @@ Import:
 3. On confirm: open a transaction, truncate all tables, insert from import. No merge mode in v1.
 4. On any error inside the transaction: rollback, show error, leave existing DB intact.
 
-Sync (Phase 5) uses a different transport but the same logical shape per row.
+Sync (Phase 10) uses a different transport but the same logical shape per row.
 
 ---
 

@@ -122,7 +122,7 @@ Always 1px. Bordered boxes use `Border.all(width: 1, color: TH.line)`. Active/fo
 - Left: current view + counts.
 - Right: `cmd+k for palette` hint, theme id.
 
-### Resizable splits (optional, Phase 2 polish)
+### Resizable splits (optional, Phase 6 polish)
 
 - `multi_split_view` package; user can drag the dividers between Sidebar/Main and Main/Inspector.
 - Min sidebar: 160px. Min inspector: 220px.
@@ -247,8 +247,8 @@ The accent color of the active theme is what we mean when widgets reference `TH.
 ### 6.1 Window chrome (desktop)
 
 - macOS: `windowManager.setAsFrameless()`. Traffic lights in our chrome, real ones hidden.
-- Linux: same. On Wayland with mutter, frameless works; on i3/sway, it works but maximize might behave oddly — known limitation, document at Phase 3 exit.
-- Windows: out of scope for v1 (D-002 makes it Phase 6+).
+- Linux: same. On Wayland with mutter, frameless works; on i3/sway, it works but maximize might behave oddly — known limitation, document at Phase 8 exit.
+- Windows: out of scope for v1 (D-002 makes it Phase 10+).
 
 ### 6.2 Android system bars
 

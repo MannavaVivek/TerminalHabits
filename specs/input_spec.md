@@ -127,11 +127,11 @@ Replaces the desktop command palette. A `GridView` of bordered command buttons.
 - Triggered by a floating `[ + ]` button in the bottom-right of every view, *except* during onboarding and inside modals.
 - When opened, takes over the full screen as a modal route (`PageRouteBuilder` with no transition).
 - Header: `> command` prompt line.
-- 2-column grid on phones, 3-column on tablets (Phase 4 stretch).
+- 2-column grid on phones, 3-column on tablets (Phase 9 stretch).
 - Each cell: bordered box, monospace label, single-line description.
 - Tap → dispatches the corresponding `Intent`, then pops the bridge.
 
-**Cell catalog (Phase 4 minimum):**
+**Cell catalog (Phase 9 minimum):**
 
 | Cell label | Dispatched Intent |
 |---|---|
@@ -198,7 +198,7 @@ Bringing up the soft keyboard is rare in this app. The cases where it appears:
 - New habit dialog (name, note, target, unit).
 - Settings → user name, default group.
 - Onboarding step 1.
-- Search-as-filter in command bridge if the user wants to type (optional Phase 4 stretch).
+- Search-as-filter in command bridge if the user wants to type (optional Phase 9 stretch).
 
 We do **not** offer a text-typed command interface on mobile. Touch-only per the user's spec.
 
