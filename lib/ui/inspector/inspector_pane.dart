@@ -57,6 +57,7 @@ final _stubHabit = Habit(
   sortIndex: 0,
   healthSource: null,
   createdAt: DateTime(1970),
+  startDate: DateTime(1970),
   archivedAt: null,
 );
 

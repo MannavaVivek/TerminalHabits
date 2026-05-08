@@ -5,6 +5,7 @@ import '../../domain/streaks.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
 import '../modals/future_warn_dialog.dart';
+import '../modals/habit_menu.dart';
 
 class HabitRow extends ConsumerWidget {
   final DailyHabit dailyHabit;
@@ -23,6 +24,9 @@ class HabitRow extends ConsumerWidget {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: focus,
+      onLongPress: () => showHabitMenu(context, ref, h),
+      onSecondaryTapDown: (details) =>
+          showHabitMenu(context, ref, h, at: details.globalPosition),
       child: Container(
         color: focused ? TH.bg2 : Colors.transparent,
         padding: const EdgeInsets.symmetric(

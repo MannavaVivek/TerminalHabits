@@ -8,12 +8,20 @@ import '../../theme/tokens.dart';
 import 'text_prompt.dart';
 
 class NewHabitDialog extends ConsumerStatefulWidget {
-  const NewHabitDialog({super.key});
+  // Pre-fills the start date. Pass selectedDay when opening from the daily
+  // view (so a habit added while looking at last Tuesday starts on Tuesday);
+  // leave null when opening from the command palette / ⌘N (defaults to today).
+  final DateTime? defaultStartDate;
+  const NewHabitDialog({super.key, this.defaultStartDate});
 
-  static Future<void> show(BuildContext context) => showDialog(
+  static Future<void> show(
+    BuildContext context, {
+    DateTime? defaultStartDate,
+  }) =>
+      showDialog(
         context: context,
         barrierColor: Colors.black54,
-        builder: (_) => const NewHabitDialog(),
+        builder: (_) => NewHabitDialog(defaultStartDate: defaultStartDate),
       );
 
   @override
@@ -25,6 +33,8 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
   String _schedule = 'daily';
   String _color = 'green';
   String? _groupId; // null = uninitialized, set on first build
+  late DateTime _startDate =
+      widget.defaultStartDate ?? DateTime.now();
   bool _saving = false;
 
   @override
@@ -53,9 +63,31 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
       tracking: 'checkbox',
       schedule: scheduleJson,
       sortIndex: habits.length,
+      startDate: Value(_startDate),
     ));
 
     if (mounted) Navigator.of(context).pop();
+  }
+
+  Future<void> _pickStartDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _startDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
+      builder: (ctx, child) => Theme(
+        data: ThemeData.dark().copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary: TH.green,
+            onPrimary: TH.bg,
+            surface: TH.bg2,
+            onSurface: TH.fg,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null) setState(() => _startDate = picked);
   }
 
   Future<void> _newGroup() async {
@@ -177,6 +209,25 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
                 ],
               ),
               const SizedBox(height: TH.s14),
+              const Text('start date',
+                  style: TextStyle(color: TH.fgDim, fontSize: 12)),
+              const SizedBox(height: TH.s4),
+              GestureDetector(
+                onTap: _pickStartDate,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: TH.s8, vertical: TH.s8),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: TH.line2),
+                    borderRadius: BorderRadius.all(TH.r4),
+                  ),
+                  child: Text(
+                    _formatDate(_startDate),
+                    style: const TextStyle(color: TH.fg, fontSize: 13),
+                  ),
+                ),
+              ),
+              const SizedBox(height: TH.s14),
               const Text('color',
                   style: TextStyle(color: TH.fgDim, fontSize: 12)),
               const SizedBox(height: TH.s4),
@@ -226,6 +277,14 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
     'teal': TH.teal,
     'red': TH.red,
   };
+}
+
+String _formatDate(DateTime d) {
+  const months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+  return '${months[d.month - 1]} ${d.day} ${d.year}';
 }
 
 class _Pill extends StatelessWidget {
