@@ -1,7 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
+import '../modals/new_habit_dialog.dart';
 import '../widgets/habit_group.dart';
 import '../widgets/week_strip.dart';
 
@@ -35,15 +37,51 @@ class DailyView extends ConsumerWidget {
           const SizedBox(height: TH.s14),
           Expanded(
             child: state.groups.isEmpty
-                ? const _EmptyState()
+                ? _EmptyDay(selectedDay: state.today)
                 : ListView.builder(
-                    padding: EdgeInsets.zero,
-                    itemCount: state.groups.length,
-                    itemBuilder: (context, i) =>
-                        HabitGroupWidget(dailyGroup: state.groups[i]),
+                    padding: const EdgeInsets.only(bottom: TH.s22),
+                    itemCount: state.groups.length + 1,
+                    itemBuilder: (context, i) {
+                      if (i == state.groups.length) {
+                        return Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                              TH.s14, TH.s14, TH.s14, TH.s8),
+                          child: _AddHabitButton(
+                              defaultStartDate: state.today),
+                        );
+                      }
+                      return HabitGroupWidget(
+                          dailyGroup: state.groups[i]);
+                    },
                   ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AddHabitButton extends StatelessWidget {
+  final DateTime defaultStartDate;
+  const _AddHabitButton({required this.defaultStartDate});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => NewHabitDialog.show(
+        context,
+        defaultStartDate: defaultStartDate,
+      ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: TH.s8),
+        decoration: BoxDecoration(
+          border: Border.all(color: TH.line2),
+          borderRadius: BorderRadius.all(TH.r4),
+        ),
+        child: const Center(
+          child: Text('[ + new habit ]',
+              style: TextStyle(color: TH.fgDim, fontSize: 12)),
+        ),
       ),
     );
   }
@@ -144,22 +182,42 @@ String _completionComment(int n) {
   return '// $n completions. operator-level consistency.';
 }
 
-class _EmptyState extends StatelessWidget {
-  const _EmptyState();
+class _EmptyDay extends StatelessWidget {
+  final DateTime selectedDay;
+  const _EmptyDay({required this.selectedDay});
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text('no habits yet.',
-              style: TextStyle(color: TH.fgDim, fontSize: 14)),
-          SizedBox(height: 8),
-          Text('press ⌘N to add your first habit.',
-              style: TextStyle(color: TH.fgFaint, fontSize: 13)),
-        ],
-      ),
+    final isDesktop = Platform.isMacOS || Platform.isLinux;
+    final hint = isDesktop
+        ? 'press ⌘N to add a habit.'
+        : 'tap [ + new habit ] above to add one.';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (!isDesktop)
+          Padding(
+            padding:
+                const EdgeInsets.fromLTRB(TH.s14, 0, TH.s14, TH.s14),
+            child: _AddHabitButton(defaultStartDate: selectedDay),
+          ),
+        Expanded(
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('no habits here.',
+                    style: TextStyle(color: TH.fgDim, fontSize: 14)),
+                const SizedBox(height: 8),
+                Text(hint,
+                    style: const TextStyle(
+                        color: TH.fgFaint, fontSize: 13)),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
