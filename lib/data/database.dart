@@ -12,7 +12,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -27,6 +27,12 @@ class AppDatabase extends _$AppDatabase {
           await customStatement(
               'CREATE INDEX idx_habits_archived ON habits(archived_at)');
           await _seedDefaults();
+        },
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.addColumn(groups, groups.note);
+            await m.addColumn(habits, habits.targetTime);
+          }
         },
       );
 
@@ -64,12 +70,46 @@ class AppDatabase extends _$AppDatabase {
           ..limit(1))
         .getSingleOrNull();
     final nextSort = (existing?.sortIndex ?? 0) + 100;
-    final id = await into(groups).insert(GroupsCompanion.insert(
+    final newId = newUuid();
+    await into(groups).insert(GroupsCompanion.insert(
+      id: Value(newId),
       name: name,
       sortIndex: nextSort,
     ));
-    return (select(groups)..where((g) => g.sortIndex.equals(nextSort)))
-        .getSingle();
+    return (select(groups)..where((g) => g.id.equals(newId))).getSingle();
+  }
+
+  Future<void> setGroupCollapsed(String groupId, bool collapsed) async {
+    await (update(groups)..where((g) => g.id.equals(groupId)))
+        .write(GroupsCompanion(collapsed: Value(collapsed)));
+  }
+
+  Future<void> setGroupNote(String groupId, String? note) async {
+    await (update(groups)..where((g) => g.id.equals(groupId)))
+        .write(GroupsCompanion(note: Value(note)));
+  }
+
+  Future<void> renameGroup(String groupId, String name) async {
+    await (update(groups)..where((g) => g.id.equals(groupId)))
+        .write(GroupsCompanion(name: Value(name)));
+  }
+
+  // Deletes [groupId]. Habits are reassigned to [reassignTo] if non-null;
+  // otherwise the habits and their completions are cascade-deleted.
+  Future<void> deleteGroup(String groupId, {String? reassignTo}) async {
+    if (reassignTo != null) {
+      await (update(habits)..where((h) => h.groupId.equals(groupId)))
+          .write(HabitsCompanion(groupId: Value(reassignTo)));
+    } else {
+      final affected = await (select(habits)
+            ..where((h) => h.groupId.equals(groupId)))
+          .get();
+      for (final h in affected) {
+        await (delete(completions)..where((c) => c.habitId.equals(h.id))).go();
+      }
+      await (delete(habits)..where((h) => h.groupId.equals(groupId))).go();
+    }
+    await (delete(groups)..where((g) => g.id.equals(groupId))).go();
   }
 
   // ── Habits ─────────────────────────────────────────────────────────────────

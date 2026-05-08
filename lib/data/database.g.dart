@@ -53,8 +53,17 @@ class $GroupsTable extends Groups with TableInfo<$GroupsTable, Group> {
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
   @override
-  List<GeneratedColumn> get $columns => [id, name, sortIndex, collapsed];
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, name, sortIndex, collapsed, note];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -92,6 +101,12 @@ class $GroupsTable extends Groups with TableInfo<$GroupsTable, Group> {
         collapsed.isAcceptableOrUnknown(data['collapsed']!, _collapsedMeta),
       );
     }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    }
     return context;
   }
 
@@ -117,6 +132,10 @@ class $GroupsTable extends Groups with TableInfo<$GroupsTable, Group> {
         DriftSqlType.bool,
         data['${effectivePrefix}collapsed'],
       )!,
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      ),
     );
   }
 
@@ -131,11 +150,13 @@ class Group extends DataClass implements Insertable<Group> {
   final String name;
   final int sortIndex;
   final bool collapsed;
+  final String? note;
   const Group({
     required this.id,
     required this.name,
     required this.sortIndex,
     required this.collapsed,
+    this.note,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -144,6 +165,9 @@ class Group extends DataClass implements Insertable<Group> {
     map['name'] = Variable<String>(name);
     map['sort_index'] = Variable<int>(sortIndex);
     map['collapsed'] = Variable<bool>(collapsed);
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
     return map;
   }
 
@@ -153,6 +177,7 @@ class Group extends DataClass implements Insertable<Group> {
       name: Value(name),
       sortIndex: Value(sortIndex),
       collapsed: Value(collapsed),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
     );
   }
 
@@ -166,6 +191,7 @@ class Group extends DataClass implements Insertable<Group> {
       name: serializer.fromJson<String>(json['name']),
       sortIndex: serializer.fromJson<int>(json['sortIndex']),
       collapsed: serializer.fromJson<bool>(json['collapsed']),
+      note: serializer.fromJson<String?>(json['note']),
     );
   }
   @override
@@ -176,22 +202,30 @@ class Group extends DataClass implements Insertable<Group> {
       'name': serializer.toJson<String>(name),
       'sortIndex': serializer.toJson<int>(sortIndex),
       'collapsed': serializer.toJson<bool>(collapsed),
+      'note': serializer.toJson<String?>(note),
     };
   }
 
-  Group copyWith({String? id, String? name, int? sortIndex, bool? collapsed}) =>
-      Group(
-        id: id ?? this.id,
-        name: name ?? this.name,
-        sortIndex: sortIndex ?? this.sortIndex,
-        collapsed: collapsed ?? this.collapsed,
-      );
+  Group copyWith({
+    String? id,
+    String? name,
+    int? sortIndex,
+    bool? collapsed,
+    Value<String?> note = const Value.absent(),
+  }) => Group(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    sortIndex: sortIndex ?? this.sortIndex,
+    collapsed: collapsed ?? this.collapsed,
+    note: note.present ? note.value : this.note,
+  );
   Group copyWithCompanion(GroupsCompanion data) {
     return Group(
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
       sortIndex: data.sortIndex.present ? data.sortIndex.value : this.sortIndex,
       collapsed: data.collapsed.present ? data.collapsed.value : this.collapsed,
+      note: data.note.present ? data.note.value : this.note,
     );
   }
 
@@ -201,13 +235,14 @@ class Group extends DataClass implements Insertable<Group> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('sortIndex: $sortIndex, ')
-          ..write('collapsed: $collapsed')
+          ..write('collapsed: $collapsed, ')
+          ..write('note: $note')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, name, sortIndex, collapsed);
+  int get hashCode => Object.hash(id, name, sortIndex, collapsed, note);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -215,7 +250,8 @@ class Group extends DataClass implements Insertable<Group> {
           other.id == this.id &&
           other.name == this.name &&
           other.sortIndex == this.sortIndex &&
-          other.collapsed == this.collapsed);
+          other.collapsed == this.collapsed &&
+          other.note == this.note);
 }
 
 class GroupsCompanion extends UpdateCompanion<Group> {
@@ -223,12 +259,14 @@ class GroupsCompanion extends UpdateCompanion<Group> {
   final Value<String> name;
   final Value<int> sortIndex;
   final Value<bool> collapsed;
+  final Value<String?> note;
   final Value<int> rowid;
   const GroupsCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
     this.sortIndex = const Value.absent(),
     this.collapsed = const Value.absent(),
+    this.note = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   GroupsCompanion.insert({
@@ -236,6 +274,7 @@ class GroupsCompanion extends UpdateCompanion<Group> {
     required String name,
     required int sortIndex,
     this.collapsed = const Value.absent(),
+    this.note = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : name = Value(name),
        sortIndex = Value(sortIndex);
@@ -244,6 +283,7 @@ class GroupsCompanion extends UpdateCompanion<Group> {
     Expression<String>? name,
     Expression<int>? sortIndex,
     Expression<bool>? collapsed,
+    Expression<String>? note,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -251,6 +291,7 @@ class GroupsCompanion extends UpdateCompanion<Group> {
       if (name != null) 'name': name,
       if (sortIndex != null) 'sort_index': sortIndex,
       if (collapsed != null) 'collapsed': collapsed,
+      if (note != null) 'note': note,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -260,6 +301,7 @@ class GroupsCompanion extends UpdateCompanion<Group> {
     Value<String>? name,
     Value<int>? sortIndex,
     Value<bool>? collapsed,
+    Value<String?>? note,
     Value<int>? rowid,
   }) {
     return GroupsCompanion(
@@ -267,6 +309,7 @@ class GroupsCompanion extends UpdateCompanion<Group> {
       name: name ?? this.name,
       sortIndex: sortIndex ?? this.sortIndex,
       collapsed: collapsed ?? this.collapsed,
+      note: note ?? this.note,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -286,6 +329,9 @@ class GroupsCompanion extends UpdateCompanion<Group> {
     if (collapsed.present) {
       map['collapsed'] = Variable<bool>(collapsed.value);
     }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -299,6 +345,7 @@ class GroupsCompanion extends UpdateCompanion<Group> {
           ..write('name: $name, ')
           ..write('sortIndex: $sortIndex, ')
           ..write('collapsed: $collapsed, ')
+          ..write('note: $note, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -415,6 +462,17 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _targetTimeMeta = const VerificationMeta(
+    'targetTime',
+  );
+  @override
+  late final GeneratedColumn<String> targetTime = GeneratedColumn<String>(
+    'target_time',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _sortIndexMeta = const VerificationMeta(
     'sortIndex',
   );
@@ -472,6 +530,7 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
     unit,
     schedule,
     note,
+    targetTime,
     sortIndex,
     healthSource,
     createdAt,
@@ -554,6 +613,12 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
         note.isAcceptableOrUnknown(data['note']!, _noteMeta),
       );
     }
+    if (data.containsKey('target_time')) {
+      context.handle(
+        _targetTimeMeta,
+        targetTime.isAcceptableOrUnknown(data['target_time']!, _targetTimeMeta),
+      );
+    }
     if (data.containsKey('sort_index')) {
       context.handle(
         _sortIndexMeta,
@@ -632,6 +697,10 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
         DriftSqlType.string,
         data['${effectivePrefix}note'],
       ),
+      targetTime: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}target_time'],
+      ),
       sortIndex: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}sort_index'],
@@ -668,6 +737,7 @@ class Habit extends DataClass implements Insertable<Habit> {
   final String? unit;
   final String schedule;
   final String? note;
+  final String? targetTime;
   final int sortIndex;
   final String? healthSource;
   final DateTime createdAt;
@@ -683,6 +753,7 @@ class Habit extends DataClass implements Insertable<Habit> {
     this.unit,
     required this.schedule,
     this.note,
+    this.targetTime,
     required this.sortIndex,
     this.healthSource,
     required this.createdAt,
@@ -706,6 +777,9 @@ class Habit extends DataClass implements Insertable<Habit> {
     map['schedule'] = Variable<String>(schedule);
     if (!nullToAbsent || note != null) {
       map['note'] = Variable<String>(note);
+    }
+    if (!nullToAbsent || targetTime != null) {
+      map['target_time'] = Variable<String>(targetTime);
     }
     map['sort_index'] = Variable<int>(sortIndex);
     if (!nullToAbsent || healthSource != null) {
@@ -732,6 +806,9 @@ class Habit extends DataClass implements Insertable<Habit> {
       unit: unit == null && nullToAbsent ? const Value.absent() : Value(unit),
       schedule: Value(schedule),
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      targetTime: targetTime == null && nullToAbsent
+          ? const Value.absent()
+          : Value(targetTime),
       sortIndex: Value(sortIndex),
       healthSource: healthSource == null && nullToAbsent
           ? const Value.absent()
@@ -759,6 +836,7 @@ class Habit extends DataClass implements Insertable<Habit> {
       unit: serializer.fromJson<String?>(json['unit']),
       schedule: serializer.fromJson<String>(json['schedule']),
       note: serializer.fromJson<String?>(json['note']),
+      targetTime: serializer.fromJson<String?>(json['targetTime']),
       sortIndex: serializer.fromJson<int>(json['sortIndex']),
       healthSource: serializer.fromJson<String?>(json['healthSource']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -779,6 +857,7 @@ class Habit extends DataClass implements Insertable<Habit> {
       'unit': serializer.toJson<String?>(unit),
       'schedule': serializer.toJson<String>(schedule),
       'note': serializer.toJson<String?>(note),
+      'targetTime': serializer.toJson<String?>(targetTime),
       'sortIndex': serializer.toJson<int>(sortIndex),
       'healthSource': serializer.toJson<String?>(healthSource),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -797,6 +876,7 @@ class Habit extends DataClass implements Insertable<Habit> {
     Value<String?> unit = const Value.absent(),
     String? schedule,
     Value<String?> note = const Value.absent(),
+    Value<String?> targetTime = const Value.absent(),
     int? sortIndex,
     Value<String?> healthSource = const Value.absent(),
     DateTime? createdAt,
@@ -812,6 +892,7 @@ class Habit extends DataClass implements Insertable<Habit> {
     unit: unit.present ? unit.value : this.unit,
     schedule: schedule ?? this.schedule,
     note: note.present ? note.value : this.note,
+    targetTime: targetTime.present ? targetTime.value : this.targetTime,
     sortIndex: sortIndex ?? this.sortIndex,
     healthSource: healthSource.present ? healthSource.value : this.healthSource,
     createdAt: createdAt ?? this.createdAt,
@@ -829,6 +910,9 @@ class Habit extends DataClass implements Insertable<Habit> {
       unit: data.unit.present ? data.unit.value : this.unit,
       schedule: data.schedule.present ? data.schedule.value : this.schedule,
       note: data.note.present ? data.note.value : this.note,
+      targetTime: data.targetTime.present
+          ? data.targetTime.value
+          : this.targetTime,
       sortIndex: data.sortIndex.present ? data.sortIndex.value : this.sortIndex,
       healthSource: data.healthSource.present
           ? data.healthSource.value
@@ -853,6 +937,7 @@ class Habit extends DataClass implements Insertable<Habit> {
           ..write('unit: $unit, ')
           ..write('schedule: $schedule, ')
           ..write('note: $note, ')
+          ..write('targetTime: $targetTime, ')
           ..write('sortIndex: $sortIndex, ')
           ..write('healthSource: $healthSource, ')
           ..write('createdAt: $createdAt, ')
@@ -873,6 +958,7 @@ class Habit extends DataClass implements Insertable<Habit> {
     unit,
     schedule,
     note,
+    targetTime,
     sortIndex,
     healthSource,
     createdAt,
@@ -892,6 +978,7 @@ class Habit extends DataClass implements Insertable<Habit> {
           other.unit == this.unit &&
           other.schedule == this.schedule &&
           other.note == this.note &&
+          other.targetTime == this.targetTime &&
           other.sortIndex == this.sortIndex &&
           other.healthSource == this.healthSource &&
           other.createdAt == this.createdAt &&
@@ -909,6 +996,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
   final Value<String?> unit;
   final Value<String> schedule;
   final Value<String?> note;
+  final Value<String?> targetTime;
   final Value<int> sortIndex;
   final Value<String?> healthSource;
   final Value<DateTime> createdAt;
@@ -924,6 +1012,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     this.unit = const Value.absent(),
     this.schedule = const Value.absent(),
     this.note = const Value.absent(),
+    this.targetTime = const Value.absent(),
     this.sortIndex = const Value.absent(),
     this.healthSource = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -940,6 +1029,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     this.unit = const Value.absent(),
     required String schedule,
     this.note = const Value.absent(),
+    this.targetTime = const Value.absent(),
     required int sortIndex,
     this.healthSource = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -960,6 +1050,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     Expression<String>? unit,
     Expression<String>? schedule,
     Expression<String>? note,
+    Expression<String>? targetTime,
     Expression<int>? sortIndex,
     Expression<String>? healthSource,
     Expression<DateTime>? createdAt,
@@ -976,6 +1067,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
       if (unit != null) 'unit': unit,
       if (schedule != null) 'schedule': schedule,
       if (note != null) 'note': note,
+      if (targetTime != null) 'target_time': targetTime,
       if (sortIndex != null) 'sort_index': sortIndex,
       if (healthSource != null) 'health_source': healthSource,
       if (createdAt != null) 'created_at': createdAt,
@@ -994,6 +1086,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     Value<String?>? unit,
     Value<String>? schedule,
     Value<String?>? note,
+    Value<String?>? targetTime,
     Value<int>? sortIndex,
     Value<String?>? healthSource,
     Value<DateTime>? createdAt,
@@ -1010,6 +1103,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
       unit: unit ?? this.unit,
       schedule: schedule ?? this.schedule,
       note: note ?? this.note,
+      targetTime: targetTime ?? this.targetTime,
       sortIndex: sortIndex ?? this.sortIndex,
       healthSource: healthSource ?? this.healthSource,
       createdAt: createdAt ?? this.createdAt,
@@ -1050,6 +1144,9 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     if (note.present) {
       map['note'] = Variable<String>(note.value);
     }
+    if (targetTime.present) {
+      map['target_time'] = Variable<String>(targetTime.value);
+    }
     if (sortIndex.present) {
       map['sort_index'] = Variable<int>(sortIndex.value);
     }
@@ -1078,6 +1175,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
           ..write('unit: $unit, ')
           ..write('schedule: $schedule, ')
           ..write('note: $note, ')
+          ..write('targetTime: $targetTime, ')
           ..write('sortIndex: $sortIndex, ')
           ..write('healthSource: $healthSource, ')
           ..write('createdAt: $createdAt, ')
@@ -2005,6 +2103,7 @@ typedef $$GroupsTableCreateCompanionBuilder =
       required String name,
       required int sortIndex,
       Value<bool> collapsed,
+      Value<String?> note,
       Value<int> rowid,
     });
 typedef $$GroupsTableUpdateCompanionBuilder =
@@ -2013,6 +2112,7 @@ typedef $$GroupsTableUpdateCompanionBuilder =
       Value<String> name,
       Value<int> sortIndex,
       Value<bool> collapsed,
+      Value<String?> note,
       Value<int> rowid,
     });
 
@@ -2066,6 +2166,11 @@ class $$GroupsTableFilterComposer
 
   ColumnFilters<bool> get collapsed => $composableBuilder(
     column: $table.collapsed,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2123,6 +2228,11 @@ class $$GroupsTableOrderingComposer
     column: $table.collapsed,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$GroupsTableAnnotationComposer
@@ -2145,6 +2255,9 @@ class $$GroupsTableAnnotationComposer
 
   GeneratedColumn<bool> get collapsed =>
       $composableBuilder(column: $table.collapsed, builder: (column) => column);
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
 
   Expression<T> habitsRefs<T extends Object>(
     Expression<T> Function($$HabitsTableAnnotationComposer a) f,
@@ -2204,12 +2317,14 @@ class $$GroupsTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<int> sortIndex = const Value.absent(),
                 Value<bool> collapsed = const Value.absent(),
+                Value<String?> note = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => GroupsCompanion(
                 id: id,
                 name: name,
                 sortIndex: sortIndex,
                 collapsed: collapsed,
+                note: note,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -2218,12 +2333,14 @@ class $$GroupsTableTableManager
                 required String name,
                 required int sortIndex,
                 Value<bool> collapsed = const Value.absent(),
+                Value<String?> note = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => GroupsCompanion.insert(
                 id: id,
                 name: name,
                 sortIndex: sortIndex,
                 collapsed: collapsed,
+                note: note,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -2285,6 +2402,7 @@ typedef $$HabitsTableCreateCompanionBuilder =
       Value<String?> unit,
       required String schedule,
       Value<String?> note,
+      Value<String?> targetTime,
       required int sortIndex,
       Value<String?> healthSource,
       Value<DateTime> createdAt,
@@ -2302,6 +2420,7 @@ typedef $$HabitsTableUpdateCompanionBuilder =
       Value<String?> unit,
       Value<String> schedule,
       Value<String?> note,
+      Value<String?> targetTime,
       Value<int> sortIndex,
       Value<String?> healthSource,
       Value<DateTime> createdAt,
@@ -2400,6 +2519,11 @@ class $$HabitsTableFilterComposer
 
   ColumnFilters<String> get note => $composableBuilder(
     column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get targetTime => $composableBuilder(
+    column: $table.targetTime,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2526,6 +2650,11 @@ class $$HabitsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get targetTime => $composableBuilder(
+    column: $table.targetTime,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get sortIndex => $composableBuilder(
     column: $table.sortIndex,
     builder: (column) => ColumnOrderings(column),
@@ -2605,6 +2734,11 @@ class $$HabitsTableAnnotationComposer
 
   GeneratedColumn<String> get note =>
       $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<String> get targetTime => $composableBuilder(
+    column: $table.targetTime,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get sortIndex =>
       $composableBuilder(column: $table.sortIndex, builder: (column) => column);
@@ -2709,6 +2843,7 @@ class $$HabitsTableTableManager
                 Value<String?> unit = const Value.absent(),
                 Value<String> schedule = const Value.absent(),
                 Value<String?> note = const Value.absent(),
+                Value<String?> targetTime = const Value.absent(),
                 Value<int> sortIndex = const Value.absent(),
                 Value<String?> healthSource = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -2724,6 +2859,7 @@ class $$HabitsTableTableManager
                 unit: unit,
                 schedule: schedule,
                 note: note,
+                targetTime: targetTime,
                 sortIndex: sortIndex,
                 healthSource: healthSource,
                 createdAt: createdAt,
@@ -2741,6 +2877,7 @@ class $$HabitsTableTableManager
                 Value<String?> unit = const Value.absent(),
                 required String schedule,
                 Value<String?> note = const Value.absent(),
+                Value<String?> targetTime = const Value.absent(),
                 required int sortIndex,
                 Value<String?> healthSource = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -2756,6 +2893,7 @@ class $$HabitsTableTableManager
                 unit: unit,
                 schedule: schedule,
                 note: note,
+                targetTime: targetTime,
                 sortIndex: sortIndex,
                 healthSource: healthSource,
                 createdAt: createdAt,

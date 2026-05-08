@@ -69,8 +69,18 @@ class DailyGroup {
 class DailyState {
   final List<DailyGroup> groups;
   final DateTime today;
+  // Aggregate metrics across all active habits visible on [today].
+  final int maxCurrentStreak;
+  final int sumShields;
+  final int totalCompletionsAllTime;
 
-  const DailyState({required this.groups, required this.today});
+  const DailyState({
+    required this.groups,
+    required this.today,
+    required this.maxCurrentStreak,
+    required this.sumShields,
+    required this.totalCompletionsAllTime,
+  });
 
   int get totalDone => groups.fold(0, (sum, g) => sum + g.doneCount);
   int get totalHabits => groups.fold(0, (sum, g) => sum + g.habits.length);
@@ -97,6 +107,23 @@ final dailyStateProvider = Provider<AsyncValue<DailyState>>((ref) {
   final today = DateTime.now();
   final selectedDayUtc = localMidnightUtc(selectedDay);
 
+  // Compute streaks for ALL active habits (not just those due on the
+  // selected day) so the aggregate header reflects every habit, not just
+  // ones scheduled for today.
+  final allStreaks = <int, StreakResult>{
+    for (final h in habits)
+      h.id: computeStreaks(h, recentMap[h.id] ?? const [], today, vacList),
+  };
+  var maxCurrent = 0;
+  var sumShields = 0;
+  var totalCompletions = 0;
+  for (final h in habits) {
+    final s = allStreaks[h.id]!;
+    if (s.current > maxCurrent) maxCurrent = s.current;
+    sumShields += s.shields;
+    totalCompletions += (recentMap[h.id] ?? const []).length;
+  }
+
   final dailyGroups = groups
       .map((group) {
         final groupHabits = habits
@@ -114,7 +141,7 @@ final dailyStateProvider = Provider<AsyncValue<DailyState>>((ref) {
               return DailyHabit(
                 habit: h,
                 todayCompletion: selectedComp,
-                streaks: computeStreaks(h, comps, today, vacList),
+                streaks: allStreaks[h.id]!,
               );
             })
             .toList();
@@ -123,6 +150,68 @@ final dailyStateProvider = Provider<AsyncValue<DailyState>>((ref) {
       .where((g) => g.habits.isNotEmpty)
       .toList();
 
-  return AsyncValue.data(DailyState(groups: dailyGroups, today: selectedDay));
+  return AsyncValue.data(DailyState(
+    groups: dailyGroups,
+    today: selectedDay,
+    maxCurrentStreak: maxCurrent,
+    sumShields: sumShields,
+    totalCompletionsAllTime: totalCompletions,
+  ));
+});
+
+// ── User name (from settings table) ───────────────────────────────────────────
+
+final userNameProvider = StreamProvider<String>(
+  (ref) => ref.watch(dbProvider).watchSetting('userName').map((v) => v ?? 'you'),
+);
+
+// ── Per-day completion ratios for the week strip ──────────────────────────────
+
+class DayRatio {
+  final DateTime day;
+  final int done;
+  final int due;
+  const DayRatio({required this.day, required this.done, required this.due});
+
+  double get ratio => due == 0 ? 0 : (done / due).clamp(0, 1).toDouble();
+}
+
+// Returns the completion ratio for each of the 7 days in the week containing
+// [selectedDay]. Uses recentMap + active habits + schedule resolution.
+List<DayRatio> weeklyRatios(
+  DateTime selectedDay,
+  List<Habit> habits,
+  Map<int, List<Completion>> recentMap,
+) {
+  final monday = DateTime(
+    selectedDay.year,
+    selectedDay.month,
+    selectedDay.day - (selectedDay.weekday - 1),
+  );
+  final out = <DayRatio>[];
+  for (var i = 0; i < 7; i++) {
+    final day = DateTime(monday.year, monday.month, monday.day + i);
+    final dayUtc = localMidnightUtc(day);
+    var due = 0;
+    var done = 0;
+    for (final h in habits) {
+      if (!isHabitDueOn(h, day)) continue;
+      due++;
+      final comps = recentMap[h.id] ?? const [];
+      if (comps.any((c) => c.day.toUtc() == dayUtc)) done++;
+    }
+    out.add(DayRatio(day: day, done: done, due: due));
+  }
+  return out;
+}
+
+final weeklyRatiosProvider = Provider<List<DayRatio>>((ref) {
+  final habitsAV = ref.watch(habitsProvider);
+  final recentAV = ref.watch(recentCompletionsProvider);
+  final selectedDay = ref.watch(selectedDayProvider);
+  if (habitsAV.isLoading || recentAV.isLoading) return const [];
+  if (habitsAV.hasError || recentAV.hasError) return const [];
+  return weeklyRatios(
+      selectedDay, habitsAV.requireValue, recentAV.requireValue);
 });
 

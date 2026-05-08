@@ -9,6 +9,7 @@ class Groups extends Table {
   IntColumn get sortIndex => integer()();
   BoolColumn get collapsed =>
       boolean().withDefault(const Constant(false))();
+  TextColumn get note => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -30,6 +31,7 @@ class Habits extends Table {
   // JSON: {"days":[0..6]}
   TextColumn get schedule => text()();
   TextColumn get note => text().nullable()();
+  TextColumn get targetTime => text().nullable()();
   IntColumn get sortIndex => integer()();
   TextColumn get healthSource => text().nullable()();
   DateTimeColumn get createdAt =>
