@@ -16,7 +16,6 @@ class HabitRow extends ConsumerWidget {
     final done = dailyHabit.isDoneToday;
     final focused = ref.watch(focusedHabitIdProvider) == h.id;
     final streak = dailyHabit.streaks.current;
-    final shields = dailyHabit.streaks.shields;
 
     void focus() =>
         ref.read(focusedHabitIdProvider.notifier).state = h.id;
@@ -28,50 +27,63 @@ class HabitRow extends ConsumerWidget {
         color: focused ? TH.bg2 : Colors.transparent,
         padding: const EdgeInsets.symmetric(
             horizontal: TH.s22, vertical: TH.s8),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () async {
-                focus();
-                await _toggle(context, ref, h);
-              },
-              child: Padding(
-                padding: const EdgeInsets.only(right: TH.s8),
-                child: SizedBox(
-                  width: 28,
-                  child: Text(done ? '[✓]' : '[ ]',
-                      style: TextStyle(
-                          color: done ? TH.green : TH.fgMute,
-                          fontSize: 13)),
+            Row(
+              children: [
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () async {
+                    focus();
+                    await _toggle(context, ref, h);
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: TH.s8),
+                    child: SizedBox(
+                      width: 28,
+                      child: Text(done ? '[✓]' : '[ ]',
+                          style: TextStyle(
+                              color: done ? TH.green : TH.fgMute,
+                              fontSize: 13)),
+                    ),
+                  ),
                 ),
+                Text(h.icon,
+                    style: TextStyle(
+                        color: _colorFor(h.color), fontSize: 13)),
+                const SizedBox(width: TH.s8),
+                Expanded(
+                  child: Text(h.name,
+                      style: TextStyle(
+                          color: done ? TH.fgDim : TH.fg,
+                          fontSize: 14,
+                          decoration: done
+                              ? TextDecoration.lineThrough
+                              : null,
+                          decorationColor: TH.fgMute)),
+                ),
+                if (streak > 0) ...[
+                  const SizedBox(width: TH.s8),
+                  Text('🔥 $streak',
+                      style: const TextStyle(
+                          color: TH.amber, fontSize: 12)),
+                ],
+                if (h.targetTime != null && h.targetTime!.isNotEmpty) ...[
+                  const SizedBox(width: TH.s8),
+                  Text('🕒 ${h.targetTime}',
+                      style: const TextStyle(
+                          color: TH.fgMute, fontSize: 11)),
+                ],
+              ],
+            ),
+            if (h.note != null && h.note!.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(left: 36, top: 2),
+                child: Text('// ${h.note}',
+                    style: const TextStyle(
+                        color: TH.fgFaint, fontSize: 11)),
               ),
-            ),
-            Text(h.icon,
-                style: TextStyle(
-                    color: _colorFor(h.color), fontSize: 13)),
-            const SizedBox(width: TH.s8),
-            Expanded(
-              child: Text(h.name,
-                  style: TextStyle(
-                      color: done ? TH.fgDim : TH.fg,
-                      fontSize: 14,
-                      decoration:
-                          done ? TextDecoration.lineThrough : null,
-                      decorationColor: TH.fgMute)),
-            ),
-            if (streak > 0) ...[
-              const SizedBox(width: TH.s8),
-              Text('$streak ▲',
-                  style: const TextStyle(
-                      color: TH.amber, fontSize: 12)),
-            ],
-            if (shields > 0) ...[
-              const SizedBox(width: 4),
-              Text('$shields ⬡',
-                  style: const TextStyle(
-                      color: TH.blue, fontSize: 12)),
-            ],
           ],
         ),
       ),

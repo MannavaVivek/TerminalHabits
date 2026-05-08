@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../data/database.dart';
 import '../../domain/schedule.dart';
+import '../../domain/streaks.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
 
@@ -10,26 +12,53 @@ class InspectorPane extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final focusedId = ref.watch(focusedHabitIdProvider);
-    DailyHabit? focused;
+    final habitsAV = ref.watch(habitsProvider);
+    final recentAV = ref.watch(recentCompletionsProvider);
+    final vacAV = ref.watch(vacationsProvider);
 
-    if (focusedId != null) {
-      ref.watch(dailyStateProvider).whenData((state) {
-        for (final g in state.groups) {
-          for (final h in g.habits) {
-            if (h.habit.id == focusedId) focused = h;
-          }
-        }
-      });
+    Widget body = const _EmptyInspector();
+
+    if (focusedId != null &&
+        habitsAV.hasValue &&
+        recentAV.hasValue &&
+        vacAV.hasValue) {
+      final habits = habitsAV.requireValue;
+      final habit = habits.firstWhere(
+        (h) => h.id == focusedId,
+        orElse: () => habits.isEmpty
+            ? _stubHabit
+            : habits.first, // doesn't matter, we check below
+      );
+      if (habit.id == focusedId) {
+        final comps = recentAV.requireValue[habit.id] ?? const [];
+        final streaks =
+            computeStreaks(habit, comps, DateTime.now(), vacAV.requireValue);
+        body = _HabitInspector(habit: habit, streaks: streaks);
+      }
     }
 
-    return SizedBox(
-      width: 280,
-      child: focused == null
-          ? const _EmptyInspector()
-          : _HabitInspector(dailyHabit: focused!),
-    );
+    return SizedBox(width: 280, child: body);
   }
 }
+
+// Sentinel — never displayed; only used by orElse so the closure compiles.
+final _stubHabit = Habit(
+  id: -1,
+  groupId: '',
+  name: '',
+  icon: '',
+  color: 'green',
+  tracking: 'checkbox',
+  target: null,
+  unit: null,
+  schedule: '{"days":[]}',
+  note: null,
+  targetTime: null,
+  sortIndex: 0,
+  healthSource: null,
+  createdAt: DateTime(1970),
+  archivedAt: null,
+);
 
 class _EmptyInspector extends StatelessWidget {
   const _EmptyInspector();
@@ -47,13 +76,14 @@ class _EmptyInspector extends StatelessWidget {
 }
 
 class _HabitInspector extends StatelessWidget {
-  final DailyHabit dailyHabit;
-  const _HabitInspector({required this.dailyHabit});
+  final Habit habit;
+  final StreakResult streaks;
+  const _HabitInspector({required this.habit, required this.streaks});
 
   @override
   Widget build(BuildContext context) {
-    final h = dailyHabit.habit;
-    final s = dailyHabit.streaks;
+    final h = habit;
+    final s = streaks;
 
     return ListView(
       padding: const EdgeInsets.all(TH.s14),
@@ -71,6 +101,8 @@ class _HabitInspector extends StatelessWidget {
         _Block(label: 'habit', children: [
           _Row('tracking', h.tracking),
           _Row('schedule', scheduleLabel(h.schedule)),
+          if (h.targetTime != null && h.targetTime!.isNotEmpty)
+            _Row('target', h.targetTime!),
           if (h.note != null && h.note!.isNotEmpty)
             _Row('note', h.note!),
         ]),
@@ -96,8 +128,7 @@ class _Block extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('── $label',
-              style:
-                  const TextStyle(color: TH.fgMute, fontSize: 11)),
+              style: const TextStyle(color: TH.fgMute, fontSize: 11)),
           const SizedBox(height: TH.s4),
           ...children,
         ],
@@ -121,8 +152,7 @@ class _Row extends StatelessWidget {
           SizedBox(
             width: 72,
             child: Text('$label:',
-                style:
-                    const TextStyle(color: TH.fgDim, fontSize: 12)),
+                style: const TextStyle(color: TH.fgDim, fontSize: 12)),
           ),
           Expanded(
             child: Text(value,

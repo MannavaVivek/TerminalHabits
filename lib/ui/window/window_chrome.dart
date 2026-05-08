@@ -21,7 +21,7 @@ class WindowChrome extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: TH.s14),
             child: Row(
               children: [
-                // Native macOS traffic lights live here — leave room for them.
+                // Native macOS traffic lights live here.
                 const SizedBox(width: 72),
                 const Expanded(
                   child: Center(
@@ -41,14 +41,13 @@ class WindowChrome extends StatelessWidget {
   }
 }
 
-
 class _VersionMeta extends StatelessWidget {
   const _VersionMeta();
 
   @override
   Widget build(BuildContext context) {
     return const Text(
-      'v0.1.0 · matrix',
+      'v0.2.0 · matrix',
       style: TextStyle(fontSize: 11, color: TH.fgMute),
     );
   }

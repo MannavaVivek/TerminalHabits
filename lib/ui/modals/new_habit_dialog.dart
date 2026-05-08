@@ -5,6 +5,7 @@ import '../../data/database.dart';
 import '../../domain/schedule.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
+import 'text_prompt.dart';
 
 class NewHabitDialog extends ConsumerStatefulWidget {
   const NewHabitDialog({super.key});
@@ -23,6 +24,7 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
   final _nameCtrl = TextEditingController();
   String _schedule = 'daily';
   String _color = 'green';
+  String? _groupId; // null = uninitialized, set on first build
   bool _saving = false;
 
   @override
@@ -45,7 +47,7 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
     final db = ref.read(dbProvider);
     final habits = await db.getActiveHabits();
     await db.createHabit(HabitsCompanion.insert(
-      groupId: 'general',
+      groupId: _groupId ?? 'general',
       name: name,
       color: Value(_color),
       tracking: 'checkbox',
@@ -56,14 +58,36 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
     if (mounted) Navigator.of(context).pop();
   }
 
+  Future<void> _newGroup() async {
+    final name = await promptText(
+      context,
+      title: 'new group',
+      hint: 'group name',
+      saveLabel: '[ create ]',
+    );
+    if (name == null || name.isEmpty) return;
+    final db = ref.read(dbProvider);
+    final created = await db.createGroup(name);
+    if (mounted) setState(() => _groupId = created.id);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final groupsAV = ref.watch(groupsProvider);
+    final groups = groupsAV.valueOrNull ?? const <Group>[];
+    // Default the selection to "general" once the list loads.
+    if (_groupId == null && groups.isNotEmpty) {
+      _groupId = groups.any((g) => g.id == 'general')
+          ? 'general'
+          : groups.first.id;
+    }
+
     return Dialog(
       backgroundColor: TH.bg2,
       shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.all(TH.r10)),
       child: SizedBox(
-        width: 400,
+        width: 420,
         child: Padding(
           padding: const EdgeInsets.all(TH.s22),
           child: Column(
@@ -81,7 +105,8 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
                   GestureDetector(
                     onTap: () => Navigator.of(context).pop(),
                     child: const Text('[ cancel ]',
-                        style: TextStyle(color: TH.fgMute, fontSize: 12)),
+                        style:
+                            TextStyle(color: TH.fgMute, fontSize: 12)),
                   ),
                 ],
               ),
@@ -111,6 +136,28 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
                       horizontal: TH.s8, vertical: TH.s8),
                 ),
                 onSubmitted: (_) => _save(),
+              ),
+              const SizedBox(height: TH.s14),
+              const Text('group',
+                  style: TextStyle(color: TH.fgDim, fontSize: 12)),
+              const SizedBox(height: TH.s4),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final g in groups)
+                    _Pill(
+                      label: g.name,
+                      selected: _groupId == g.id,
+                      onTap: () => setState(() => _groupId = g.id),
+                    ),
+                  _Pill(
+                    label: '+ new',
+                    selected: false,
+                    accent: true,
+                    onTap: _newGroup,
+                  ),
+                ],
               ),
               const SizedBox(height: TH.s14),
               const Text('schedule',
@@ -158,8 +205,8 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
                   child: Center(
                     child: Text(
                       _saving ? 'saving...' : '[ save ]',
-                      style:
-                          const TextStyle(color: TH.green, fontSize: 13),
+                      style: const TextStyle(
+                          color: TH.green, fontSize: 13),
                     ),
                   ),
                 ),
@@ -184,27 +231,39 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
 class _Pill extends StatelessWidget {
   final String label;
   final bool selected;
+  final bool accent;
   final VoidCallback onTap;
-  const _Pill(
-      {required this.label, required this.selected, required this.onTap});
+  const _Pill({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.accent = false,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final borderColor = selected
+        ? TH.green
+        : accent
+            ? TH.amber
+            : TH.line2;
+    final textColor = selected
+        ? TH.green
+        : accent
+            ? TH.amber
+            : TH.fgDim;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding:
             const EdgeInsets.symmetric(horizontal: TH.s8, vertical: 4),
         decoration: BoxDecoration(
-          border:
-              Border.all(color: selected ? TH.green : TH.line2),
+          border: Border.all(color: borderColor),
           borderRadius: BorderRadius.all(TH.r4),
           color: selected ? TH.bg3 : Colors.transparent,
         ),
         child: Text(label,
-            style: TextStyle(
-                color: selected ? TH.green : TH.fgDim,
-                fontSize: 12)),
+            style: TextStyle(color: textColor, fontSize: 12)),
       ),
     );
   }
@@ -225,7 +284,7 @@ class _ColorDot extends StatelessWidget {
         width: 18,
         height: 18,
         decoration: BoxDecoration(
-          color: color.withOpacity(selected ? 1.0 : 0.4),
+          color: color.withValues(alpha: selected ? 1.0 : 0.4),
           shape: BoxShape.circle,
           border: selected
               ? Border.all(color: Colors.white24, width: 2)
