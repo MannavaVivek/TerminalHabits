@@ -19,6 +19,10 @@ final habitsProvider = StreamProvider<List<Habit>>(
   (ref) => ref.watch(dbProvider).watchActiveHabits(),
 );
 
+final archivedHabitsProvider = StreamProvider<List<Habit>>(
+  (ref) => ref.watch(dbProvider).watchArchivedHabits(),
+);
+
 final recentCompletionsProvider =
     StreamProvider<Map<int, List<Completion>>>((ref) {
   final sinceUtc = localMidnightUtc(
@@ -128,6 +132,8 @@ final dailyStateProvider = Provider<AsyncValue<DailyState>>((ref) {
       .map((group) {
         final groupHabits = habits
             .where((h) => h.groupId == group.id)
+            .where((h) =>
+                !selectedDayUtc.isBefore(localMidnightUtc(h.startDate)))
             .where((h) => isHabitDueOn(h, selectedDay))
             .map((h) {
               final comps = recentMap[h.id] ?? const <Completion>[];
@@ -195,6 +201,8 @@ List<DayRatio> weeklyRatios(
     var due = 0;
     var done = 0;
     for (final h in habits) {
+      final startUtc = localMidnightUtc(h.startDate.toLocal());
+      if (dayUtc.isBefore(startUtc)) continue;
       if (!isHabitDueOn(h, day)) continue;
       due++;
       final comps = recentMap[h.id] ?? const [];

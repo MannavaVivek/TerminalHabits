@@ -12,7 +12,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -32,6 +32,14 @@ class AppDatabase extends _$AppDatabase {
           if (from < 2) {
             await m.addColumn(groups, groups.note);
             await m.addColumn(habits, habits.targetTime);
+          }
+          if (from < 3) {
+            await m.addColumn(habits, habits.startDate);
+            // Backfill: existing rows had no start_date column, so the new
+            // column landed with the column-level default (current time).
+            // Reset it to created_at so streaks/daily-filter use the original.
+            await customStatement(
+                'UPDATE habits SET start_date = created_at');
           }
         },
       );
@@ -139,10 +147,26 @@ class AppDatabase extends _$AppDatabase {
   Future<bool> updateHabit(HabitsCompanion companion) =>
       update(habits).replace(companion);
 
+  // Partial update: writes only the fields supplied in [companion].
+  // Use this from the edit dialog so we don't overwrite columns the dialog
+  // doesn't surface (e.g. completion-related state).
+  Future<int> patchHabit(int id, HabitsCompanion companion) =>
+      (update(habits)..where((h) => h.id.equals(id))).write(companion);
+
   Future<void> archiveHabit(int id) async {
     await (update(habits)..where((h) => h.id.equals(id)))
         .write(HabitsCompanion(archivedAt: Value(DateTime.now())));
   }
+
+  Future<void> unarchiveHabit(int id) async {
+    await (update(habits)..where((h) => h.id.equals(id)))
+        .write(const HabitsCompanion(archivedAt: Value(null)));
+  }
+
+  Stream<List<Habit>> watchArchivedHabits() => (select(habits)
+        ..where((h) => h.archivedAt.isNotNull())
+        ..orderBy([(h) => OrderingTerm.desc(h.archivedAt)]))
+      .watch();
 
   Future<void> deleteHabit(int id) async {
     await (delete(completions)..where((c) => c.habitId.equals(id))).go();

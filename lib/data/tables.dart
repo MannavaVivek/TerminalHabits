@@ -36,6 +36,8 @@ class Habits extends Table {
   TextColumn get healthSource => text().nullable()();
   DateTimeColumn get createdAt =>
       dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get startDate =>
+      dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get archivedAt => dateTime().nullable()();
 }
 

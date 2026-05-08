@@ -507,6 +507,18 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
     requiredDuringInsert: false,
     defaultValue: currentDateAndTime,
   );
+  static const VerificationMeta _startDateMeta = const VerificationMeta(
+    'startDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> startDate = GeneratedColumn<DateTime>(
+    'start_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
   static const VerificationMeta _archivedAtMeta = const VerificationMeta(
     'archivedAt',
   );
@@ -534,6 +546,7 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
     sortIndex,
     healthSource,
     createdAt,
+    startDate,
     archivedAt,
   ];
   @override
@@ -642,6 +655,12 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
         createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
       );
     }
+    if (data.containsKey('start_date')) {
+      context.handle(
+        _startDateMeta,
+        startDate.isAcceptableOrUnknown(data['start_date']!, _startDateMeta),
+      );
+    }
     if (data.containsKey('archived_at')) {
       context.handle(
         _archivedAtMeta,
@@ -713,6 +732,10 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
       )!,
+      startDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}start_date'],
+      )!,
       archivedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}archived_at'],
@@ -741,6 +764,7 @@ class Habit extends DataClass implements Insertable<Habit> {
   final int sortIndex;
   final String? healthSource;
   final DateTime createdAt;
+  final DateTime startDate;
   final DateTime? archivedAt;
   const Habit({
     required this.id,
@@ -757,6 +781,7 @@ class Habit extends DataClass implements Insertable<Habit> {
     required this.sortIndex,
     this.healthSource,
     required this.createdAt,
+    required this.startDate,
     this.archivedAt,
   });
   @override
@@ -786,6 +811,7 @@ class Habit extends DataClass implements Insertable<Habit> {
       map['health_source'] = Variable<String>(healthSource);
     }
     map['created_at'] = Variable<DateTime>(createdAt);
+    map['start_date'] = Variable<DateTime>(startDate);
     if (!nullToAbsent || archivedAt != null) {
       map['archived_at'] = Variable<DateTime>(archivedAt);
     }
@@ -814,6 +840,7 @@ class Habit extends DataClass implements Insertable<Habit> {
           ? const Value.absent()
           : Value(healthSource),
       createdAt: Value(createdAt),
+      startDate: Value(startDate),
       archivedAt: archivedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(archivedAt),
@@ -840,6 +867,7 @@ class Habit extends DataClass implements Insertable<Habit> {
       sortIndex: serializer.fromJson<int>(json['sortIndex']),
       healthSource: serializer.fromJson<String?>(json['healthSource']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      startDate: serializer.fromJson<DateTime>(json['startDate']),
       archivedAt: serializer.fromJson<DateTime?>(json['archivedAt']),
     );
   }
@@ -861,6 +889,7 @@ class Habit extends DataClass implements Insertable<Habit> {
       'sortIndex': serializer.toJson<int>(sortIndex),
       'healthSource': serializer.toJson<String?>(healthSource),
       'createdAt': serializer.toJson<DateTime>(createdAt),
+      'startDate': serializer.toJson<DateTime>(startDate),
       'archivedAt': serializer.toJson<DateTime?>(archivedAt),
     };
   }
@@ -880,6 +909,7 @@ class Habit extends DataClass implements Insertable<Habit> {
     int? sortIndex,
     Value<String?> healthSource = const Value.absent(),
     DateTime? createdAt,
+    DateTime? startDate,
     Value<DateTime?> archivedAt = const Value.absent(),
   }) => Habit(
     id: id ?? this.id,
@@ -896,6 +926,7 @@ class Habit extends DataClass implements Insertable<Habit> {
     sortIndex: sortIndex ?? this.sortIndex,
     healthSource: healthSource.present ? healthSource.value : this.healthSource,
     createdAt: createdAt ?? this.createdAt,
+    startDate: startDate ?? this.startDate,
     archivedAt: archivedAt.present ? archivedAt.value : this.archivedAt,
   );
   Habit copyWithCompanion(HabitsCompanion data) {
@@ -918,6 +949,7 @@ class Habit extends DataClass implements Insertable<Habit> {
           ? data.healthSource.value
           : this.healthSource,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      startDate: data.startDate.present ? data.startDate.value : this.startDate,
       archivedAt: data.archivedAt.present
           ? data.archivedAt.value
           : this.archivedAt,
@@ -941,6 +973,7 @@ class Habit extends DataClass implements Insertable<Habit> {
           ..write('sortIndex: $sortIndex, ')
           ..write('healthSource: $healthSource, ')
           ..write('createdAt: $createdAt, ')
+          ..write('startDate: $startDate, ')
           ..write('archivedAt: $archivedAt')
           ..write(')'))
         .toString();
@@ -962,6 +995,7 @@ class Habit extends DataClass implements Insertable<Habit> {
     sortIndex,
     healthSource,
     createdAt,
+    startDate,
     archivedAt,
   );
   @override
@@ -982,6 +1016,7 @@ class Habit extends DataClass implements Insertable<Habit> {
           other.sortIndex == this.sortIndex &&
           other.healthSource == this.healthSource &&
           other.createdAt == this.createdAt &&
+          other.startDate == this.startDate &&
           other.archivedAt == this.archivedAt);
 }
 
@@ -1000,6 +1035,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
   final Value<int> sortIndex;
   final Value<String?> healthSource;
   final Value<DateTime> createdAt;
+  final Value<DateTime> startDate;
   final Value<DateTime?> archivedAt;
   const HabitsCompanion({
     this.id = const Value.absent(),
@@ -1016,6 +1052,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     this.sortIndex = const Value.absent(),
     this.healthSource = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.startDate = const Value.absent(),
     this.archivedAt = const Value.absent(),
   });
   HabitsCompanion.insert({
@@ -1033,6 +1070,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     required int sortIndex,
     this.healthSource = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.startDate = const Value.absent(),
     this.archivedAt = const Value.absent(),
   }) : groupId = Value(groupId),
        name = Value(name),
@@ -1054,6 +1092,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     Expression<int>? sortIndex,
     Expression<String>? healthSource,
     Expression<DateTime>? createdAt,
+    Expression<DateTime>? startDate,
     Expression<DateTime>? archivedAt,
   }) {
     return RawValuesInsertable({
@@ -1071,6 +1110,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
       if (sortIndex != null) 'sort_index': sortIndex,
       if (healthSource != null) 'health_source': healthSource,
       if (createdAt != null) 'created_at': createdAt,
+      if (startDate != null) 'start_date': startDate,
       if (archivedAt != null) 'archived_at': archivedAt,
     });
   }
@@ -1090,6 +1130,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     Value<int>? sortIndex,
     Value<String?>? healthSource,
     Value<DateTime>? createdAt,
+    Value<DateTime>? startDate,
     Value<DateTime?>? archivedAt,
   }) {
     return HabitsCompanion(
@@ -1107,6 +1148,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
       sortIndex: sortIndex ?? this.sortIndex,
       healthSource: healthSource ?? this.healthSource,
       createdAt: createdAt ?? this.createdAt,
+      startDate: startDate ?? this.startDate,
       archivedAt: archivedAt ?? this.archivedAt,
     );
   }
@@ -1156,6 +1198,9 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
+    if (startDate.present) {
+      map['start_date'] = Variable<DateTime>(startDate.value);
+    }
     if (archivedAt.present) {
       map['archived_at'] = Variable<DateTime>(archivedAt.value);
     }
@@ -1179,6 +1224,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
           ..write('sortIndex: $sortIndex, ')
           ..write('healthSource: $healthSource, ')
           ..write('createdAt: $createdAt, ')
+          ..write('startDate: $startDate, ')
           ..write('archivedAt: $archivedAt')
           ..write(')'))
         .toString();
@@ -2406,6 +2452,7 @@ typedef $$HabitsTableCreateCompanionBuilder =
       required int sortIndex,
       Value<String?> healthSource,
       Value<DateTime> createdAt,
+      Value<DateTime> startDate,
       Value<DateTime?> archivedAt,
     });
 typedef $$HabitsTableUpdateCompanionBuilder =
@@ -2424,6 +2471,7 @@ typedef $$HabitsTableUpdateCompanionBuilder =
       Value<int> sortIndex,
       Value<String?> healthSource,
       Value<DateTime> createdAt,
+      Value<DateTime> startDate,
       Value<DateTime?> archivedAt,
     });
 
@@ -2539,6 +2587,11 @@ class $$HabitsTableFilterComposer
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get startDate => $composableBuilder(
+    column: $table.startDate,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2670,6 +2723,11 @@ class $$HabitsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get startDate => $composableBuilder(
+    column: $table.startDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get archivedAt => $composableBuilder(
     column: $table.archivedAt,
     builder: (column) => ColumnOrderings(column),
@@ -2750,6 +2808,9 @@ class $$HabitsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get startDate =>
+      $composableBuilder(column: $table.startDate, builder: (column) => column);
 
   GeneratedColumn<DateTime> get archivedAt => $composableBuilder(
     column: $table.archivedAt,
@@ -2847,6 +2908,7 @@ class $$HabitsTableTableManager
                 Value<int> sortIndex = const Value.absent(),
                 Value<String?> healthSource = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> startDate = const Value.absent(),
                 Value<DateTime?> archivedAt = const Value.absent(),
               }) => HabitsCompanion(
                 id: id,
@@ -2863,6 +2925,7 @@ class $$HabitsTableTableManager
                 sortIndex: sortIndex,
                 healthSource: healthSource,
                 createdAt: createdAt,
+                startDate: startDate,
                 archivedAt: archivedAt,
               ),
           createCompanionCallback:
@@ -2881,6 +2944,7 @@ class $$HabitsTableTableManager
                 required int sortIndex,
                 Value<String?> healthSource = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> startDate = const Value.absent(),
                 Value<DateTime?> archivedAt = const Value.absent(),
               }) => HabitsCompanion.insert(
                 id: id,
@@ -2897,6 +2961,7 @@ class $$HabitsTableTableManager
                 sortIndex: sortIndex,
                 healthSource: healthSource,
                 createdAt: createdAt,
+                startDate: startDate,
                 archivedAt: archivedAt,
               ),
           withReferenceMapper: (p0) => p0

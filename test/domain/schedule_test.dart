@@ -16,6 +16,7 @@ Habit _habit(String schedule) => Habit(
       sortIndex: 0,
       healthSource: null,
       createdAt: DateTime(2020),
+      startDate: DateTime(2020),
       archivedAt: null,
     );
 

@@ -6,7 +6,8 @@ import 'package:terminal_habits/data/database.dart';
 // 2026-05-01 is a Friday.
 final _epoch = DateTime(2026, 1, 1); // created date for all test habits
 
-Habit _habit({String? schedule, DateTime? createdAt}) => Habit(
+Habit _habit({String? schedule, DateTime? createdAt, DateTime? startDate}) =>
+    Habit(
       id: 1,
       groupId: 'g1',
       name: 'test',
@@ -20,6 +21,7 @@ Habit _habit({String? schedule, DateTime? createdAt}) => Habit(
       sortIndex: 0,
       healthSource: null,
       createdAt: createdAt ?? _epoch,
+      startDate: startDate ?? createdAt ?? _epoch,
       archivedAt: null,
     );
 
@@ -105,6 +107,32 @@ void main() {
       final r = computeStreaks(habit, _range(from, today), today, []);
       expect(r.current, 5);
       expect(r.longest, 5);
+    });
+  });
+
+  group('start_date', () {
+    test('walks from start_date when no earlier completions', () {
+      // start_date 3 days ago. Completions on those 3 days. Streak = 3.
+      final from = today.subtract(const Duration(days: 2));
+      final habit = _habit(
+        createdAt: DateTime(2026, 1, 1),
+        startDate: from,
+      );
+      final r = computeStreaks(habit, _range(from, today), today, []);
+      expect(r.current, 3);
+      expect(r.longest, 3);
+    });
+
+    test('back-fill before start_date still extends walk', () {
+      // start_date 2 days ago, but user back-fills 5 days. Streak = 6.
+      final start = today.subtract(const Duration(days: 1));
+      final earliest = today.subtract(const Duration(days: 5));
+      final habit = _habit(
+        createdAt: DateTime(2026, 1, 1),
+        startDate: start,
+      );
+      final r = computeStreaks(habit, _range(earliest, today), today, []);
+      expect(r.current, 6);
     });
   });
 

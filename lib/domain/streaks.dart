@@ -39,12 +39,14 @@ StreakResult computeStreaks(
   final completedDays = _buildCompletedDaySet(habit, completions);
   final vacationDays = _buildVacationDaySet(vacations);
 
-  final createdDay = localMidnightUtc(habit.createdAt.toLocal());
+  final startDateDay = localMidnightUtc(habit.startDate.toLocal());
   final todayUtc = localMidnightUtc(today.toLocal());
 
-  // Walk from the earliest of (created, oldest backfilled completion) so
-  // marking past days off updates the streak retroactively.
-  var startDay = createdDay;
+  // Walk from the earliest of (start_date, oldest backfilled completion) so
+  // marking past days off updates the streak retroactively. start_date is
+  // user-controlled in the edit dialog (Phase 3); a back-fill before
+  // start_date still extends the walk.
+  var startDay = startDateDay;
   for (final d in completedDays) {
     if (d.isBefore(startDay)) startDay = d;
   }
