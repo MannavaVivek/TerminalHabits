@@ -228,7 +228,12 @@ version: 0.1.0+1     # semver+build_number
 
 - Phase 0 → `0.1.0`
 - Phase 1 → `0.2.0`
+- Phase 2 → `0.2.1`
+- Phase 3 → `0.2.2`
+- Phase 4 → `0.2.3`
+- Phase 5 → `0.2.4`
 - Phase 6 → `0.3.0`
+- Phase 7 → `0.3.1`
 - Phase 8 → `0.4.0`
 - Phase 9 → `0.5.0` (first cross-platform build)
 - Phase 10 → `1.0.0` (first sync-capable build)

@@ -73,42 +73,44 @@
 
 ## Phase 2 — UI refinement: header, week strip, group polish (≈ 1 week)
 
-> After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit per `constitution.md §7`.
+**Completed: 2026-05-08**
 
 **Goal:** the daily view matches the visual baseline in `design_spec.md` §UI-mockup. Header behaves like a real terminal output, the week strip is informative at a glance, and groups feel terminal-native.
 
 ### Scope
-- **Top tab bar** in `WindowChrome` replaces the sidebar nav (habits / stats / profile), each underlined when active. Sidebar is removed; the `[ + new habit ]` button moves to a `+` icon at the right edge of the tab bar (or a top-right floating control). Native macOS traffic lights still occupy the left 72px.
+- **Sidebar nav** stays as the primary view switcher on desktop (Phase 1 layout retained). The active item is marked with a left-side amber `▸` indicator. The earlier idea of a top tab bar in `WindowChrome` was tried and reverted — it duplicated the sidebar without adding value. `WindowChrome` keeps its plain title + version meta.
 - **Daily view header** (in order, top to bottom):
-  - `{userName}@TerminalHabits $ daily` — terminal prompt line.
-  - `// {N} completions. {dynamic motivational comment}` — comment line; copy chosen from a fixed pool keyed off completion count buckets.
+  - `{userName}@TerminalHabits $ daily` — terminal prompt line. `userName` comes from the `settings.userName` row via `userNameProvider`.
+  - `// {N} completions. {dynamic motivational comment}` — comment line; copy is bucketed by completion count.
   - `📆 {Weekday}, {Month} {Day} {Year}` — calendar icon + selected-day label.
-  - `🔥 {totalCurrentStreak} days * 🛡 {totalShields}` — aggregate streak/shield summary across active habits on the selected day.
+  - `🔥 {maxCurrentStreak} days * 🛡 {sumShields}` — aggregate streak/shield summary computed across all active habits (not just ones due on the selected day).
 - **Week strip** redesign:
   - Day-of-week labels above day numbers (`Mon` / `23`).
   - Selected day prefixed with `*` and rendered with `TH.bg3` background.
-  - Below each day cell: a thin completion-intensity bar — width × height proportional to `completionsThatDay / habitsDueThatDay` (clamped 0..1), rendered with `TH.amber`.
+  - Below each day cell: a thin completion-intensity bar — width proportional to `completionsThatDay / habitsDueThatDay` (clamped 0..1), rendered with `TH.amber`. Driven by a new `weeklyRatiosProvider`.
   - `<` / `>` arrows on either side, week-stride navigation.
 - **Habit groups**:
-  - Collapsible chevron `▼` (open) / `▶` (closed); state persists via `groups.collapsed` (column already exists; wire it up).
-  - Header shows `[done/total]` count next to the group icon and name.
-  - Optional comment annotation (`// after waking up`) — surfaced from a new `groups.note` text column.
-  - **Group CRUD**: `NewHabitDialog` and `EditHabitDialog` get a `Group` dropdown with an inline "+ new group" entry that creates a group on the spot. Long-press on a group header → menu (`rename`, `delete`). Deleting a group with habits prompts to reassign or cascade-delete.
+  - Collapsible chevron `▾` (open) / `▸` (closed); state persists via `groups.collapsed`.
+  - Header shows `[done/total]` count, flipped to green when all done.
+  - Optional comment annotation (`// after waking up`) surfaced from a new `groups.note` text column.
+  - **Group CRUD**: `NewHabitDialog` gets a `Group` dropdown with an inline `+ new` amber pill that opens a name prompt and creates the group on the spot. Right-click / long-press on a group header → menu (`rename`, `edit note`, `delete`). Delete with affected habits opens a reassign-or-cascade radio dialog.
 - **Habit rows**:
   - Inline streak `🔥 N` aligned to the right of the habit name.
-  - Optional clock annotation `🕒 HH:mm` if a target time is set — surfaced from a new `habits.target_time` column.
-  - Sub-comment line (`// no snoozing`) below the row when `habits.note` is set.
+  - Optional clock annotation `🕒 HH:mm` if `habits.target_time` is set.
+  - Sub-comment line (`// note text`) below the row when `habits.note` is set.
+- **Inspector decoupling**: inspector now resolves the focused habit from the unfiltered `habitsProvider` and recomputes streaks fresh, instead of looking it up inside `dailyState.groups` (which is filtered to "due-on-selected-day"). This keeps the focused habit visible regardless of day navigation, and prevents drift between the row's streak and the inspector's streak.
 
 ### Schema changes
-- Migration v2: add `groups.note TEXT NULL`, `habits.target_time TEXT NULL` (HH:mm string in 24-hour).
+- Migration v2: add `groups.note TEXT NULL`, `habits.target_time TEXT NULL` (HH:mm string in 24-hour). `onUpgrade` uses `m.addColumn` for non-destructive migration of existing v1 databases.
 
 ### Exit criteria
-- [ ] Top tab bar replaces sidebar; ⌘1/2/3 still switches views.
-- [ ] Header renders prompt, comment, calendar date, and streak summary; values reflect `selectedDayProvider`.
-- [ ] Week strip intensity bars correctly reflect completion ratios across at least 30 days of seeded data.
-- [ ] Collapsing a group hides its rows and persists across restart.
-- [ ] Habit row shows streak/clock/note annotations from new columns.
-- [ ] No regressions from Phase 1.
+- [x] Sidebar shows the active view with the amber `▸` indicator; ⌘1/2/3 still switches views.
+- [x] Header renders prompt, comment, calendar date, and aggregate streak summary; values reflect `selectedDayProvider` and `userNameProvider`.
+- [x] Week strip intensity bars reflect `completed/due` ratios; ratio is recomputed when habits or completions change.
+- [x] Collapsing a group hides its rows and persists across restart.
+- [x] Habit row shows streak inline; clock + note annotations render when those columns are set.
+- [x] Inspector "current" matches the row's `🔥 N` for the same focused habit, even when the habit isn't due on the selected day.
+- [x] No regressions from Phase 1.
 
 ### Out of scope
 - Habit editing UX, start dates, schedule history (Phase 3 / Phase 4).
@@ -346,7 +348,7 @@ This phase is the largest UX shift. See [input_spec.md](input_spec.md) §3 for t
 
 ### Scope
 - Single-pane layout under `LayoutBuilder` breakpoint `<720px`:
-  - Bottom tab bar replaces top tabs (Daily / Stats / Profile, 3 tabs) on phones; the desktop top-tab pattern from Phase 2 is preserved on tablets.
+  - Bottom tab bar (Daily / Stats / Profile, 3 tabs) replaces the desktop sidebar on phones; tablets in landscape may keep the sidebar.
   - Inspector content collapses into bottom-sheet drawer, opened via swipe-up or button.
   - Window chrome and status bar are hidden; system status bar styled to match.
 - `MobileCommandBridge`: a `GridView` of bordered command buttons that replaces the command palette. Buttons dispatch the same `Intent`s as the desktop palette.

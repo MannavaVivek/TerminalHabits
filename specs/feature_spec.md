@@ -13,7 +13,7 @@
 | Habit creation (checkbox tracking) | Phase 1 | `NewHabitDialog` (create only; edit/archive moved to Phase 3). |
 | Streaks for checkbox habits | Phase 1 | Pure-function recompute. |
 | Habit groups | Phase 1 | Read-only in Phase 1; editable in Phase 6. |
-| UI refinement (top tabs, header, week strip intensity) | Phase 2 | Visual baseline matching `design_spec.md` mockup. |
+| UI refinement (header, week strip intensity, sidebar pointer) | Phase 2 | Visual baseline. Sidebar retains nav; daily view gets terminal-output-style header; week strip cells get a per-day completion-intensity bar. |
 | Group collapse + comment annotation | Phase 2 | `▼/▶` toggle persists; `groups.note` surfaces below header. |
 | Inline streak / clock annotation on rows | Phase 2 | `🔥 N` and `🕒 HH:mm` from `habits.target_time`. |
 | Habit editing (right-click / long-press) | Phase 3 | `EditHabitDialog` covers all fields. |
