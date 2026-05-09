@@ -212,11 +212,20 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> setCompletionValue(
       int habitId, DateTime dayUtc, double value) async {
-    await into(completions).insertOnConflictUpdate(CompletionsCompanion.insert(
-      habitId: habitId,
-      day: dayUtc,
-      value: Value(value),
-    ));
+    final existing = await (select(completions)
+          ..where((c) =>
+              c.habitId.equals(habitId) & c.day.equals(dayUtc)))
+        .getSingleOrNull();
+    if (existing != null) {
+      await (update(completions)..where((c) => c.id.equals(existing.id)))
+          .write(CompletionsCompanion(value: Value(value)));
+    } else {
+      await into(completions).insert(CompletionsCompanion.insert(
+        habitId: habitId,
+        day: dayUtc,
+        value: Value(value),
+      ));
+    }
   }
 
   Future<void> clearCompletion(int habitId, DateTime dayUtc) async {

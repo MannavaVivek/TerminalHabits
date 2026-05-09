@@ -52,10 +52,7 @@ class HabitRow extends ConsumerWidget {
                     padding: const EdgeInsets.only(right: TH.s8),
                     child: SizedBox(
                       width: 36,
-                      child: _CheckWidget(
-                          habit: h,
-                          done: done,
-                          value: dailyHabit.todayValue),
+                      child: _CheckWidget(done: done),
                     ),
                   ),
                 ),
@@ -193,35 +190,15 @@ class HabitRow extends ConsumerWidget {
 }
 
 class _CheckWidget extends StatelessWidget {
-  final Habit habit;
   final bool done;
-  final double value;
-  const _CheckWidget(
-      {required this.habit, required this.done, required this.value});
+  const _CheckWidget({required this.done});
 
   @override
   Widget build(BuildContext context) {
-    switch (habit.tracking) {
-      case 'counter':
-        final v = value.toInt();
-        return Text(
-          v == 0 ? '[ ]' : '[$v]',
-          style: TextStyle(
-              color: done ? TH.green : TH.fgMute, fontSize: 13),
-        );
-      case 'duration':
-        final v = value.toInt();
-        return Text(
-          v == 0 ? '[ ]' : '[${v}m]',
-          style: TextStyle(
-              color: done ? TH.green : TH.fgMute, fontSize: 12),
-        );
-      default:
-        return Text(
-          done ? '[✓]' : '[ ]',
-          style: TextStyle(
-              color: done ? TH.green : TH.fgMute, fontSize: 13),
-        );
-    }
+    return Text(
+      done ? '[✓]' : '[ ]',
+      style: TextStyle(
+          color: done ? TH.green : TH.fgMute, fontSize: 13),
+    );
   }
 }
