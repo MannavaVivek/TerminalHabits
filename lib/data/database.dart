@@ -161,9 +161,14 @@ class AppDatabase extends _$AppDatabase {
       (select(habits)..where((h) => h.id.equals(id))).getSingle();
 
   Future<int> createHabit(HabitsCompanion companion) async {
-    final id = await into(habits).insert(companion);
-    final h = await (select(habits)..where((r) => r.id.equals(id))).getSingle();
-    await _insertHistoryRow(id, h.startDate.toUtc(), h.schedule, h.tracking);
+    // Always supply createdAt as an integer so Drift can read it back safely.
+    // withDefault(currentDateAndTime) writes SQLite's CURRENT_TIMESTAMP (text),
+    // which Drift's integer-mode DateTime reader then fails to parse.
+    final id = await into(habits)
+        .insert(companion.copyWith(createdAt: Value(DateTime.now())));
+    final startDate = companion.startDate.value ?? DateTime.now();
+    await _insertHistoryRow(
+        id, startDate.toUtc(), companion.schedule.value!, companion.tracking.value!);
     return id;
   }
 
@@ -286,6 +291,7 @@ class AppDatabase extends _$AppDatabase {
       await into(completions).insert(CompletionsCompanion.insert(
         habitId: habitId,
         day: dayUtc,
+        createdAt: Value(DateTime.now()),
       ));
     }
   }
@@ -304,6 +310,7 @@ class AppDatabase extends _$AppDatabase {
         habitId: habitId,
         day: dayUtc,
         value: Value(value),
+        createdAt: Value(DateTime.now()),
       ));
     }
   }
@@ -326,6 +333,7 @@ class AppDatabase extends _$AppDatabase {
       habitId: habitId,
       day: dayUtc,
       value: Value(newValue),
+      createdAt: Value(DateTime.now()),
     ));
   }
 
