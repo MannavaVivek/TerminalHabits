@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../../data/database.dart';
 import '../../domain/streaks.dart';
 import '../../state/providers.dart';
+import '../../theme/icon_library.dart';
 import '../../theme/tokens.dart';
 import '../modals/future_warn_dialog.dart';
 import '../modals/habit_menu.dart';
@@ -17,6 +19,8 @@ class HabitRow extends ConsumerWidget {
     final done = dailyHabit.isDoneToday;
     final focused = ref.watch(focusedHabitIdProvider) == h.id;
     final streak = dailyHabit.streaks.current;
+    final iconColor = _colorFor(h.color);
+    final iconData = lucideIconData(h.icon);
 
     void focus() =>
         ref.read(focusedHabitIdProvider.notifier).state = h.id;
@@ -36,27 +40,35 @@ class HabitRow extends ConsumerWidget {
           children: [
             Row(
               children: [
+                // ── checkbox / counter / duration tap area ────────
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () async {
                     focus();
-                    await _toggle(context, ref, h);
+                    await _handleTap(context, ref, h);
                   },
                   child: Padding(
                     padding: const EdgeInsets.only(right: TH.s8),
                     child: SizedBox(
-                      width: 28,
-                      child: Text(done ? '[✓]' : '[ ]',
-                          style: TextStyle(
-                              color: done ? TH.green : TH.fgMute,
-                              fontSize: 13)),
+                      width: 36,
+                      child: _CheckWidget(
+                          habit: h,
+                          done: done,
+                          value: dailyHabit.todayValue),
                     ),
                   ),
                 ),
-                Text(h.icon,
-                    style: TextStyle(
-                        color: _colorFor(h.color), fontSize: 13)),
+
+                // ── icon ──────────────────────────────────────────
+                if (iconData != null)
+                  Icon(iconData, size: 14, color: iconColor)
+                else
+                  Text(h.icon,
+                      style: TextStyle(
+                          color: iconColor, fontSize: 13)),
                 const SizedBox(width: TH.s8),
+
+                // ── name ──────────────────────────────────────────
                 Expanded(
                   child: Text(h.name,
                       style: TextStyle(
@@ -67,15 +79,46 @@ class HabitRow extends ConsumerWidget {
                               : null,
                           decorationColor: TH.fgMute)),
                 ),
+
+                // ── streak flame ──────────────────────────────────
                 if (streak > 0) ...[
                   const SizedBox(width: TH.s8),
-                  Text('🔥 $streak',
+                  Icon(LucideIcons.flame,
+                      size: 13, color: TH.amber),
+                  const SizedBox(width: 2),
+                  Text('$streak',
                       style: const TextStyle(
                           color: TH.amber, fontSize: 12)),
                 ],
-                if (h.targetTime != null && h.targetTime!.isNotEmpty) ...[
+
+                // ── counter / duration progress ───────────────────
+                if (h.tracking == 'counter' && h.target != null) ...[
                   const SizedBox(width: TH.s8),
-                  Text('🕒 ${h.targetTime}',
+                  Text(
+                    '${dailyHabit.todayValue.toInt()}/${h.target}',
+                    style: TextStyle(
+                        color: done ? TH.green : TH.fgMute,
+                        fontSize: 11),
+                  ),
+                ] else if (h.tracking == 'duration' &&
+                    h.target != null) ...[
+                  const SizedBox(width: TH.s8),
+                  Text(
+                    '${dailyHabit.todayValue.toInt()}/${h.target}min',
+                    style: TextStyle(
+                        color: done ? TH.green : TH.fgMute,
+                        fontSize: 11),
+                  ),
+                ],
+
+                // ── target time ───────────────────────────────────
+                if (h.targetTime != null &&
+                    h.targetTime!.isNotEmpty) ...[
+                  const SizedBox(width: TH.s8),
+                  Icon(LucideIcons.clock,
+                      size: 11, color: TH.fgMute),
+                  const SizedBox(width: 2),
+                  Text(h.targetTime!,
                       style: const TextStyle(
                           color: TH.fgMute, fontSize: 11)),
                 ],
@@ -83,7 +126,7 @@ class HabitRow extends ConsumerWidget {
             ),
             if (h.note != null && h.note!.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(left: 36, top: 2),
+                padding: const EdgeInsets.only(left: 44, top: 2),
                 child: Text('// ${h.note}',
                     style: const TextStyle(
                         color: TH.fgFaint, fontSize: 11)),
@@ -94,7 +137,7 @@ class HabitRow extends ConsumerWidget {
     );
   }
 
-  Future<void> _toggle(
+  Future<void> _handleTap(
       BuildContext context, WidgetRef ref, Habit h) async {
     final selectedDay = ref.read(selectedDayProvider);
     final now = DateTime.now();
@@ -109,7 +152,15 @@ class HabitRow extends ConsumerWidget {
 
     final db = ref.read(dbProvider);
     final dayUtc = localMidnightUtc(selectedDay);
-    await db.toggleCompletion(h.id, dayUtc);
+
+    switch (h.tracking) {
+      case 'counter':
+        await db.incrementCompletion(h.id, dayUtc, 1.0);
+      case 'duration':
+        await db.incrementCompletion(h.id, dayUtc, 5.0);
+      default:
+        await db.toggleCompletion(h.id, dayUtc);
+    }
   }
 
   static Color _colorFor(String color) {
@@ -126,6 +177,40 @@ class HabitRow extends ConsumerWidget {
         return TH.red;
       default:
         return TH.green;
+    }
+  }
+}
+
+class _CheckWidget extends StatelessWidget {
+  final Habit habit;
+  final bool done;
+  final double value;
+  const _CheckWidget(
+      {required this.habit, required this.done, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    switch (habit.tracking) {
+      case 'counter':
+        final v = value.toInt();
+        return Text(
+          v == 0 ? '[ ]' : '[$v]',
+          style: TextStyle(
+              color: done ? TH.green : TH.fgMute, fontSize: 13),
+        );
+      case 'duration':
+        final v = value.toInt();
+        return Text(
+          v == 0 ? '[ ]' : '[${v}m]',
+          style: TextStyle(
+              color: done ? TH.green : TH.fgMute, fontSize: 12),
+        );
+      default:
+        return Text(
+          done ? '[✓]' : '[ ]',
+          style: TextStyle(
+              color: done ? TH.green : TH.fgMute, fontSize: 13),
+        );
     }
   }
 }

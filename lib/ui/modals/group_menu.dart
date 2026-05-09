@@ -1,8 +1,10 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/database.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
+import '../widgets/icon_picker.dart';
 import 'text_prompt.dart';
 
 // Shows the right-click / long-press menu for a group header.
@@ -32,8 +34,14 @@ Future<void> showGroupMenu(
         child: Text('rename', style: TextStyle(color: TH.fg, fontSize: 13)),
       ),
       PopupMenuItem(
+        value: 'icon',
+        child:
+            Text('edit icon', style: TextStyle(color: TH.fg, fontSize: 13)),
+      ),
+      PopupMenuItem(
         value: 'note',
-        child: Text('edit note', style: TextStyle(color: TH.fg, fontSize: 13)),
+        child:
+            Text('edit note', style: TextStyle(color: TH.fg, fontSize: 13)),
       ),
       PopupMenuItem(
         value: 'delete',
@@ -56,6 +64,14 @@ Future<void> showGroupMenu(
       );
       if (name != null && name.isNotEmpty) {
         await db.renameGroup(group.id, name);
+      }
+    case 'icon':
+      if (!context.mounted) return;
+      final key =
+          await IconPickerDialog.show(context, initial: group.icon);
+      if (key != null) {
+        await db.patchGroup(
+            group.id, GroupsCompanion(icon: Value(key)));
       }
     case 'note':
       final note = await promptText(

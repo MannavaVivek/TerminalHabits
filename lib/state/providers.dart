@@ -58,7 +58,17 @@ class DailyHabit {
     required this.streaks,
   });
 
-  bool get isDoneToday => todayCompletion != null;
+  bool get isDoneToday {
+    if (todayCompletion == null) return false;
+    final t = habit.tracking;
+    if (t == 'counter' || t == 'duration') {
+      final target = habit.target ?? 1;
+      return todayCompletion!.value >= target;
+    }
+    return todayCompletion!.value > 0;
+  }
+
+  double get todayValue => todayCompletion?.value ?? 0.0;
 }
 
 class DailyGroup {

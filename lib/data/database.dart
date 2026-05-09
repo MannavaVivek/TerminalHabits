@@ -12,7 +12,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -35,11 +35,11 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 3) {
             await m.addColumn(habits, habits.startDate);
-            // Backfill: existing rows had no start_date column, so the new
-            // column landed with the column-level default (current time).
-            // Reset it to created_at so streaks/daily-filter use the original.
             await customStatement(
                 'UPDATE habits SET start_date = created_at');
+          }
+          if (from < 4) {
+            await m.addColumn(groups, groups.icon);
           }
         },
       );
@@ -72,7 +72,8 @@ class AppDatabase extends _$AppDatabase {
   Future<List<Group>> getGroups() =>
       (select(groups)..orderBy([(g) => OrderingTerm.asc(g.sortIndex)])).get();
 
-  Future<Group> createGroup(String name) async {
+  Future<Group> createGroup(String name,
+      {String? icon, String? note}) async {
     final existing = await (select(groups)
           ..orderBy([(g) => OrderingTerm.desc(g.sortIndex)])
           ..limit(1))
@@ -83,9 +84,14 @@ class AppDatabase extends _$AppDatabase {
       id: Value(newId),
       name: name,
       sortIndex: nextSort,
+      icon: Value(icon),
+      note: Value(note),
     ));
     return (select(groups)..where((g) => g.id.equals(newId))).getSingle();
   }
+
+  Future<void> patchGroup(String groupId, GroupsCompanion companion) =>
+      (update(groups)..where((g) => g.id.equals(groupId))).write(companion);
 
   Future<void> setGroupCollapsed(String groupId, bool collapsed) async {
     await (update(groups)..where((g) => g.id.equals(groupId)))
@@ -210,6 +216,20 @@ class AppDatabase extends _$AppDatabase {
       habitId: habitId,
       day: dayUtc,
       value: Value(value),
+    ));
+  }
+
+  Future<void> incrementCompletion(
+      int habitId, DateTime dayUtc, double delta) async {
+    final existing = await (select(completions)
+          ..where((c) =>
+              c.habitId.equals(habitId) & c.day.equals(dayUtc)))
+        .getSingleOrNull();
+    final newValue = (existing?.value ?? 0.0) + delta;
+    await into(completions).insertOnConflictUpdate(CompletionsCompanion.insert(
+      habitId: habitId,
+      day: dayUtc,
+      value: Value(newValue),
     ));
   }
 

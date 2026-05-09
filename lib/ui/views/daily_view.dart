@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
 import '../modals/new_habit_dialog.dart';
@@ -148,7 +149,7 @@ class _DailyHeader extends ConsumerWidget {
         // Streak summary
         Row(
           children: [
-            const Text('🔥', style: TextStyle(fontSize: 12)),
+            const Icon(LucideIcons.flame, size: 13, color: TH.amber),
             const SizedBox(width: 4),
             Text('${state.maxCurrentStreak} days',
                 style: const TextStyle(color: TH.amber, fontSize: 12)),
@@ -156,7 +157,7 @@ class _DailyHeader extends ConsumerWidget {
             const Text('*',
                 style: TextStyle(color: TH.fgMute, fontSize: 12)),
             const SizedBox(width: TH.s8),
-            const Text('🛡', style: TextStyle(fontSize: 12)),
+            const Icon(LucideIcons.shield, size: 12, color: TH.blue),
             const SizedBox(width: 4),
             Text('${state.sumShields}',
                 style: const TextStyle(color: TH.blue, fontSize: 12)),

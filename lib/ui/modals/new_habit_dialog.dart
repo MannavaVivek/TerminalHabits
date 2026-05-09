@@ -1,16 +1,19 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../../data/database.dart';
 import '../../domain/schedule.dart';
 import '../../state/providers.dart';
+import '../../theme/icon_library.dart';
 import '../../theme/tokens.dart';
-import 'text_prompt.dart';
+import '../widgets/icon_picker.dart';
+import 'new_group_dialog.dart';
 
 class NewHabitDialog extends ConsumerStatefulWidget {
   // Pre-fills the start date. Pass selectedDay when opening from the daily
-  // view (so a habit added while looking at last Tuesday starts on Tuesday);
-  // leave null when opening from the command palette / ⌘N (defaults to today).
+  // view so a habit added while looking at last Tuesday starts on Tuesday.
+  // Leave null when opening from the command palette / ⌘N (defaults to today).
   final DateTime? defaultStartDate;
   const NewHabitDialog({super.key, this.defaultStartDate});
 
@@ -21,7 +24,8 @@ class NewHabitDialog extends ConsumerStatefulWidget {
       showDialog(
         context: context,
         barrierColor: Colors.black54,
-        builder: (_) => NewHabitDialog(defaultStartDate: defaultStartDate),
+        builder: (_) =>
+            NewHabitDialog(defaultStartDate: defaultStartDate),
       );
 
   @override
@@ -30,16 +34,22 @@ class NewHabitDialog extends ConsumerStatefulWidget {
 
 class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
   final _nameCtrl = TextEditingController();
+  final _noteCtrl = TextEditingController();
+  final _targetCtrl = TextEditingController();
   String _schedule = 'daily';
   String _color = 'green';
-  String? _groupId; // null = uninitialized, set on first build
+  String? _groupId;
   late DateTime _startDate =
       widget.defaultStartDate ?? DateTime.now();
+  String _tracking = 'checkbox';
+  String? _iconKey;
   bool _saving = false;
 
   @override
   void dispose() {
     _nameCtrl.dispose();
+    _noteCtrl.dispose();
+    _targetCtrl.dispose();
     super.dispose();
   }
 
@@ -54,14 +64,30 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
       _ => dailySchedule(),
     };
 
+    int? target;
+    String? unit;
+    if (_tracking == 'counter') {
+      target = int.tryParse(_targetCtrl.text.trim());
+      unit = null;
+    } else if (_tracking == 'duration') {
+      target = int.tryParse(_targetCtrl.text.trim());
+      unit = 'min';
+    }
+
     final db = ref.read(dbProvider);
     final habits = await db.getActiveHabits();
     await db.createHabit(HabitsCompanion.insert(
       groupId: _groupId ?? 'general',
       name: name,
+      icon: Value(_iconKey ?? 'circle'),
       color: Value(_color),
-      tracking: 'checkbox',
+      tracking: _tracking,
+      target: Value(target),
+      unit: Value(unit),
       schedule: scheduleJson,
+      note: Value(_noteCtrl.text.trim().isEmpty
+          ? null
+          : _noteCtrl.text.trim()),
       sortIndex: habits.length,
       startDate: Value(_startDate),
     ));
@@ -91,15 +117,11 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
   }
 
   Future<void> _newGroup() async {
-    final name = await promptText(
-      context,
-      title: 'new group',
-      hint: 'group name',
-      saveLabel: '[ create ]',
-    );
-    if (name == null || name.isEmpty) return;
+    final result = await NewGroupDialog.show(context);
+    if (result == null) return;
     final db = ref.read(dbProvider);
-    final created = await db.createGroup(name);
+    final created = await db.createGroup(result.name,
+        icon: result.icon, note: result.note);
     if (mounted) setState(() => _groupId = created.id);
   }
 
@@ -107,20 +129,22 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
   Widget build(BuildContext context) {
     final groupsAV = ref.watch(groupsProvider);
     final groups = groupsAV.valueOrNull ?? const <Group>[];
-    // Default the selection to "general" once the list loads.
     if (_groupId == null && groups.isNotEmpty) {
       _groupId = groups.any((g) => g.id == 'general')
           ? 'general'
           : groups.first.id;
     }
 
+    final iconData = lucideIconData(_iconKey);
+    final iconColor = _colorMap[_color] ?? TH.green;
+
     return Dialog(
       backgroundColor: TH.bg2,
       shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.all(TH.r10)),
       child: SizedBox(
-        width: 420,
-        child: Padding(
+        width: 440,
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(TH.s22),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -137,42 +161,112 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
                   GestureDetector(
                     onTap: () => Navigator.of(context).pop(),
                     child: const Text('[ cancel ]',
-                        style:
-                            TextStyle(color: TH.fgMute, fontSize: 12)),
+                        style: TextStyle(
+                            color: TH.fgMute, fontSize: 12)),
                   ),
                 ],
               ),
               const SizedBox(height: TH.s22),
-              const Text('name',
-                  style: TextStyle(color: TH.fgDim, fontSize: 12)),
-              const SizedBox(height: TH.s4),
+
+              // ── name ─────────────────────────────────────────────
+              _Label('name'),
               TextField(
                 controller: _nameCtrl,
                 autofocus: true,
                 style: const TextStyle(color: TH.fg, fontSize: 14),
-                decoration: InputDecoration(
-                  hintText: 'e.g. meditate, read, journal',
-                  hintStyle:
-                      const TextStyle(color: TH.fgFaint, fontSize: 14),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: const BorderSide(color: TH.line2),
-                    borderRadius: BorderRadius.all(TH.r4),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: const BorderSide(color: TH.green),
-                    borderRadius: BorderRadius.all(TH.r4),
-                  ),
-                  fillColor: TH.bg1,
-                  filled: true,
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: TH.s8, vertical: TH.s8),
-                ),
+                decoration: _fieldDeco('e.g. meditate, read, journal'),
                 onSubmitted: (_) => _save(),
               ),
+
+              // ── icon + color (side by side) ───────────────────────
               const SizedBox(height: TH.s14),
-              const Text('group',
-                  style: TextStyle(color: TH.fgDim, fontSize: 12)),
-              const SizedBox(height: TH.s4),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _Label('icon'),
+                        Row(
+                          children: [
+                            Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                border: Border.all(color: TH.line2),
+                                borderRadius:
+                                    BorderRadius.all(TH.r4),
+                                color: TH.bg1,
+                              ),
+                              child: Center(
+                                child: iconData != null
+                                    ? Icon(iconData,
+                                        size: 18, color: iconColor)
+                                    : Icon(LucideIcons.circle,
+                                        size: 18, color: iconColor),
+                              ),
+                            ),
+                            const SizedBox(width: TH.s8),
+                            GestureDetector(
+                              onTap: () async {
+                                final key =
+                                    await IconPickerDialog.show(
+                                        context,
+                                        initial: _iconKey);
+                                if (key != null) {
+                                  setState(() => _iconKey = key);
+                                }
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: TH.s8,
+                                    vertical: TH.s4),
+                                decoration: BoxDecoration(
+                                  border:
+                                      Border.all(color: TH.line2),
+                                  borderRadius:
+                                      BorderRadius.all(TH.r4),
+                                ),
+                                child: const Text('[ pick ]',
+                                    style: TextStyle(
+                                        color: TH.fgDim,
+                                        fontSize: 12)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: TH.s14),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _Label('color'),
+                      Row(
+                        children: [
+                          for (final c in _colorMap.keys)
+                            Padding(
+                              padding:
+                                  const EdgeInsets.only(right: 8),
+                              child: _ColorDot(
+                                color: _colorMap[c]!,
+                                selected: _color == c,
+                                onTap: () =>
+                                    setState(() => _color = c),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+
+              // ── group ─────────────────────────────────────────────
+              const SizedBox(height: TH.s14),
+              _Label('group'),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -191,10 +285,10 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
                   ),
                 ],
               ),
+
+              // ── schedule ──────────────────────────────────────────
               const SizedBox(height: TH.s14),
-              const Text('schedule',
-                  style: TextStyle(color: TH.fgDim, fontSize: 12)),
-              const SizedBox(height: TH.s4),
+              _Label('schedule'),
               Row(
                 children: [
                   for (final s in ['daily', 'weekdays', 'weekends'])
@@ -203,15 +297,82 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
                       child: _Pill(
                         label: s,
                         selected: _schedule == s,
-                        onTap: () => setState(() => _schedule = s),
+                        onTap: () =>
+                            setState(() => _schedule = s),
                       ),
                     ),
                 ],
               ),
+
+              // ── tracking type ─────────────────────────────────────
               const SizedBox(height: TH.s14),
-              const Text('start date',
-                  style: TextStyle(color: TH.fgDim, fontSize: 12)),
-              const SizedBox(height: TH.s4),
+              _Label('type'),
+              Row(
+                children: [
+                  for (final t in ['checkbox', 'counter', 'duration'])
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: _Pill(
+                        label: t,
+                        selected: _tracking == t,
+                        onTap: () {
+                          setState(() {
+                            _tracking = t;
+                            _targetCtrl.clear();
+                          });
+                        },
+                      ),
+                    ),
+                ],
+              ),
+              if (_tracking == 'counter') ...[
+                const SizedBox(height: TH.s8),
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 80,
+                      child: TextField(
+                        controller: _targetCtrl,
+                        keyboardType: TextInputType.number,
+                        style: const TextStyle(
+                            color: TH.fg, fontSize: 13),
+                        decoration: _fieldDeco('10'),
+                        onSubmitted: (_) => _save(),
+                      ),
+                    ),
+                    const SizedBox(width: TH.s8),
+                    const Text('min count',
+                        style: TextStyle(
+                            color: TH.fgMute, fontSize: 12)),
+                  ],
+                ),
+              ],
+              if (_tracking == 'duration') ...[
+                const SizedBox(height: TH.s8),
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 80,
+                      child: TextField(
+                        controller: _targetCtrl,
+                        keyboardType: TextInputType.number,
+                        style: const TextStyle(
+                            color: TH.fg, fontSize: 13),
+                        decoration: _fieldDeco('30'),
+                        onSubmitted: (_) => _save(),
+                      ),
+                    ),
+                    const SizedBox(width: TH.s8),
+                    const Text('target min',
+                        style: TextStyle(
+                            color: TH.fgMute, fontSize: 12)),
+                  ],
+                ),
+              ],
+
+              // ── start date ────────────────────────────────────────
+              const SizedBox(height: TH.s14),
+              _Label('start date'),
               GestureDetector(
                 onTap: _pickStartDate,
                 child: Container(
@@ -223,27 +384,24 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
                   ),
                   child: Text(
                     _formatDate(_startDate),
-                    style: const TextStyle(color: TH.fg, fontSize: 13),
+                    style: const TextStyle(
+                        color: TH.fg, fontSize: 13),
                   ),
                 ),
               ),
+
+              // ── note ──────────────────────────────────────────────
               const SizedBox(height: TH.s14),
-              const Text('color',
-                  style: TextStyle(color: TH.fgDim, fontSize: 12)),
-              const SizedBox(height: TH.s4),
-              Row(
-                children: [
-                  for (final c in _colorMap.keys)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: _ColorDot(
-                        color: _colorMap[c]!,
-                        selected: _color == c,
-                        onTap: () => setState(() => _color = c),
-                      ),
-                    ),
-                ],
+              _Label('note (optional)'),
+              TextField(
+                controller: _noteCtrl,
+                maxLines: 2,
+                style: const TextStyle(color: TH.fg, fontSize: 13),
+                decoration:
+                    _fieldDeco('// shown under the row in daily view'),
               ),
+
+              // ── save ──────────────────────────────────────────────
               const SizedBox(height: TH.s22),
               GestureDetector(
                 onTap: _saving ? null : _save,
@@ -279,12 +437,41 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
   };
 }
 
+InputDecoration _fieldDeco(String hint) => InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: TH.fgFaint, fontSize: 13),
+      enabledBorder: OutlineInputBorder(
+        borderSide: const BorderSide(color: TH.line2),
+        borderRadius: BorderRadius.all(TH.r4),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderSide: const BorderSide(color: TH.green),
+        borderRadius: BorderRadius.all(TH.r4),
+      ),
+      fillColor: TH.bg1,
+      filled: true,
+      isDense: true,
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: TH.s8, vertical: TH.s8),
+    );
+
 String _formatDate(DateTime d) {
   const months = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
   ];
   return '${months[d.month - 1]} ${d.day} ${d.year}';
+}
+
+class _Label extends StatelessWidget {
+  final String text;
+  const _Label(this.text);
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: TH.s4),
+        child: Text(text,
+            style: const TextStyle(color: TH.fgDim, fontSize: 12)),
+      );
 }
 
 class _Pill extends StatelessWidget {

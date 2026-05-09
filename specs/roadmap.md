@@ -151,36 +151,42 @@
 
 ---
 
-## Phase 4 — Beautification: icon library, group icons, color palette (≈ 1 week)
+## Phase 4 — Icons, tracking types, group notes (≈ 1 week)
 
 > After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit per `constitution.md §7`.
 
-**Goal:** habit and group rows feel visually distinct without relying on the user typing arbitrary unicode. An icon picker replaces the raw icon text field, groups gain icons, the per-habit color tints more than just the icon, and the color palette grows beyond the original six.
+**Goal:** habits and groups show Lucide icons with color; tracking type (checkbox / counter / duration) is selectable at creation; count and elapsed time surface in the row next to the streak flame.
 
 ### Scope
-- **Icon picker** (`IconPickerDialog`): grid of curated glyphs grouped by category (`productivity`, `health`, `mind`, `social`, `creative`, `chore`, `misc`). Source list lives in `lib/theme/icon_library.dart` (~80–120 entries; emoji + select monochrome glyphs). A search field filters by name/tag. Replaces the bare text field in `NewHabitDialog` and `EditHabitDialog`. A `[ custom ]` tab lets the user fall back to typing 1–2 characters.
-- **Group icons**: new `groups.icon TEXT NULL`. Same picker reused in the group-create / rename flow. Existing groups backfilled with `▸` so headers don't go blank. Group header now renders the icon next to the name.
-- **Color palette expansion**: grow from 6 to ~12 curated colors (`green / amber / blue / purple / teal / red / pink / cyan / orange / lime / sky / rose`). Defined in `lib/theme/palette.dart`. Existing habits keep their saved color string.
-- **Color-tinted row text** (opt-in): `habits.color` already tints the icon. New `colorIntensity` setting (`icon-only` (default) | `icon+text` | `bold-text`) controls whether the row's name text is also tinted, and at what weight. Stored in the `settings` table; the toggle's UI lands in Phase 6's settings dialog. Until Phase 6 the value defaults to `icon-only`.
-- **Habit-row note polish**: notes already render under the row. On desktop, hovering the row reveals a faint `+ note` chip when no note is set; right-click → `edit note` enters inline-edit mode (single-line `TextField` over the sub-line). Mobile note editing stays in the edit dialog (full inline edit comes in Phase 10's touch pass).
-- **Theme tokens**: extend `TH` with the new palette colors. Add dim variants (`TH.amberDim`, etc.) for when row text is tinted but should not compete with the active streak color.
+- **Lucide icon picker** (`IconPickerDialog`): full-screen dialog with a search field and a scrollable grid of ~90 curated icons organised by category (`productivity`, `health`, `mind`, `creative`, `social`, `home`, `misc`). Source list lives in `lib/theme/icon_library.dart`. Each entry maps a string key (stored in `habits.icon` / `groups.icon`) to a `LucideIcons` `IconData`. Replaces the bare text field in `NewHabitDialog` and `EditHabitDialog`. A `[ text ]` fallback lets the user type 1–2 chars for any glyph not in the picker.
+- **Group icons**: `groups.icon TEXT NULL` (migration v4). Same picker reused in `NewGroupDialog` and the group context menu `edit icon` option. Group header renders the icon next to the name, colored `TH.fgDim`. `null` renders no icon slot.
+- **Group header layout change**: collapse chevron (`›` / `⌄`) moved to the far right, after `[done/total]` count.
+- **Group notes at creation**: `NewGroupDialog` (replaces bare `promptText` call) includes both a name field and an optional note field. The existing `edit note` menu option is retained.
+- **Tracking types in `NewHabitDialog`**: after choosing name/group/schedule, a new `type` pill row offers `checkbox`, `counter`, `duration`. Selecting a type reveals its extra field:
+  - `counter` → integer `target` field (label: `min count`, e.g. `10`).
+  - `duration` → integer `target` field (label: `target (min)`, e.g. `30`).
+  - These write to `habits.tracking`, `habits.target`, and `habits.unit` (`null` / `null` / `reps` / `min`).
+- **Tracking display in habit row**: for `counter` and `duration` habits, show `value/target` (or `valuemin/targetmin`) to the right of the flame when `todayCompletion != null`. Tapping the checkbox area increments the value by `+1` (counter) or `+5` (duration, minutes); once `value >= target` the row reads as done. `isDoneToday` updated to reflect target-based completion.
+- **Lucide flame icon**: replace the `🔥` text emoji in `HabitRow` and the daily-view header with `LucideIcons.flame` rendered as a Flutter `Icon`.
 
 ### Schema changes
-- Migration v4: add `groups.icon TEXT NULL`. Backfill `UPDATE groups SET icon = '▸'` so legacy rows aren't blank. The new picker writes any glyph; nullable means "no icon, render no slot".
+- Migration v4: `ALTER TABLE groups ADD COLUMN icon TEXT NULL`. No backfill — null renders without an icon slot.
 
 ### Exit criteria
-- [ ] Icon picker shows ~100+ glyphs across 6+ categories; search narrows the grid live.
-- [ ] Selecting an icon updates the live preview in the create/edit dialog before save.
-- [ ] Existing habits keep their original icons (no migration on `habits.icon`).
-- [ ] Group header renders the chosen group icon; un-set falls back to `▸`.
-- [ ] Color picker shows the expanded palette; old habits keep their saved color string.
-- [ ] Right-click on a habit row → `edit note` enters inline edit mode and saves on Enter / blur.
+- [ ] Icon picker opens from a `[ pick icon ]` button in `NewHabitDialog` and `EditHabitDialog`; searching narrows the grid live.
+- [ ] Selecting an icon shows a live preview of the icon+color combination in the dialog before save.
+- [ ] Habit row renders the Lucide icon in the habit's color; old `●` habits display as text fallback.
+- [ ] Group header shows the group icon (if set) before the name; collapse chevron is on the far right.
+- [ ] Creating a group via `[ + new ]` in the habit dialog opens `NewGroupDialog` with name + note fields.
+- [ ] `counter` and `duration` tracking types are selectable in `NewHabitDialog`; their targets save correctly.
+- [ ] Row shows `value/target` for counter/duration; tapping increments; done state reflects target.
+- [ ] Flame in habit row and daily header is a Lucide `Icon`, not an emoji.
 - [ ] No regressions from Phases 1–3.
 
 ### Out of scope
-- User-uploaded custom icons (post-1.0).
-- Per-theme tinting that overrides the per-habit color (post-1.0).
+- Color palette expansion beyond the current 6 (Phase 6 settings dialog).
 - Schedule history / progress preservation (Phase 5).
+- Full touch-friendly counter/duration input (Phase 10).
 
 ---
 

@@ -62,8 +62,24 @@ class $GroupsTable extends Groups with TableInfo<$GroupsTable, Group> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _iconMeta = const VerificationMeta('icon');
   @override
-  List<GeneratedColumn> get $columns => [id, name, sortIndex, collapsed, note];
+  late final GeneratedColumn<String> icon = GeneratedColumn<String>(
+    'icon',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    sortIndex,
+    collapsed,
+    note,
+    icon,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -107,6 +123,12 @@ class $GroupsTable extends Groups with TableInfo<$GroupsTable, Group> {
         note.isAcceptableOrUnknown(data['note']!, _noteMeta),
       );
     }
+    if (data.containsKey('icon')) {
+      context.handle(
+        _iconMeta,
+        icon.isAcceptableOrUnknown(data['icon']!, _iconMeta),
+      );
+    }
     return context;
   }
 
@@ -136,6 +158,10 @@ class $GroupsTable extends Groups with TableInfo<$GroupsTable, Group> {
         DriftSqlType.string,
         data['${effectivePrefix}note'],
       ),
+      icon: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}icon'],
+      ),
     );
   }
 
@@ -151,12 +177,14 @@ class Group extends DataClass implements Insertable<Group> {
   final int sortIndex;
   final bool collapsed;
   final String? note;
+  final String? icon;
   const Group({
     required this.id,
     required this.name,
     required this.sortIndex,
     required this.collapsed,
     this.note,
+    this.icon,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -168,6 +196,9 @@ class Group extends DataClass implements Insertable<Group> {
     if (!nullToAbsent || note != null) {
       map['note'] = Variable<String>(note);
     }
+    if (!nullToAbsent || icon != null) {
+      map['icon'] = Variable<String>(icon);
+    }
     return map;
   }
 
@@ -178,6 +209,7 @@ class Group extends DataClass implements Insertable<Group> {
       sortIndex: Value(sortIndex),
       collapsed: Value(collapsed),
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      icon: icon == null && nullToAbsent ? const Value.absent() : Value(icon),
     );
   }
 
@@ -192,6 +224,7 @@ class Group extends DataClass implements Insertable<Group> {
       sortIndex: serializer.fromJson<int>(json['sortIndex']),
       collapsed: serializer.fromJson<bool>(json['collapsed']),
       note: serializer.fromJson<String?>(json['note']),
+      icon: serializer.fromJson<String?>(json['icon']),
     );
   }
   @override
@@ -203,6 +236,7 @@ class Group extends DataClass implements Insertable<Group> {
       'sortIndex': serializer.toJson<int>(sortIndex),
       'collapsed': serializer.toJson<bool>(collapsed),
       'note': serializer.toJson<String?>(note),
+      'icon': serializer.toJson<String?>(icon),
     };
   }
 
@@ -212,12 +246,14 @@ class Group extends DataClass implements Insertable<Group> {
     int? sortIndex,
     bool? collapsed,
     Value<String?> note = const Value.absent(),
+    Value<String?> icon = const Value.absent(),
   }) => Group(
     id: id ?? this.id,
     name: name ?? this.name,
     sortIndex: sortIndex ?? this.sortIndex,
     collapsed: collapsed ?? this.collapsed,
     note: note.present ? note.value : this.note,
+    icon: icon.present ? icon.value : this.icon,
   );
   Group copyWithCompanion(GroupsCompanion data) {
     return Group(
@@ -226,6 +262,7 @@ class Group extends DataClass implements Insertable<Group> {
       sortIndex: data.sortIndex.present ? data.sortIndex.value : this.sortIndex,
       collapsed: data.collapsed.present ? data.collapsed.value : this.collapsed,
       note: data.note.present ? data.note.value : this.note,
+      icon: data.icon.present ? data.icon.value : this.icon,
     );
   }
 
@@ -236,13 +273,14 @@ class Group extends DataClass implements Insertable<Group> {
           ..write('name: $name, ')
           ..write('sortIndex: $sortIndex, ')
           ..write('collapsed: $collapsed, ')
-          ..write('note: $note')
+          ..write('note: $note, ')
+          ..write('icon: $icon')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, name, sortIndex, collapsed, note);
+  int get hashCode => Object.hash(id, name, sortIndex, collapsed, note, icon);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -251,7 +289,8 @@ class Group extends DataClass implements Insertable<Group> {
           other.name == this.name &&
           other.sortIndex == this.sortIndex &&
           other.collapsed == this.collapsed &&
-          other.note == this.note);
+          other.note == this.note &&
+          other.icon == this.icon);
 }
 
 class GroupsCompanion extends UpdateCompanion<Group> {
@@ -260,6 +299,7 @@ class GroupsCompanion extends UpdateCompanion<Group> {
   final Value<int> sortIndex;
   final Value<bool> collapsed;
   final Value<String?> note;
+  final Value<String?> icon;
   final Value<int> rowid;
   const GroupsCompanion({
     this.id = const Value.absent(),
@@ -267,6 +307,7 @@ class GroupsCompanion extends UpdateCompanion<Group> {
     this.sortIndex = const Value.absent(),
     this.collapsed = const Value.absent(),
     this.note = const Value.absent(),
+    this.icon = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   GroupsCompanion.insert({
@@ -275,6 +316,7 @@ class GroupsCompanion extends UpdateCompanion<Group> {
     required int sortIndex,
     this.collapsed = const Value.absent(),
     this.note = const Value.absent(),
+    this.icon = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : name = Value(name),
        sortIndex = Value(sortIndex);
@@ -284,6 +326,7 @@ class GroupsCompanion extends UpdateCompanion<Group> {
     Expression<int>? sortIndex,
     Expression<bool>? collapsed,
     Expression<String>? note,
+    Expression<String>? icon,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -292,6 +335,7 @@ class GroupsCompanion extends UpdateCompanion<Group> {
       if (sortIndex != null) 'sort_index': sortIndex,
       if (collapsed != null) 'collapsed': collapsed,
       if (note != null) 'note': note,
+      if (icon != null) 'icon': icon,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -302,6 +346,7 @@ class GroupsCompanion extends UpdateCompanion<Group> {
     Value<int>? sortIndex,
     Value<bool>? collapsed,
     Value<String?>? note,
+    Value<String?>? icon,
     Value<int>? rowid,
   }) {
     return GroupsCompanion(
@@ -310,6 +355,7 @@ class GroupsCompanion extends UpdateCompanion<Group> {
       sortIndex: sortIndex ?? this.sortIndex,
       collapsed: collapsed ?? this.collapsed,
       note: note ?? this.note,
+      icon: icon ?? this.icon,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -332,6 +378,9 @@ class GroupsCompanion extends UpdateCompanion<Group> {
     if (note.present) {
       map['note'] = Variable<String>(note.value);
     }
+    if (icon.present) {
+      map['icon'] = Variable<String>(icon.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -346,6 +395,7 @@ class GroupsCompanion extends UpdateCompanion<Group> {
           ..write('sortIndex: $sortIndex, ')
           ..write('collapsed: $collapsed, ')
           ..write('note: $note, ')
+          ..write('icon: $icon, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2150,6 +2200,7 @@ typedef $$GroupsTableCreateCompanionBuilder =
       required int sortIndex,
       Value<bool> collapsed,
       Value<String?> note,
+      Value<String?> icon,
       Value<int> rowid,
     });
 typedef $$GroupsTableUpdateCompanionBuilder =
@@ -2159,6 +2210,7 @@ typedef $$GroupsTableUpdateCompanionBuilder =
       Value<int> sortIndex,
       Value<bool> collapsed,
       Value<String?> note,
+      Value<String?> icon,
       Value<int> rowid,
     });
 
@@ -2217,6 +2269,11 @@ class $$GroupsTableFilterComposer
 
   ColumnFilters<String> get note => $composableBuilder(
     column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get icon => $composableBuilder(
+    column: $table.icon,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2279,6 +2336,11 @@ class $$GroupsTableOrderingComposer
     column: $table.note,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get icon => $composableBuilder(
+    column: $table.icon,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$GroupsTableAnnotationComposer
@@ -2304,6 +2366,9 @@ class $$GroupsTableAnnotationComposer
 
   GeneratedColumn<String> get note =>
       $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<String> get icon =>
+      $composableBuilder(column: $table.icon, builder: (column) => column);
 
   Expression<T> habitsRefs<T extends Object>(
     Expression<T> Function($$HabitsTableAnnotationComposer a) f,
@@ -2364,6 +2429,7 @@ class $$GroupsTableTableManager
                 Value<int> sortIndex = const Value.absent(),
                 Value<bool> collapsed = const Value.absent(),
                 Value<String?> note = const Value.absent(),
+                Value<String?> icon = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => GroupsCompanion(
                 id: id,
@@ -2371,6 +2437,7 @@ class $$GroupsTableTableManager
                 sortIndex: sortIndex,
                 collapsed: collapsed,
                 note: note,
+                icon: icon,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -2380,6 +2447,7 @@ class $$GroupsTableTableManager
                 required int sortIndex,
                 Value<bool> collapsed = const Value.absent(),
                 Value<String?> note = const Value.absent(),
+                Value<String?> icon = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => GroupsCompanion.insert(
                 id: id,
@@ -2387,6 +2455,7 @@ class $$GroupsTableTableManager
                 sortIndex: sortIndex,
                 collapsed: collapsed,
                 note: note,
+                icon: icon,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

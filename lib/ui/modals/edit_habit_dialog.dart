@@ -5,8 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/database.dart';
 import '../../domain/schedule.dart';
 import '../../state/providers.dart';
+import '../../theme/icon_library.dart';
 import '../../theme/tokens.dart';
-import 'text_prompt.dart';
+import '../widgets/icon_picker.dart';
+import 'new_group_dialog.dart';
 
 class EditHabitDialog extends ConsumerStatefulWidget {
   final Habit habit;
@@ -25,17 +27,16 @@ class EditHabitDialog extends ConsumerStatefulWidget {
 class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
   late final TextEditingController _nameCtrl;
   late final TextEditingController _noteCtrl;
-  late final TextEditingController _iconCtrl;
+  late final TextEditingController _targetCtrl;
   late String _scheduleKey;
   late String _color;
   late String _groupId;
   late DateTime _startDate;
-  String? _targetTime; // 'HH:mm' or null
+  late String _tracking;
+  String? _iconKey;
+  String? _targetTime;
   bool _saving = false;
   bool _hasCompletions = false;
-
-  String get _icon =>
-      _iconCtrl.text.trim().isEmpty ? '●' : _iconCtrl.text.trim();
 
   @override
   void initState() {
@@ -43,17 +44,23 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
     final h = widget.habit;
     _nameCtrl = TextEditingController(text: h.name);
     _noteCtrl = TextEditingController(text: h.note ?? '');
-    _iconCtrl = TextEditingController(text: h.icon);
+    _targetCtrl = TextEditingController(
+        text: h.target != null ? '${h.target}' : '');
+    // If the stored icon is a lucide key, use it; otherwise keep null
+    // (the preview will show the fallback icon).
+    _iconKey = lucideIconData(h.icon) != null ? h.icon : null;
     _scheduleKey = _scheduleKeyFromJson(h.schedule);
     _color = h.color;
     _groupId = h.groupId;
     _startDate = h.startDate;
+    _tracking = h.tracking;
     _targetTime = h.targetTime;
     _loadCompletionFlag();
   }
 
   Future<void> _loadCompletionFlag() async {
-    final comps = await ref.read(dbProvider).getCompletionsForHabit(widget.habit.id);
+    final comps =
+        await ref.read(dbProvider).getCompletionsForHabit(widget.habit.id);
     if (mounted) setState(() => _hasCompletions = comps.isNotEmpty);
   }
 
@@ -61,7 +68,7 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
   void dispose() {
     _nameCtrl.dispose();
     _noteCtrl.dispose();
-    _iconCtrl.dispose();
+    _targetCtrl.dispose();
     super.dispose();
   }
 
@@ -88,13 +95,26 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
 
     setState(() => _saving = true);
 
+    int? target;
+    String? unit;
+    if (_tracking == 'counter') {
+      target = int.tryParse(_targetCtrl.text.trim());
+      unit = null;
+    } else if (_tracking == 'duration') {
+      target = int.tryParse(_targetCtrl.text.trim());
+      unit = 'min';
+    }
+
     final db = ref.read(dbProvider);
     await db.patchHabit(
       widget.habit.id,
       HabitsCompanion(
         name: Value(name),
-        icon: Value(_icon),
+        icon: Value(_iconKey ?? widget.habit.icon),
         color: Value(_color),
+        tracking: Value(_tracking),
+        target: Value(target),
+        unit: Value(unit),
         schedule: Value(newScheduleJson),
         note: Value(_noteCtrl.text.trim().isEmpty
             ? null
@@ -102,7 +122,9 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
         groupId: Value(_groupId),
         startDate: Value(_startDate),
         targetTime: Value(
-            _targetTime == null || _targetTime!.isEmpty ? null : _targetTime),
+            _targetTime == null || _targetTime!.isEmpty
+                ? null
+                : _targetTime),
       ),
     );
 
@@ -171,14 +193,11 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
   }
 
   Future<void> _newGroup() async {
-    final name = await promptText(
-      context,
-      title: 'new group',
-      hint: 'group name',
-      saveLabel: '[ create ]',
-    );
-    if (name == null || name.isEmpty) return;
-    final created = await ref.read(dbProvider).createGroup(name);
+    final result = await NewGroupDialog.show(context);
+    if (result == null) return;
+    final created = await ref
+        .read(dbProvider)
+        .createGroup(result.name, icon: result.icon, note: result.note);
     if (mounted) setState(() => _groupId = created.id);
   }
 
@@ -249,8 +268,7 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
                   padding: EdgeInsets.only(bottom: 4),
                   child: Text(
                     '// changing this will warn before discarding past completions',
-                    style:
-                        TextStyle(color: TH.fgFaint, fontSize: 11),
+                    style: TextStyle(color: TH.fgFaint, fontSize: 11),
                   ),
                 ),
               Row(
@@ -268,29 +286,161 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
                 ],
               ),
               const SizedBox(height: TH.s14),
-              _Label('color'),
+              _Label('type'),
+              if (_hasCompletions)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    '// tracking type is locked while completions exist',
+                    style: TextStyle(color: TH.fgFaint, fontSize: 11),
+                  ),
+                ),
               Row(
                 children: [
-                  for (final c in _colorMap.keys)
+                  for (final t in const [
+                    'checkbox',
+                    'counter',
+                    'duration'
+                  ])
                     Padding(
                       padding: const EdgeInsets.only(right: 8),
-                      child: _ColorDot(
-                        color: _colorMap[c]!,
-                        selected: _color == c,
-                        onTap: () => setState(() => _color = c),
+                      child: _Pill(
+                        label: t,
+                        selected: _tracking == t,
+                        onTap: _hasCompletions
+                            ? () {}
+                            : () {
+                                setState(() {
+                                  _tracking = t;
+                                  _targetCtrl.clear();
+                                });
+                              },
                       ),
                     ),
                 ],
               ),
-              const SizedBox(height: TH.s14),
-              _Label('icon'),
-              SizedBox(
-                width: 60,
-                child: _StyledField(
-                  controller: _iconCtrl,
-                  hint: '●',
-                  maxLength: 2,
+              if (_tracking == 'counter') ...[
+                const SizedBox(height: TH.s8),
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 80,
+                      child: _StyledField(
+                        controller: _targetCtrl,
+                        hint: '10',
+                        keyboardType: TextInputType.number,
+                      ),
+                    ),
+                    const SizedBox(width: TH.s8),
+                    const Text('min count',
+                        style: TextStyle(
+                            color: TH.fgMute, fontSize: 12)),
+                  ],
                 ),
+              ],
+              if (_tracking == 'duration') ...[
+                const SizedBox(height: TH.s8),
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 80,
+                      child: _StyledField(
+                        controller: _targetCtrl,
+                        hint: '30',
+                        keyboardType: TextInputType.number,
+                      ),
+                    ),
+                    const SizedBox(width: TH.s8),
+                    const Text('target min',
+                        style: TextStyle(
+                            color: TH.fgMute, fontSize: 12)),
+                  ],
+                ),
+              ],
+              const SizedBox(height: TH.s14),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _Label('icon'),
+                        Row(
+                          children: [
+                            Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                border: Border.all(color: TH.line2),
+                                borderRadius: BorderRadius.all(TH.r4),
+                                color: TH.bg1,
+                              ),
+                              child: Center(
+                                child: () {
+                                  final d = lucideIconData(_iconKey) ??
+                                      lucideIconData(widget.habit.icon);
+                                  final c = _colorMap[_color] ?? TH.green;
+                                  return d != null
+                                      ? Icon(d, size: 18, color: c)
+                                      : Text(widget.habit.icon,
+                                          style: TextStyle(
+                                              color: c, fontSize: 16));
+                                }(),
+                              ),
+                            ),
+                            const SizedBox(width: TH.s8),
+                            GestureDetector(
+                              onTap: () async {
+                                final key = await IconPickerDialog.show(
+                                    context,
+                                    initial: _iconKey ??
+                                        (lucideIconData(widget.habit.icon) !=
+                                                null
+                                            ? widget.habit.icon
+                                            : null));
+                                if (key != null) {
+                                  setState(() => _iconKey = key);
+                                }
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: TH.s8, vertical: TH.s4),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: TH.line2),
+                                  borderRadius: BorderRadius.all(TH.r4),
+                                ),
+                                child: const Text('[ pick icon ]',
+                                    style: TextStyle(
+                                        color: TH.fgDim, fontSize: 12)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: TH.s14),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _Label('color'),
+                      Row(
+                        children: [
+                          for (final c in _colorMap.keys)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: _ColorDot(
+                                color: _colorMap[c]!,
+                                selected: _color == c,
+                                onTap: () => setState(() => _color = c),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
               ),
               const SizedBox(height: TH.s14),
               _Label('start date'),
@@ -437,7 +587,7 @@ Future<bool> _confirmScheduleOverwrite(
                 '$losingCount completion${losingCount == 1 ? '' : 's'} '
                 'fall on days the new schedule no longer covers.\n'
                 "they'll stay in the database but stop counting toward "
-                'streaks/stats. (phase 4 will preserve full history.)',
+                'streaks/stats. (phase 5 will preserve full history.)',
                 style: const TextStyle(color: TH.fgDim, fontSize: 12),
               ),
               const SizedBox(height: TH.s22),
@@ -492,6 +642,7 @@ class _StyledField extends StatelessWidget {
   final String hint;
   final int maxLines;
   final int? maxLength;
+  final TextInputType? keyboardType;
   final void Function(String)? onSubmitted;
 
   const _StyledField({
@@ -499,6 +650,7 @@ class _StyledField extends StatelessWidget {
     required this.hint,
     this.maxLines = 1,
     this.maxLength,
+    this.keyboardType,
     this.onSubmitted,
   });
 
@@ -508,6 +660,7 @@ class _StyledField extends StatelessWidget {
       controller: controller,
       maxLines: maxLines,
       maxLength: maxLength,
+      keyboardType: keyboardType,
       style: const TextStyle(color: TH.fg, fontSize: 14),
       decoration: InputDecoration(
         hintText: hint,
@@ -523,6 +676,7 @@ class _StyledField extends StatelessWidget {
         ),
         fillColor: TH.bg1,
         filled: true,
+        isDense: true,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: TH.s8, vertical: TH.s8),
       ),

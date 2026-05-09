@@ -10,6 +10,7 @@ class Groups extends Table {
   BoolColumn get collapsed =>
       boolean().withDefault(const Constant(false))();
   TextColumn get note => text().nullable()();
+  TextColumn get icon => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
