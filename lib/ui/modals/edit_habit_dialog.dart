@@ -34,6 +34,7 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
   late String _groupId;
   late DateTime _startDate;
   late String _tracking;
+  late String _originalTracking;
   String? _iconKey;
   bool _saving = false;
   bool _hasCompletions = false;
@@ -54,6 +55,7 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
     _groupId = h.groupId;
     _startDate = h.startDate;
     _tracking = h.tracking;
+    _originalTracking = h.tracking;
     _loadCompletionFlag();
   }
 
@@ -78,13 +80,17 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
     final newScheduleJson = _scheduleJsonFromKey(_scheduleKey);
     final scheduleChanged = newScheduleJson != widget.habit.schedule;
 
-    // Phase 3 contract: schedule changes overwrite past validity. Warn the
-    // user only if completions exist on days that the new schedule no longer
-    // covers — that's when they'd actually lose meaning. Phase 4 will
-    // introduce real schedule history.
+    // Step 1: warn if tracking type changed while completions exist.
+    if (_tracking != _originalTracking && _hasCompletions) {
+      if (!mounted) return;
+      await _warnTypeChange(context);
+      if (!mounted) return;
+    }
+
+    // Step 2: warn if schedule change will orphan past completions.
     if (scheduleChanged && _hasCompletions) {
       final losing = await _completionsOnDroppedDays(
-        widget.habit, newScheduleJson);
+          widget.habit, newScheduleJson);
       if (losing > 0) {
         if (!mounted) return;
         final go = await _confirmScheduleOverwrite(context, losing);
@@ -232,14 +238,6 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
               ),
               const SizedBox(height: TH.s14),
               _Label('schedule'),
-              if (_hasCompletions)
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 4),
-                  child: Text(
-                    '// changing this will warn before discarding past completions',
-                    style: TextStyle(color: TH.fgFaint, fontSize: 11),
-                  ),
-                ),
               Row(
                 children: [
                   for (final s in const ['daily', 'weekdays', 'weekends'])
@@ -256,14 +254,6 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
               ),
               const SizedBox(height: TH.s14),
               _Label('type'),
-              if (_hasCompletions)
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 4),
-                  child: Text(
-                    '// tracking type is locked while completions exist',
-                    style: TextStyle(color: TH.fgFaint, fontSize: 11),
-                  ),
-                ),
               Row(
                 children: [
                   for (final t in const [
@@ -276,14 +266,10 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
                       child: _Pill(
                         label: t,
                         selected: _tracking == t,
-                        onTap: _hasCompletions
-                            ? () {}
-                            : () {
-                                setState(() {
-                                  _tracking = t;
-                                  _targetCtrl.clear();
-                                });
-                              },
+                        onTap: () => setState(() {
+                          _tracking = t;
+                          _targetCtrl.clear();
+                        }),
                       ),
                     ),
                 ],
@@ -499,6 +485,57 @@ String _formatDate(DateTime d) {
   ];
   return '${months[d.month - 1]} ${d.day} ${d.year}';
 }
+
+Future<void> _warnTypeChange(BuildContext context) => showDialog<void>(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (ctx) => Dialog(
+        backgroundColor: TH.bg2,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(TH.r10)),
+        child: SizedBox(
+          width: 380,
+          child: Padding(
+            padding: const EdgeInsets.all(TH.s22),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('tracking type changed',
+                    style: TextStyle(
+                        color: TH.fg,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600)),
+                const SizedBox(height: TH.s8),
+                const Text(
+                  'existing completions are kept, but done-logic and '
+                  'progress display will reflect the new type. '
+                  'past streaks may shift.',
+                  style: TextStyle(color: TH.fgDim, fontSize: 12),
+                ),
+                const SizedBox(height: TH.s22),
+                Center(
+                  child: GestureDetector(
+                    onTap: () => Navigator.of(ctx).pop(),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: TH.s22, vertical: TH.s8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: TH.amber),
+                        borderRadius: BorderRadius.all(TH.r4),
+                      ),
+                      child: const Text('[ understood ]',
+                          style: TextStyle(
+                              color: TH.amber, fontSize: 13)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
 
 Future<bool> _confirmScheduleOverwrite(
     BuildContext context, int losingCount) async {

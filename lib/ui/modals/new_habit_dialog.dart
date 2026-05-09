@@ -57,13 +57,6 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
   Future<void> _save() async {
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) return;
-    setState(() => _saving = true);
-
-    final scheduleJson = switch (_schedule) {
-      'weekdays' => weekdaySchedule(),
-      'weekends' => weekendSchedule(),
-      _ => dailySchedule(),
-    };
 
     int? target;
     String? unit;
@@ -74,6 +67,20 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
       target = int.tryParse(_targetCtrl.text.trim());
       unit = 'min';
     }
+
+    if (target != null && target > 999) {
+      if (!context.mounted) return;
+      await _showTargetOverflowDialog(context);
+      return;
+    }
+
+    setState(() => _saving = true);
+
+    final scheduleJson = switch (_schedule) {
+      'weekdays' => weekdaySchedule(),
+      'weekends' => weekendSchedule(),
+      _ => dailySchedule(),
+    };
 
     final db = ref.read(dbProvider);
     final habits = await db.getActiveHabits();
@@ -339,6 +346,10 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
                       child: TextField(
                         controller: _targetCtrl,
                         keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(3),
+                        ],
                         style: const TextStyle(
                             color: TH.fg, fontSize: 13),
                         decoration: _fieldDeco('10'),
@@ -361,6 +372,10 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
                       child: TextField(
                         controller: _targetCtrl,
                         keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(3),
+                        ],
                         style: const TextStyle(
                             color: TH.fg, fontSize: 13),
                         decoration: _fieldDeco('30'),
@@ -445,6 +460,54 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
     'red': TH.red,
   };
 }
+
+Future<void> _showTargetOverflowDialog(BuildContext context) =>
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (ctx) => Dialog(
+        backgroundColor: TH.bg2,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(TH.r10)),
+        child: SizedBox(
+          width: 300,
+          child: Padding(
+            padding: const EdgeInsets.all(TH.s22),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('target too large',
+                    style: TextStyle(
+                        color: TH.fg,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600)),
+                const SizedBox(height: TH.s8),
+                const Text('target must be 999 or less.',
+                    style: TextStyle(color: TH.fgDim, fontSize: 12)),
+                const SizedBox(height: TH.s22),
+                Center(
+                  child: GestureDetector(
+                    onTap: () => Navigator.of(ctx).pop(),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: TH.s22, vertical: TH.s8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: TH.green),
+                        borderRadius: BorderRadius.all(TH.r4),
+                      ),
+                      child: const Text('[ understood ]',
+                          style: TextStyle(
+                              color: TH.green, fontSize: 13)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
 
 InputDecoration _fieldDeco(String hint) => InputDecoration(
       hintText: hint,
