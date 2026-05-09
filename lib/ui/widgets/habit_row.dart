@@ -78,56 +78,65 @@ class HabitRow extends ConsumerWidget {
                           decorationColor: TH.fgMute)),
                 ),
 
-                // ── streak flame ──────────────────────────────────
-                if (streak > 0) ...[
-                  const SizedBox(width: TH.s8),
-                  Icon(LucideIcons.flame,
-                      size: 13, color: TH.amber),
-                  const SizedBox(width: 2),
-                  Text('$streak',
-                      style: const TextStyle(
-                          color: TH.amber, fontSize: 12)),
-                ],
-
-                // ── counter / duration progress ───────────────────
-                if (h.tracking == 'counter' && h.target != null) ...[
-                  const SizedBox(width: TH.s8),
-                  Text(
-                    '${dailyHabit.todayValue.toInt()}/${h.target}',
-                    style: TextStyle(
-                        color: done ? TH.green : TH.fgMute,
-                        fontSize: 11),
-                  ),
-                ] else if (h.tracking == 'duration' &&
-                    h.target != null) ...[
-                  const SizedBox(width: TH.s8),
-                  Text(
-                    '${dailyHabit.todayValue.toInt()}/${h.target}min',
-                    style: TextStyle(
-                        color: done ? TH.green : TH.fgMute,
-                        fontSize: 11),
-                  ),
-                ],
-
-                // ── target time ───────────────────────────────────
-                if (h.targetTime != null &&
-                    h.targetTime!.isNotEmpty) ...[
-                  const SizedBox(width: TH.s8),
-                  Icon(LucideIcons.clock,
-                      size: 11, color: TH.fgMute),
-                  const SizedBox(width: 2),
-                  Text(h.targetTime!,
-                      style: const TextStyle(
-                          color: TH.fgMute, fontSize: 11)),
-                ],
+                // ── fixed right section: flame (44) + progress (56) ──
+                // Both slots always present so flames align across all rows.
+                const SizedBox(width: TH.s8),
+                SizedBox(
+                  width: 44,
+                  child: streak > 0
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(LucideIcons.flame,
+                                size: 13, color: TH.amber),
+                            const SizedBox(width: 3),
+                            Text('$streak',
+                                style: const TextStyle(
+                                    color: TH.amber, fontSize: 12)),
+                          ],
+                        )
+                      : null,
+                ),
+                SizedBox(
+                  width: 56,
+                  child: h.tracking != 'checkbox'
+                      ? Text(
+                          _progressLabel(h, dailyHabit.todayValue),
+                          textAlign: TextAlign.right,
+                          style: TextStyle(
+                              color: done ? TH.green : TH.fgMute,
+                              fontSize: 11),
+                        )
+                      : null,
+                ),
               ],
             ),
-            if (h.note != null && h.note!.isNotEmpty)
+            // ── sub-line: note + optional target time ─────────────
+            if ((h.note != null && h.note!.isNotEmpty) ||
+                (h.targetTime != null && h.targetTime!.isNotEmpty))
               Padding(
                 padding: const EdgeInsets.only(left: 44, top: 2),
-                child: Text('// ${h.note}',
-                    style: const TextStyle(
-                        color: TH.fgFaint, fontSize: 11)),
+                child: Row(
+                  children: [
+                    if (h.note != null && h.note!.isNotEmpty)
+                      Expanded(
+                        child: Text('// ${h.note}',
+                            style: const TextStyle(
+                                color: TH.fgFaint, fontSize: 11)),
+                      )
+                    else
+                      const Spacer(),
+                    if (h.targetTime != null &&
+                        h.targetTime!.isNotEmpty) ...[
+                      Icon(LucideIcons.clock,
+                          size: 11, color: TH.fgMute),
+                      const SizedBox(width: 2),
+                      Text(h.targetTime!,
+                          style: const TextStyle(
+                              color: TH.fgMute, fontSize: 11)),
+                    ],
+                  ],
+                ),
               ),
           ],
         ),
@@ -169,6 +178,16 @@ class HabitRow extends ConsumerWidget {
       default:
         await db.toggleCompletion(h.id, dayUtc);
     }
+  }
+
+  static String _progressLabel(Habit h, double value) {
+    final v = value.toInt().clamp(0, 999);
+    if (h.tracking == 'duration') {
+      final t = (h.target ?? 0).clamp(0, 999);
+      return t > 0 ? '$v/${t}m' : '${v}m';
+    }
+    final t = (h.target ?? 0).clamp(0, 999);
+    return t > 0 ? '$v/$t' : '$v';
   }
 
   static Color _colorFor(String color) {

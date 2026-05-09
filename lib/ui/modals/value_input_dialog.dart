@@ -62,7 +62,7 @@ class _ValueInputDialogState extends State<ValueInputDialog> {
   void _increment() {
     _applyText();
     setState(() {
-      _value = (_value + _step).clamp(0, 9999).toDouble();
+      _value = (_value + _step).clamp(0, 999).toDouble();
       _ctrl.text = _value.toInt().toString();
       _ctrl.selection = TextSelection.collapsed(offset: _ctrl.text.length);
     });
@@ -71,7 +71,7 @@ class _ValueInputDialogState extends State<ValueInputDialog> {
   void _decrement() {
     _applyText();
     setState(() {
-      _value = (_value - _step).clamp(0, 9999).toDouble();
+      _value = (_value - _step).clamp(0, 999).toDouble();
       _ctrl.text = _value > 0 ? _value.toInt().toString() : '';
       _ctrl.selection = TextSelection.collapsed(offset: _ctrl.text.length);
     });
@@ -160,7 +160,8 @@ class _ValueInputDialogState extends State<ValueInputDialog> {
                         textAlign: TextAlign.center,
                         keyboardType: TextInputType.number,
                         inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(3),
                         ],
                         style: const TextStyle(
                             color: TH.fg,

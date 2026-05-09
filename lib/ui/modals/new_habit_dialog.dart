@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../data/database.dart';
@@ -173,8 +174,12 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
               TextField(
                 controller: _nameCtrl,
                 autofocus: true,
+                maxLength: 60,
                 style: const TextStyle(color: TH.fg, fontSize: 14),
                 decoration: _fieldDeco('e.g. meditate, read, journal'),
+                inputFormatters: [
+                  FilteringTextInputFormatter.deny(RegExp(r'\n')),
+                ],
                 onSubmitted: (_) => _save(),
               ),
 
@@ -395,10 +400,14 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
               _Label('note (optional)'),
               TextField(
                 controller: _noteCtrl,
-                maxLines: 2,
+                maxLines: 1,
+                maxLength: 100,
                 style: const TextStyle(color: TH.fg, fontSize: 13),
                 decoration:
                     _fieldDeco('// shown under the row in daily view'),
+                inputFormatters: [
+                  FilteringTextInputFormatter.deny(RegExp(r'\n')),
+                ],
               ),
 
               // ── save ──────────────────────────────────────────────

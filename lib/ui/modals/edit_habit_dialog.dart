@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/database.dart';
 import '../../domain/schedule.dart';
@@ -239,6 +240,7 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
               _StyledField(
                 controller: _nameCtrl,
                 hint: 'habit name',
+                maxLength: 60,
                 onSubmitted: (_) => _save(),
               ),
               const SizedBox(height: TH.s14),
@@ -495,7 +497,9 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
               _StyledField(
                 controller: _noteCtrl,
                 hint: '// shown under the row',
-                maxLines: 3,
+                maxLines: 1,
+                maxLength: 100,
+                denyNewlines: true,
               ),
               const SizedBox(height: TH.s22),
               GestureDetector(
@@ -643,6 +647,7 @@ class _StyledField extends StatelessWidget {
   final int maxLines;
   final int? maxLength;
   final TextInputType? keyboardType;
+  final bool denyNewlines;
   final void Function(String)? onSubmitted;
 
   const _StyledField({
@@ -651,6 +656,7 @@ class _StyledField extends StatelessWidget {
     this.maxLines = 1,
     this.maxLength,
     this.keyboardType,
+    this.denyNewlines = false,
     this.onSubmitted,
   });
 
@@ -661,6 +667,9 @@ class _StyledField extends StatelessWidget {
       maxLines: maxLines,
       maxLength: maxLength,
       keyboardType: keyboardType,
+      inputFormatters: denyNewlines
+          ? [FilteringTextInputFormatter.deny(RegExp(r'\n'))]
+          : null,
       style: const TextStyle(color: TH.fg, fontSize: 14),
       decoration: InputDecoration(
         hintText: hint,

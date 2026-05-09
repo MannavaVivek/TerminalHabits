@@ -61,6 +61,7 @@ Future<void> showGroupMenu(
         title: 'rename group',
         hint: 'group name',
         initial: group.name,
+        maxLength: 40,
       );
       if (name != null && name.isNotEmpty) {
         await db.renameGroup(group.id, name);

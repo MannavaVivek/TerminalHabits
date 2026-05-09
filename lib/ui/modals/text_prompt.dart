@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../theme/tokens.dart';
 
 // Single-line text prompt dialog. Returns the trimmed string, or null on cancel.
@@ -8,6 +9,7 @@ Future<String?> promptText(
   required String hint,
   String initial = '',
   String saveLabel = '[ save ]',
+  int maxLength = 80,
 }) {
   final ctrl = TextEditingController(text: initial);
   return showDialog<String>(
@@ -34,7 +36,12 @@ Future<String?> promptText(
               TextField(
                 controller: ctrl,
                 autofocus: true,
+                maxLines: 1,
+                maxLength: maxLength,
                 style: const TextStyle(color: TH.fg, fontSize: 14),
+                inputFormatters: [
+                  FilteringTextInputFormatter.deny(RegExp(r'\n')),
+                ],
                 decoration: InputDecoration(
                   hintText: hint,
                   hintStyle:

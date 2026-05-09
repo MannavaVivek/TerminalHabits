@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../theme/icon_library.dart';
 import '../../theme/tokens.dart';
@@ -86,7 +87,11 @@ class _NewGroupDialogState extends State<NewGroupDialog> {
               TextField(
                 controller: _nameCtrl,
                 autofocus: true,
+                maxLength: 40,
                 style: const TextStyle(color: TH.fg, fontSize: 14),
+                inputFormatters: [
+                  FilteringTextInputFormatter.deny(RegExp(r'\n')),
+                ],
                 decoration: InputDecoration(
                   hintText: 'group name',
                   hintStyle:
@@ -163,7 +168,12 @@ class _NewGroupDialogState extends State<NewGroupDialog> {
               const SizedBox(height: TH.s4),
               TextField(
                 controller: _noteCtrl,
+                maxLines: 1,
+                maxLength: 80,
                 style: const TextStyle(color: TH.fg, fontSize: 13),
+                inputFormatters: [
+                  FilteringTextInputFormatter.deny(RegExp(r'\n')),
+                ],
                 decoration: InputDecoration(
                   hintText: '// optional comment under group name',
                   hintStyle:
