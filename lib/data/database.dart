@@ -236,6 +236,7 @@ class AppDatabase extends _$AppDatabase {
         effectiveFrom: effectiveFrom,
         schedule: schedule,
         tracking: tracking,
+        createdAt: Value(DateTime.now()),
       ));
 
   // Returns all history records grouped by habitId (desc effective_from).
