@@ -39,7 +39,19 @@ class Habits extends Table {
       dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get startDate =>
       dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get endDate => dateTime().nullable()();
   DateTimeColumn get archivedAt => dateTime().nullable()();
+}
+
+class HabitScheduleHistory extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get habitId => integer().references(Habits, #id)();
+  // UTC midnight of the first day this schedule/tracking applies.
+  DateTimeColumn get effectiveFrom => dateTime()();
+  TextColumn get schedule => text()();
+  TextColumn get tracking => text()();
+  DateTimeColumn get createdAt =>
+      dateTime().withDefault(currentDateAndTime)();
 }
 
 class Completions extends Table {

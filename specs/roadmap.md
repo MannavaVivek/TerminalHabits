@@ -190,41 +190,48 @@
 
 ---
 
-## Phase 5 — Schedule history & progress preservation (≈ 1.5 weeks)
+## Phase 5 — Schedule history, end date & progress preservation (≈ 1.5 weeks)
 
 > After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit per `constitution.md §7`.
 
-**Goal:** changing a habit's schedule or tracking type can preserve past completion validity. A daily-then-weekend habit shows correctly on weekdays before the change and weekends after.
+**Goal:** changing a habit's schedule preserves past completion validity. A daily-then-weekend habit shows correctly on weekdays before the change and weekends after. Habits can also be given an end date after which they stop appearing.
 
 ### Scope
 - **New table** `habit_schedule_history`:
   - `id INTEGER PK`, `habit_id INTEGER FK`, `effective_from DATETIME (UTC midnight)`, `schedule TEXT (JSON)`, `tracking TEXT`, `created_at DATETIME`.
   - Index on `(habit_id, effective_from DESC)` for the lookup query.
 - **Insert-on-create**: when a habit is created, also insert one history row with `effective_from = start_date` and the current schedule + tracking.
-- **Edit dialog flow**: when the user changes `schedule` or `tracking` and saves, the dialog prompts:
-  > Keep progress for past days?
-  > [ keep history ] applies the new schedule from today forward; old completions stay valid on the days they were due.
-  > [ overwrite ] replaces the schedule retroactively for all dates.
-  - **keep history** → insert a new history row with `effective_from = today_utc`. Older rows untouched.
-  - **overwrite** → delete all history rows; insert a single row with `effective_from = start_date` and the new values.
-- **Lookup helper** `effectiveScheduleAt(habitId, dayUtc)` returns the most recent history row with `effective_from <= dayUtc`.
-- **Update `isHabitDueOn`** and **streak engine** to call `effectiveScheduleAt` per day instead of reading `habits.schedule` directly.
-- **Inspector pane** gains a "schedule history" section listing entries with their effective dates.
+- **Edit dialog flow**: when the user changes `schedule` and saves (tracking type remains locked while completions exist), the dialog prompts with three options:
+  - **Keep history** — insert a new history row with `effective_from = today_utc`. Old completions stay valid on the days they were due.
+  - **Overwrite** — delete all history rows; insert a single row with `effective_from = start_date` and the new schedule.
+  - **Cancel** — abort the save entirely.
+  - When no completions exist, the history row is silently overwritten (no dialog shown).
+- **End date** (`habits.end_date DATETIME NULL`): optional field in both `NewHabitDialog` and `EditHabitDialog`. When set:
+  - Habit is hidden from the daily view on any day after the end date.
+  - The streak walk stops at `min(today, end_date)` so past streaks are preserved.
+  - The week strip ratios exclude the habit on days after the end date.
+  - End date must be on or after start date (validated before save).
+- **Lookup helper** `effectiveScheduleAt(List<HabitScheduleHistory> history, DateTime dayUtc)` — pure domain function returning the most recent history row with `effective_from <= dayUtc`.
+- **Update `isHabitDueOn` call sites** and **streak engine** to call `effectiveScheduleAt` per day instead of reading `habits.schedule` directly.
+- **Inspector pane** gains a "schedule history" section listing entries with their effective dates and a "ends" row when `end_date` is set.
 
 ### Schema changes
-- Migration v4: create `habit_schedule_history`. On migration: for every existing habit, insert one row with `effective_from = habit.start_date`, `schedule = habit.schedule`, `tracking = habit.tracking`.
-- Once the history table is the source of truth, `habits.schedule` and `habits.tracking` columns become **mirror columns** of the most-recent history row (kept for query convenience). Repository writes update both.
+- Migration v5:
+  - Create `habit_schedule_history` with an index on `(habit_id, effective_from)`.
+  - `ALTER TABLE habits ADD COLUMN end_date DATETIME NULL`.
+  - Backfill: `INSERT INTO habit_schedule_history SELECT id, start_date, schedule, tracking, CURRENT_TIMESTAMP FROM habits`.
 
 ### Exit criteria
-- [ ] Create a `daily` habit, log completions for a week, change to `weekends`, choose **keep history**: weekday completions remain visible and counted in streak; from the change date forward, the habit only appears Sat/Sun.
-- [ ] Change a checkbox habit to count, choose **keep history**: old checkbox completions remain visible and counted as 1.
-- [ ] Choosing **overwrite** wipes prior validity — past completions on no-longer-scheduled days disappear from the daily view.
-- [ ] `dailyStateProvider` and the streak engine produce the same results as Phase 1 for habits whose schedule has never changed (regression check via existing tests, augmented with backfilled history rows).
-- [ ] Inspector "schedule history" section lists entries with their effective dates.
+- [ ] Create a `daily` habit, log completions for a week, change to `weekends`, choose **Keep history**: weekday completions remain counted in streak; from the change date forward, the habit only appears Sat/Sun.
+- [ ] Choosing **Overwrite** re-evaluates all completions against the new schedule retroactively.
+- [ ] Setting an end date hides the habit from the daily view the day after; habit still appears on days before the end date.
+- [ ] Streak walk stops at end date; a habit with an end date in the past shows a fixed historic streak.
+- [ ] `dailyStateProvider` and the streak engine produce the same results as Phase 4 for habits whose schedule has never changed.
+- [ ] Inspector "schedule history" section lists all entries with their effective dates.
 
 ### Out of scope
-- Bulk schedule editing across multiple habits.
-- Editing `start_date` after history rows exist (block in this phase).
+- Tracking-type history (type remains locked once completions exist).
+- Editing `start_date` after history rows exist.
 - Surfacing schedule changes in stats view (Phase 7).
 
 ---

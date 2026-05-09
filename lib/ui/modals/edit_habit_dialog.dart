@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/database.dart';
 import '../../domain/schedule.dart';
+import '../../domain/streaks.dart' show localMidnightUtc;
 import '../../state/providers.dart';
 import '../../theme/icon_library.dart';
 import '../../theme/tokens.dart';
@@ -34,6 +35,7 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
   late String _groupId;
   late DateTime _startDate;
   late String _tracking;
+  DateTime? _endDate;
   String? _iconKey;
   bool _saving = false;
   bool _hasCompletions = false;
@@ -54,6 +56,7 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
     _groupId = h.groupId;
     _startDate = h.startDate;
     _tracking = h.tracking;
+    _endDate = h.endDate;
     _loadCompletionFlag();
   }
 
@@ -78,14 +81,15 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
     final newScheduleJson = _scheduleJsonFromKey(_scheduleKey);
     final scheduleChanged = newScheduleJson != widget.habit.schedule;
 
-    // Warn if schedule change will orphan past completions.
-    if (scheduleChanged && _hasCompletions) {
-      final losing = await _completionsOnDroppedDays(
-          widget.habit, newScheduleJson);
-      if (losing > 0) {
+    // When schedule changes, decide whether to keep or overwrite history.
+    String? historyChoice; // 'keep' | 'overwrite' | null (no dialog needed)
+    if (scheduleChanged) {
+      if (_hasCompletions) {
         if (!mounted) return;
-        final go = await _confirmScheduleOverwrite(context, losing);
-        if (!go) return;
+        historyChoice = await _confirmScheduleHistory(context);
+        if (historyChoice == null) return; // user cancelled
+      } else {
+        historyChoice = 'overwrite'; // no completions — silent overwrite
       }
     }
 
@@ -169,23 +173,22 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
             : _noteCtrl.text.trim()),
         groupId: Value(_groupId),
         startDate: Value(_startDate),
+        endDate: Value(_endDate),
       ),
     );
 
-    if (mounted) Navigator.of(context).pop();
-  }
-
-  // Counts completions on days the new schedule no longer flags as due.
-  Future<int> _completionsOnDroppedDays(
-      Habit current, String newScheduleJson) async {
-    final db = ref.read(dbProvider);
-    final comps = await db.getCompletionsForHabit(current.id);
-    final patched = current.copyWith(schedule: newScheduleJson);
-    var count = 0;
-    for (final c in comps) {
-      if (!isHabitDueOn(patched, c.day.toLocal())) count++;
+    // Apply schedule history change after patching the habit row.
+    if (historyChoice == 'keep') {
+      final todayUtc = localMidnightUtc(DateTime.now());
+      await db.appendScheduleHistory(
+          widget.habit.id, todayUtc, newScheduleJson, _tracking);
+    } else if (historyChoice == 'overwrite') {
+      final startUtc = localMidnightUtc(_startDate);
+      await db.replaceScheduleHistory(
+          widget.habit.id, startUtc, newScheduleJson, _tracking);
     }
-    return count;
+
+    if (mounted) Navigator.of(context).pop();
   }
 
   Future<void> _pickStartDate() async {
@@ -207,6 +210,27 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
       ),
     );
     if (picked != null) setState(() => _startDate = picked);
+  }
+
+  Future<void> _pickEndDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _endDate ?? DateTime.now(),
+      firstDate: _startDate,
+      lastDate: DateTime.now().add(const Duration(days: 365 * 10)),
+      builder: (ctx, child) => Theme(
+        data: ThemeData.dark().copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary: TH.green,
+            onPrimary: TH.bg,
+            surface: TH.bg2,
+            onSurface: TH.fg,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null) setState(() => _endDate = picked);
   }
 
   Future<void> _newGroup() async {
@@ -468,6 +492,41 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
                 ),
               ),
               const SizedBox(height: TH.s14),
+              _Label('end date (optional)'),
+              Row(
+                children: [
+                  GestureDetector(
+                    onTap: _pickEndDate,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: TH.s8, vertical: TH.s8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: TH.line2),
+                        borderRadius: BorderRadius.all(TH.r4),
+                      ),
+                      child: Text(
+                        _endDate != null
+                            ? _formatDate(_endDate!)
+                            : '— no end date —',
+                        style: TextStyle(
+                            color:
+                                _endDate != null ? TH.fg : TH.fgFaint,
+                            fontSize: 13),
+                      ),
+                    ),
+                  ),
+                  if (_endDate != null) ...[
+                    const SizedBox(width: TH.s8),
+                    GestureDetector(
+                      onTap: () => setState(() => _endDate = null),
+                      child: const Text('[ clear ]',
+                          style: TextStyle(
+                              color: TH.fgMute, fontSize: 12)),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: TH.s14),
               _Label('note (optional)'),
               _StyledField(
                 controller: _noteCtrl,
@@ -590,70 +649,105 @@ Future<void> _showTypeLocked(BuildContext context) => showDialog<void>(
       ),
     );
 
-Future<bool> _confirmScheduleOverwrite(
-    BuildContext context, int losingCount) async {
-  final ok = await showDialog<bool>(
-    context: context,
-    barrierColor: Colors.black54,
-    builder: (ctx) => Dialog(
-      backgroundColor: TH.bg2,
-      shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.all(TH.r10)),
-      child: SizedBox(
-        width: 420,
-        child: Padding(
-          padding: const EdgeInsets.all(TH.s22),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Change schedule?',
-                  style: TextStyle(
-                      color: TH.fg,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600)),
-              const SizedBox(height: TH.s8),
-              Text(
-                '$losingCount ${losingCount == 1 ? 'completion falls' : 'completions fall'} '
-                'on days the new schedule no longer covers. '
-                '${losingCount == 1 ? 'It' : 'They'} will remain in the database '
-                'but will no longer count toward your streaks or statistics.',
-                style: const TextStyle(color: TH.fgDim, fontSize: 12),
-              ),
-              const SizedBox(height: TH.s22),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.of(ctx).pop(false),
+// Returns 'keep', 'overwrite', or null (cancelled).
+Future<String?> _confirmScheduleHistory(BuildContext context) =>
+    showDialog<String>(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (ctx) => Dialog(
+        backgroundColor: TH.bg2,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(TH.r10)),
+        child: SizedBox(
+          width: 440,
+          child: Padding(
+            padding: const EdgeInsets.all(TH.s22),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Schedule changed',
+                    style: TextStyle(
+                        color: TH.fg,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600)),
+                const SizedBox(height: TH.s8),
+                const Text(
+                  'You have existing completions. Choose how to apply the new schedule:',
+                  style: TextStyle(color: TH.fgDim, fontSize: 12),
+                ),
+                const SizedBox(height: TH.s14),
+                _HistoryOption(
+                  title: 'Keep history',
+                  body:
+                      'Past completions stay valid on their original schedule. The new schedule applies from today forward.',
+                  onTap: () => Navigator.of(ctx).pop('keep'),
+                  color: TH.green,
+                ),
+                const SizedBox(height: TH.s8),
+                _HistoryOption(
+                  title: 'Overwrite',
+                  body:
+                      'The new schedule is applied retroactively. Completions on days no longer covered will no longer count toward streaks.',
+                  onTap: () => Navigator.of(ctx).pop('overwrite'),
+                  color: TH.amber,
+                ),
+                const SizedBox(height: TH.s14),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: GestureDetector(
+                    onTap: () => Navigator.of(ctx).pop(),
                     child: const Text('[ cancel ]',
                         style: TextStyle(
                             color: TH.fgMute, fontSize: 12)),
                   ),
-                  const SizedBox(width: TH.s14),
-                  GestureDetector(
-                    onTap: () => Navigator.of(ctx).pop(true),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: TH.s14, vertical: TH.s8),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: TH.amber),
-                        borderRadius: BorderRadius.all(TH.r4),
-                      ),
-                      child: const Text('[ confirm ]',
-                          style: TextStyle(
-                              color: TH.amber, fontSize: 12)),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
-    ),
-  );
-  return ok ?? false;
+    );
+
+class _HistoryOption extends StatelessWidget {
+  final String title;
+  final String body;
+  final VoidCallback onTap;
+  final Color color;
+  const _HistoryOption(
+      {required this.title,
+      required this.body,
+      required this.onTap,
+      required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(TH.s8),
+        decoration: BoxDecoration(
+          border: Border.all(color: color),
+          borderRadius: BorderRadius.all(TH.r4),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title,
+                style: TextStyle(
+                    color: color,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600)),
+            const SizedBox(height: 3),
+            Text(body,
+                style:
+                    const TextStyle(color: TH.fgDim, fontSize: 11)),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _Label extends StatelessWidget {

@@ -1,15 +1,19 @@
 import 'dart:convert';
 import '../data/database.dart';
 
-// Returns true if [habit] is due on [localDay].
+// Returns true if a schedule JSON string covers [localDay].
 // Schedule JSON: {"days":[0..6]} where 0=Mon, 6=Sun.
-bool isHabitDueOn(Habit habit, DateTime localDay) {
-  final map = jsonDecode(habit.schedule) as Map<String, dynamic>;
+bool isDueOnSchedule(String schedule, DateTime localDay) {
+  final map = jsonDecode(schedule) as Map<String, dynamic>;
   final days = (map['days'] as List).cast<int>();
   // Dart weekday: 1=Mon..7=Sun → convert to 0=Mon..6=Sun
   final weekday = (localDay.weekday + 6) % 7;
   return days.contains(weekday);
 }
+
+// Convenience wrapper that reads the schedule from [habit].
+bool isHabitDueOn(Habit habit, DateTime localDay) =>
+    isDueOnSchedule(habit.schedule, localDay);
 
 // Convenience schedule encodings.
 String dailySchedule() => '{"days":[0,1,2,3,4,5,6]}';

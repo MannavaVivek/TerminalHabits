@@ -569,6 +569,17 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
     requiredDuringInsert: false,
     defaultValue: currentDateAndTime,
   );
+  static const VerificationMeta _endDateMeta = const VerificationMeta(
+    'endDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> endDate = GeneratedColumn<DateTime>(
+    'end_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _archivedAtMeta = const VerificationMeta(
     'archivedAt',
   );
@@ -597,6 +608,7 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
     healthSource,
     createdAt,
     startDate,
+    endDate,
     archivedAt,
   ];
   @override
@@ -711,6 +723,12 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
         startDate.isAcceptableOrUnknown(data['start_date']!, _startDateMeta),
       );
     }
+    if (data.containsKey('end_date')) {
+      context.handle(
+        _endDateMeta,
+        endDate.isAcceptableOrUnknown(data['end_date']!, _endDateMeta),
+      );
+    }
     if (data.containsKey('archived_at')) {
       context.handle(
         _archivedAtMeta,
@@ -786,6 +804,10 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}start_date'],
       )!,
+      endDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}end_date'],
+      ),
       archivedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}archived_at'],
@@ -815,6 +837,7 @@ class Habit extends DataClass implements Insertable<Habit> {
   final String? healthSource;
   final DateTime createdAt;
   final DateTime startDate;
+  final DateTime? endDate;
   final DateTime? archivedAt;
   const Habit({
     required this.id,
@@ -832,6 +855,7 @@ class Habit extends DataClass implements Insertable<Habit> {
     this.healthSource,
     required this.createdAt,
     required this.startDate,
+    this.endDate,
     this.archivedAt,
   });
   @override
@@ -862,6 +886,9 @@ class Habit extends DataClass implements Insertable<Habit> {
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['start_date'] = Variable<DateTime>(startDate);
+    if (!nullToAbsent || endDate != null) {
+      map['end_date'] = Variable<DateTime>(endDate);
+    }
     if (!nullToAbsent || archivedAt != null) {
       map['archived_at'] = Variable<DateTime>(archivedAt);
     }
@@ -891,6 +918,9 @@ class Habit extends DataClass implements Insertable<Habit> {
           : Value(healthSource),
       createdAt: Value(createdAt),
       startDate: Value(startDate),
+      endDate: endDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endDate),
       archivedAt: archivedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(archivedAt),
@@ -918,6 +948,7 @@ class Habit extends DataClass implements Insertable<Habit> {
       healthSource: serializer.fromJson<String?>(json['healthSource']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       startDate: serializer.fromJson<DateTime>(json['startDate']),
+      endDate: serializer.fromJson<DateTime?>(json['endDate']),
       archivedAt: serializer.fromJson<DateTime?>(json['archivedAt']),
     );
   }
@@ -940,6 +971,7 @@ class Habit extends DataClass implements Insertable<Habit> {
       'healthSource': serializer.toJson<String?>(healthSource),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'startDate': serializer.toJson<DateTime>(startDate),
+      'endDate': serializer.toJson<DateTime?>(endDate),
       'archivedAt': serializer.toJson<DateTime?>(archivedAt),
     };
   }
@@ -960,6 +992,7 @@ class Habit extends DataClass implements Insertable<Habit> {
     Value<String?> healthSource = const Value.absent(),
     DateTime? createdAt,
     DateTime? startDate,
+    Value<DateTime?> endDate = const Value.absent(),
     Value<DateTime?> archivedAt = const Value.absent(),
   }) => Habit(
     id: id ?? this.id,
@@ -977,6 +1010,7 @@ class Habit extends DataClass implements Insertable<Habit> {
     healthSource: healthSource.present ? healthSource.value : this.healthSource,
     createdAt: createdAt ?? this.createdAt,
     startDate: startDate ?? this.startDate,
+    endDate: endDate.present ? endDate.value : this.endDate,
     archivedAt: archivedAt.present ? archivedAt.value : this.archivedAt,
   );
   Habit copyWithCompanion(HabitsCompanion data) {
@@ -1000,6 +1034,7 @@ class Habit extends DataClass implements Insertable<Habit> {
           : this.healthSource,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       startDate: data.startDate.present ? data.startDate.value : this.startDate,
+      endDate: data.endDate.present ? data.endDate.value : this.endDate,
       archivedAt: data.archivedAt.present
           ? data.archivedAt.value
           : this.archivedAt,
@@ -1024,6 +1059,7 @@ class Habit extends DataClass implements Insertable<Habit> {
           ..write('healthSource: $healthSource, ')
           ..write('createdAt: $createdAt, ')
           ..write('startDate: $startDate, ')
+          ..write('endDate: $endDate, ')
           ..write('archivedAt: $archivedAt')
           ..write(')'))
         .toString();
@@ -1046,6 +1082,7 @@ class Habit extends DataClass implements Insertable<Habit> {
     healthSource,
     createdAt,
     startDate,
+    endDate,
     archivedAt,
   );
   @override
@@ -1067,6 +1104,7 @@ class Habit extends DataClass implements Insertable<Habit> {
           other.healthSource == this.healthSource &&
           other.createdAt == this.createdAt &&
           other.startDate == this.startDate &&
+          other.endDate == this.endDate &&
           other.archivedAt == this.archivedAt);
 }
 
@@ -1086,6 +1124,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
   final Value<String?> healthSource;
   final Value<DateTime> createdAt;
   final Value<DateTime> startDate;
+  final Value<DateTime?> endDate;
   final Value<DateTime?> archivedAt;
   const HabitsCompanion({
     this.id = const Value.absent(),
@@ -1103,6 +1142,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     this.healthSource = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.startDate = const Value.absent(),
+    this.endDate = const Value.absent(),
     this.archivedAt = const Value.absent(),
   });
   HabitsCompanion.insert({
@@ -1121,6 +1161,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     this.healthSource = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.startDate = const Value.absent(),
+    this.endDate = const Value.absent(),
     this.archivedAt = const Value.absent(),
   }) : groupId = Value(groupId),
        name = Value(name),
@@ -1143,6 +1184,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     Expression<String>? healthSource,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? startDate,
+    Expression<DateTime>? endDate,
     Expression<DateTime>? archivedAt,
   }) {
     return RawValuesInsertable({
@@ -1161,6 +1203,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
       if (healthSource != null) 'health_source': healthSource,
       if (createdAt != null) 'created_at': createdAt,
       if (startDate != null) 'start_date': startDate,
+      if (endDate != null) 'end_date': endDate,
       if (archivedAt != null) 'archived_at': archivedAt,
     });
   }
@@ -1181,6 +1224,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     Value<String?>? healthSource,
     Value<DateTime>? createdAt,
     Value<DateTime>? startDate,
+    Value<DateTime?>? endDate,
     Value<DateTime?>? archivedAt,
   }) {
     return HabitsCompanion(
@@ -1199,6 +1243,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
       healthSource: healthSource ?? this.healthSource,
       createdAt: createdAt ?? this.createdAt,
       startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
       archivedAt: archivedAt ?? this.archivedAt,
     );
   }
@@ -1251,6 +1296,9 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     if (startDate.present) {
       map['start_date'] = Variable<DateTime>(startDate.value);
     }
+    if (endDate.present) {
+      map['end_date'] = Variable<DateTime>(endDate.value);
+    }
     if (archivedAt.present) {
       map['archived_at'] = Variable<DateTime>(archivedAt.value);
     }
@@ -1275,6 +1323,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
           ..write('healthSource: $healthSource, ')
           ..write('createdAt: $createdAt, ')
           ..write('startDate: $startDate, ')
+          ..write('endDate: $endDate, ')
           ..write('archivedAt: $archivedAt')
           ..write(')'))
         .toString();
@@ -2172,6 +2221,420 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   }
 }
 
+class $HabitScheduleHistoryTable extends HabitScheduleHistory
+    with TableInfo<$HabitScheduleHistoryTable, HabitScheduleHistoryData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $HabitScheduleHistoryTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _habitIdMeta = const VerificationMeta(
+    'habitId',
+  );
+  @override
+  late final GeneratedColumn<int> habitId = GeneratedColumn<int>(
+    'habit_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES habits (id)',
+    ),
+  );
+  static const VerificationMeta _effectiveFromMeta = const VerificationMeta(
+    'effectiveFrom',
+  );
+  @override
+  late final GeneratedColumn<DateTime> effectiveFrom =
+      GeneratedColumn<DateTime>(
+        'effective_from',
+        aliasedName,
+        false,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _scheduleMeta = const VerificationMeta(
+    'schedule',
+  );
+  @override
+  late final GeneratedColumn<String> schedule = GeneratedColumn<String>(
+    'schedule',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _trackingMeta = const VerificationMeta(
+    'tracking',
+  );
+  @override
+  late final GeneratedColumn<String> tracking = GeneratedColumn<String>(
+    'tracking',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    habitId,
+    effectiveFrom,
+    schedule,
+    tracking,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'habit_schedule_history';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<HabitScheduleHistoryData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('habit_id')) {
+      context.handle(
+        _habitIdMeta,
+        habitId.isAcceptableOrUnknown(data['habit_id']!, _habitIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_habitIdMeta);
+    }
+    if (data.containsKey('effective_from')) {
+      context.handle(
+        _effectiveFromMeta,
+        effectiveFrom.isAcceptableOrUnknown(
+          data['effective_from']!,
+          _effectiveFromMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_effectiveFromMeta);
+    }
+    if (data.containsKey('schedule')) {
+      context.handle(
+        _scheduleMeta,
+        schedule.isAcceptableOrUnknown(data['schedule']!, _scheduleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_scheduleMeta);
+    }
+    if (data.containsKey('tracking')) {
+      context.handle(
+        _trackingMeta,
+        tracking.isAcceptableOrUnknown(data['tracking']!, _trackingMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_trackingMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  HabitScheduleHistoryData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return HabitScheduleHistoryData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      habitId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}habit_id'],
+      )!,
+      effectiveFrom: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}effective_from'],
+      )!,
+      schedule: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}schedule'],
+      )!,
+      tracking: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tracking'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $HabitScheduleHistoryTable createAlias(String alias) {
+    return $HabitScheduleHistoryTable(attachedDatabase, alias);
+  }
+}
+
+class HabitScheduleHistoryData extends DataClass
+    implements Insertable<HabitScheduleHistoryData> {
+  final int id;
+  final int habitId;
+  final DateTime effectiveFrom;
+  final String schedule;
+  final String tracking;
+  final DateTime createdAt;
+  const HabitScheduleHistoryData({
+    required this.id,
+    required this.habitId,
+    required this.effectiveFrom,
+    required this.schedule,
+    required this.tracking,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['habit_id'] = Variable<int>(habitId);
+    map['effective_from'] = Variable<DateTime>(effectiveFrom);
+    map['schedule'] = Variable<String>(schedule);
+    map['tracking'] = Variable<String>(tracking);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  HabitScheduleHistoryCompanion toCompanion(bool nullToAbsent) {
+    return HabitScheduleHistoryCompanion(
+      id: Value(id),
+      habitId: Value(habitId),
+      effectiveFrom: Value(effectiveFrom),
+      schedule: Value(schedule),
+      tracking: Value(tracking),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory HabitScheduleHistoryData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return HabitScheduleHistoryData(
+      id: serializer.fromJson<int>(json['id']),
+      habitId: serializer.fromJson<int>(json['habitId']),
+      effectiveFrom: serializer.fromJson<DateTime>(json['effectiveFrom']),
+      schedule: serializer.fromJson<String>(json['schedule']),
+      tracking: serializer.fromJson<String>(json['tracking']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'habitId': serializer.toJson<int>(habitId),
+      'effectiveFrom': serializer.toJson<DateTime>(effectiveFrom),
+      'schedule': serializer.toJson<String>(schedule),
+      'tracking': serializer.toJson<String>(tracking),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  HabitScheduleHistoryData copyWith({
+    int? id,
+    int? habitId,
+    DateTime? effectiveFrom,
+    String? schedule,
+    String? tracking,
+    DateTime? createdAt,
+  }) => HabitScheduleHistoryData(
+    id: id ?? this.id,
+    habitId: habitId ?? this.habitId,
+    effectiveFrom: effectiveFrom ?? this.effectiveFrom,
+    schedule: schedule ?? this.schedule,
+    tracking: tracking ?? this.tracking,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  HabitScheduleHistoryData copyWithCompanion(
+    HabitScheduleHistoryCompanion data,
+  ) {
+    return HabitScheduleHistoryData(
+      id: data.id.present ? data.id.value : this.id,
+      habitId: data.habitId.present ? data.habitId.value : this.habitId,
+      effectiveFrom: data.effectiveFrom.present
+          ? data.effectiveFrom.value
+          : this.effectiveFrom,
+      schedule: data.schedule.present ? data.schedule.value : this.schedule,
+      tracking: data.tracking.present ? data.tracking.value : this.tracking,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('HabitScheduleHistoryData(')
+          ..write('id: $id, ')
+          ..write('habitId: $habitId, ')
+          ..write('effectiveFrom: $effectiveFrom, ')
+          ..write('schedule: $schedule, ')
+          ..write('tracking: $tracking, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, habitId, effectiveFrom, schedule, tracking, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is HabitScheduleHistoryData &&
+          other.id == this.id &&
+          other.habitId == this.habitId &&
+          other.effectiveFrom == this.effectiveFrom &&
+          other.schedule == this.schedule &&
+          other.tracking == this.tracking &&
+          other.createdAt == this.createdAt);
+}
+
+class HabitScheduleHistoryCompanion
+    extends UpdateCompanion<HabitScheduleHistoryData> {
+  final Value<int> id;
+  final Value<int> habitId;
+  final Value<DateTime> effectiveFrom;
+  final Value<String> schedule;
+  final Value<String> tracking;
+  final Value<DateTime> createdAt;
+  const HabitScheduleHistoryCompanion({
+    this.id = const Value.absent(),
+    this.habitId = const Value.absent(),
+    this.effectiveFrom = const Value.absent(),
+    this.schedule = const Value.absent(),
+    this.tracking = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  HabitScheduleHistoryCompanion.insert({
+    this.id = const Value.absent(),
+    required int habitId,
+    required DateTime effectiveFrom,
+    required String schedule,
+    required String tracking,
+    this.createdAt = const Value.absent(),
+  }) : habitId = Value(habitId),
+       effectiveFrom = Value(effectiveFrom),
+       schedule = Value(schedule),
+       tracking = Value(tracking);
+  static Insertable<HabitScheduleHistoryData> custom({
+    Expression<int>? id,
+    Expression<int>? habitId,
+    Expression<DateTime>? effectiveFrom,
+    Expression<String>? schedule,
+    Expression<String>? tracking,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (habitId != null) 'habit_id': habitId,
+      if (effectiveFrom != null) 'effective_from': effectiveFrom,
+      if (schedule != null) 'schedule': schedule,
+      if (tracking != null) 'tracking': tracking,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  HabitScheduleHistoryCompanion copyWith({
+    Value<int>? id,
+    Value<int>? habitId,
+    Value<DateTime>? effectiveFrom,
+    Value<String>? schedule,
+    Value<String>? tracking,
+    Value<DateTime>? createdAt,
+  }) {
+    return HabitScheduleHistoryCompanion(
+      id: id ?? this.id,
+      habitId: habitId ?? this.habitId,
+      effectiveFrom: effectiveFrom ?? this.effectiveFrom,
+      schedule: schedule ?? this.schedule,
+      tracking: tracking ?? this.tracking,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (habitId.present) {
+      map['habit_id'] = Variable<int>(habitId.value);
+    }
+    if (effectiveFrom.present) {
+      map['effective_from'] = Variable<DateTime>(effectiveFrom.value);
+    }
+    if (schedule.present) {
+      map['schedule'] = Variable<String>(schedule.value);
+    }
+    if (tracking.present) {
+      map['tracking'] = Variable<String>(tracking.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('HabitScheduleHistoryCompanion(')
+          ..write('id: $id, ')
+          ..write('habitId: $habitId, ')
+          ..write('effectiveFrom: $effectiveFrom, ')
+          ..write('schedule: $schedule, ')
+          ..write('tracking: $tracking, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2180,6 +2643,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $CompletionsTable completions = $CompletionsTable(this);
   late final $VacationsTable vacations = $VacationsTable(this);
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
+  late final $HabitScheduleHistoryTable habitScheduleHistory =
+      $HabitScheduleHistoryTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2190,6 +2655,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     completions,
     vacations,
     appSettings,
+    habitScheduleHistory,
   ];
 }
 
@@ -2522,6 +2988,7 @@ typedef $$HabitsTableCreateCompanionBuilder =
       Value<String?> healthSource,
       Value<DateTime> createdAt,
       Value<DateTime> startDate,
+      Value<DateTime?> endDate,
       Value<DateTime?> archivedAt,
     });
 typedef $$HabitsTableUpdateCompanionBuilder =
@@ -2541,6 +3008,7 @@ typedef $$HabitsTableUpdateCompanionBuilder =
       Value<String?> healthSource,
       Value<DateTime> createdAt,
       Value<DateTime> startDate,
+      Value<DateTime?> endDate,
       Value<DateTime?> archivedAt,
     });
 
@@ -2579,6 +3047,34 @@ final class $$HabitsTableReferences
     ).filter((f) => f.habitId.id.sqlEquals($_itemColumn<int>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_completionsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $HabitScheduleHistoryTable,
+    List<HabitScheduleHistoryData>
+  >
+  _habitScheduleHistoryRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.habitScheduleHistory,
+        aliasName: $_aliasNameGenerator(
+          db.habits.id,
+          db.habitScheduleHistory.habitId,
+        ),
+      );
+
+  $$HabitScheduleHistoryTableProcessedTableManager
+  get habitScheduleHistoryRefs {
+    final manager = $$HabitScheduleHistoryTableTableManager(
+      $_db,
+      $_db.habitScheduleHistory,
+    ).filter((f) => f.habitId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _habitScheduleHistoryRefsTable($_db),
+    );
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -2664,6 +3160,11 @@ class $$HabitsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<DateTime> get endDate => $composableBuilder(
+    column: $table.endDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<DateTime> get archivedAt => $composableBuilder(
     column: $table.archivedAt,
     builder: (column) => ColumnFilters(column),
@@ -2708,6 +3209,31 @@ class $$HabitsTableFilterComposer
           }) => $$CompletionsTableFilterComposer(
             $db: $db,
             $table: $db.completions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> habitScheduleHistoryRefs(
+    Expression<bool> Function($$HabitScheduleHistoryTableFilterComposer f) f,
+  ) {
+    final $$HabitScheduleHistoryTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.habitScheduleHistory,
+      getReferencedColumn: (t) => t.habitId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$HabitScheduleHistoryTableFilterComposer(
+            $db: $db,
+            $table: $db.habitScheduleHistory,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -2797,6 +3323,11 @@ class $$HabitsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get endDate => $composableBuilder(
+    column: $table.endDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get archivedAt => $composableBuilder(
     column: $table.archivedAt,
     builder: (column) => ColumnOrderings(column),
@@ -2881,6 +3412,9 @@ class $$HabitsTableAnnotationComposer
   GeneratedColumn<DateTime> get startDate =>
       $composableBuilder(column: $table.startDate, builder: (column) => column);
 
+  GeneratedColumn<DateTime> get endDate =>
+      $composableBuilder(column: $table.endDate, builder: (column) => column);
+
   GeneratedColumn<DateTime> get archivedAt => $composableBuilder(
     column: $table.archivedAt,
     builder: (column) => column,
@@ -2933,6 +3467,32 @@ class $$HabitsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> habitScheduleHistoryRefs<T extends Object>(
+    Expression<T> Function($$HabitScheduleHistoryTableAnnotationComposer a) f,
+  ) {
+    final $$HabitScheduleHistoryTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.habitScheduleHistory,
+          getReferencedColumn: (t) => t.habitId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$HabitScheduleHistoryTableAnnotationComposer(
+                $db: $db,
+                $table: $db.habitScheduleHistory,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$HabitsTableTableManager
@@ -2948,7 +3508,11 @@ class $$HabitsTableTableManager
           $$HabitsTableUpdateCompanionBuilder,
           (Habit, $$HabitsTableReferences),
           Habit,
-          PrefetchHooks Function({bool groupId, bool completionsRefs})
+          PrefetchHooks Function({
+            bool groupId,
+            bool completionsRefs,
+            bool habitScheduleHistoryRefs,
+          })
         > {
   $$HabitsTableTableManager(_$AppDatabase db, $HabitsTable table)
     : super(
@@ -2978,6 +3542,7 @@ class $$HabitsTableTableManager
                 Value<String?> healthSource = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> startDate = const Value.absent(),
+                Value<DateTime?> endDate = const Value.absent(),
                 Value<DateTime?> archivedAt = const Value.absent(),
               }) => HabitsCompanion(
                 id: id,
@@ -2995,6 +3560,7 @@ class $$HabitsTableTableManager
                 healthSource: healthSource,
                 createdAt: createdAt,
                 startDate: startDate,
+                endDate: endDate,
                 archivedAt: archivedAt,
               ),
           createCompanionCallback:
@@ -3014,6 +3580,7 @@ class $$HabitsTableTableManager
                 Value<String?> healthSource = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> startDate = const Value.absent(),
+                Value<DateTime?> endDate = const Value.absent(),
                 Value<DateTime?> archivedAt = const Value.absent(),
               }) => HabitsCompanion.insert(
                 id: id,
@@ -3031,6 +3598,7 @@ class $$HabitsTableTableManager
                 healthSource: healthSource,
                 createdAt: createdAt,
                 startDate: startDate,
+                endDate: endDate,
                 archivedAt: archivedAt,
               ),
           withReferenceMapper: (p0) => p0
@@ -3039,62 +3607,98 @@ class $$HabitsTableTableManager
                     (e.readTable(table), $$HabitsTableReferences(db, table, e)),
               )
               .toList(),
-          prefetchHooksCallback: ({groupId = false, completionsRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [if (completionsRefs) db.completions],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (groupId) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.groupId,
-                                referencedTable: $$HabitsTableReferences
-                                    ._groupIdTable(db),
-                                referencedColumn: $$HabitsTableReferences
-                                    ._groupIdTable(db)
-                                    .id,
-                              )
-                              as T;
-                    }
+          prefetchHooksCallback:
+              ({
+                groupId = false,
+                completionsRefs = false,
+                habitScheduleHistoryRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (completionsRefs) db.completions,
+                    if (habitScheduleHistoryRefs) db.habitScheduleHistory,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (groupId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.groupId,
+                                    referencedTable: $$HabitsTableReferences
+                                        ._groupIdTable(db),
+                                    referencedColumn: $$HabitsTableReferences
+                                        ._groupIdTable(db)
+                                        .id,
+                                  )
+                                  as T;
+                        }
 
-                    return state;
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (completionsRefs)
+                        await $_getPrefetchedData<
+                          Habit,
+                          $HabitsTable,
+                          Completion
+                        >(
+                          currentTable: table,
+                          referencedTable: $$HabitsTableReferences
+                              ._completionsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$HabitsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).completionsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.habitId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (habitScheduleHistoryRefs)
+                        await $_getPrefetchedData<
+                          Habit,
+                          $HabitsTable,
+                          HabitScheduleHistoryData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$HabitsTableReferences
+                              ._habitScheduleHistoryRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$HabitsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).habitScheduleHistoryRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.habitId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
                   },
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (completionsRefs)
-                    await $_getPrefetchedData<Habit, $HabitsTable, Completion>(
-                      currentTable: table,
-                      referencedTable: $$HabitsTableReferences
-                          ._completionsRefsTable(db),
-                      managerFromTypedResult: (p0) => $$HabitsTableReferences(
-                        db,
-                        table,
-                        p0,
-                      ).completionsRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where((e) => e.habitId == item.id),
-                      typedResults: items,
-                    ),
-                ];
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -3111,7 +3715,11 @@ typedef $$HabitsTableProcessedTableManager =
       $$HabitsTableUpdateCompanionBuilder,
       (Habit, $$HabitsTableReferences),
       Habit,
-      PrefetchHooks Function({bool groupId, bool completionsRefs})
+      PrefetchHooks Function({
+        bool groupId,
+        bool completionsRefs,
+        bool habitScheduleHistoryRefs,
+      })
     >;
 typedef $$CompletionsTableCreateCompanionBuilder =
     CompletionsCompanion Function({
@@ -3752,6 +4360,358 @@ typedef $$AppSettingsTableProcessedTableManager =
       AppSetting,
       PrefetchHooks Function()
     >;
+typedef $$HabitScheduleHistoryTableCreateCompanionBuilder =
+    HabitScheduleHistoryCompanion Function({
+      Value<int> id,
+      required int habitId,
+      required DateTime effectiveFrom,
+      required String schedule,
+      required String tracking,
+      Value<DateTime> createdAt,
+    });
+typedef $$HabitScheduleHistoryTableUpdateCompanionBuilder =
+    HabitScheduleHistoryCompanion Function({
+      Value<int> id,
+      Value<int> habitId,
+      Value<DateTime> effectiveFrom,
+      Value<String> schedule,
+      Value<String> tracking,
+      Value<DateTime> createdAt,
+    });
+
+final class $$HabitScheduleHistoryTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $HabitScheduleHistoryTable,
+          HabitScheduleHistoryData
+        > {
+  $$HabitScheduleHistoryTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $HabitsTable _habitIdTable(_$AppDatabase db) => db.habits.createAlias(
+    $_aliasNameGenerator(db.habitScheduleHistory.habitId, db.habits.id),
+  );
+
+  $$HabitsTableProcessedTableManager get habitId {
+    final $_column = $_itemColumn<int>('habit_id')!;
+
+    final manager = $$HabitsTableTableManager(
+      $_db,
+      $_db.habits,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_habitIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$HabitScheduleHistoryTableFilterComposer
+    extends Composer<_$AppDatabase, $HabitScheduleHistoryTable> {
+  $$HabitScheduleHistoryTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get effectiveFrom => $composableBuilder(
+    column: $table.effectiveFrom,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get schedule => $composableBuilder(
+    column: $table.schedule,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get tracking => $composableBuilder(
+    column: $table.tracking,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$HabitsTableFilterComposer get habitId {
+    final $$HabitsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.habitId,
+      referencedTable: $db.habits,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$HabitsTableFilterComposer(
+            $db: $db,
+            $table: $db.habits,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$HabitScheduleHistoryTableOrderingComposer
+    extends Composer<_$AppDatabase, $HabitScheduleHistoryTable> {
+  $$HabitScheduleHistoryTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get effectiveFrom => $composableBuilder(
+    column: $table.effectiveFrom,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get schedule => $composableBuilder(
+    column: $table.schedule,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get tracking => $composableBuilder(
+    column: $table.tracking,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$HabitsTableOrderingComposer get habitId {
+    final $$HabitsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.habitId,
+      referencedTable: $db.habits,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$HabitsTableOrderingComposer(
+            $db: $db,
+            $table: $db.habits,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$HabitScheduleHistoryTableAnnotationComposer
+    extends Composer<_$AppDatabase, $HabitScheduleHistoryTable> {
+  $$HabitScheduleHistoryTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get effectiveFrom => $composableBuilder(
+    column: $table.effectiveFrom,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get schedule =>
+      $composableBuilder(column: $table.schedule, builder: (column) => column);
+
+  GeneratedColumn<String> get tracking =>
+      $composableBuilder(column: $table.tracking, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$HabitsTableAnnotationComposer get habitId {
+    final $$HabitsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.habitId,
+      referencedTable: $db.habits,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$HabitsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.habits,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$HabitScheduleHistoryTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $HabitScheduleHistoryTable,
+          HabitScheduleHistoryData,
+          $$HabitScheduleHistoryTableFilterComposer,
+          $$HabitScheduleHistoryTableOrderingComposer,
+          $$HabitScheduleHistoryTableAnnotationComposer,
+          $$HabitScheduleHistoryTableCreateCompanionBuilder,
+          $$HabitScheduleHistoryTableUpdateCompanionBuilder,
+          (HabitScheduleHistoryData, $$HabitScheduleHistoryTableReferences),
+          HabitScheduleHistoryData,
+          PrefetchHooks Function({bool habitId})
+        > {
+  $$HabitScheduleHistoryTableTableManager(
+    _$AppDatabase db,
+    $HabitScheduleHistoryTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$HabitScheduleHistoryTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$HabitScheduleHistoryTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$HabitScheduleHistoryTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> habitId = const Value.absent(),
+                Value<DateTime> effectiveFrom = const Value.absent(),
+                Value<String> schedule = const Value.absent(),
+                Value<String> tracking = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => HabitScheduleHistoryCompanion(
+                id: id,
+                habitId: habitId,
+                effectiveFrom: effectiveFrom,
+                schedule: schedule,
+                tracking: tracking,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int habitId,
+                required DateTime effectiveFrom,
+                required String schedule,
+                required String tracking,
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => HabitScheduleHistoryCompanion.insert(
+                id: id,
+                habitId: habitId,
+                effectiveFrom: effectiveFrom,
+                schedule: schedule,
+                tracking: tracking,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$HabitScheduleHistoryTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({habitId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (habitId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.habitId,
+                                referencedTable:
+                                    $$HabitScheduleHistoryTableReferences
+                                        ._habitIdTable(db),
+                                referencedColumn:
+                                    $$HabitScheduleHistoryTableReferences
+                                        ._habitIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$HabitScheduleHistoryTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $HabitScheduleHistoryTable,
+      HabitScheduleHistoryData,
+      $$HabitScheduleHistoryTableFilterComposer,
+      $$HabitScheduleHistoryTableOrderingComposer,
+      $$HabitScheduleHistoryTableAnnotationComposer,
+      $$HabitScheduleHistoryTableCreateCompanionBuilder,
+      $$HabitScheduleHistoryTableUpdateCompanionBuilder,
+      (HabitScheduleHistoryData, $$HabitScheduleHistoryTableReferences),
+      HabitScheduleHistoryData,
+      PrefetchHooks Function({bool habitId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -3766,4 +4726,6 @@ class $AppDatabaseManager {
       $$VacationsTableTableManager(_db, _db.vacations);
   $$AppSettingsTableTableManager get appSettings =>
       $$AppSettingsTableTableManager(_db, _db.appSettings);
+  $$HabitScheduleHistoryTableTableManager get habitScheduleHistory =>
+      $$HabitScheduleHistoryTableTableManager(_db, _db.habitScheduleHistory);
 }

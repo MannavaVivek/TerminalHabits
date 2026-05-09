@@ -1,6 +1,17 @@
 import '../data/database.dart';
 import 'schedule.dart';
 
+// Returns the most recent history entry with effective_from <= [dayUtc],
+// or null if [history] is empty or all entries are after [dayUtc].
+// [history] must be sorted descending by effective_from.
+HabitScheduleHistoryData? effectiveScheduleAt(
+    List<HabitScheduleHistoryData> history, DateTime dayUtc) {
+  for (final h in history) {
+    if (!h.effectiveFrom.toUtc().isAfter(dayUtc)) return h;
+  }
+  return null;
+}
+
 /// Result of the streak computation for one habit.
 class StreakResult {
   final int current;
@@ -35,6 +46,7 @@ StreakResult computeStreaks(
   List<Completion> completions,
   DateTime today,
   List<Vacation> vacations,
+  List<HabitScheduleHistoryData> history,
 ) {
   final completedDays = _buildCompletedDaySet(habit, completions);
   final vacationDays = _buildVacationDaySet(vacations);
@@ -42,10 +54,14 @@ StreakResult computeStreaks(
   final startDateDay = localMidnightUtc(habit.startDate.toLocal());
   final todayUtc = localMidnightUtc(today.toLocal());
 
-  // Walk from the earliest of (start_date, oldest backfilled completion) so
-  // marking past days off updates the streak retroactively. start_date is
-  // user-controlled in the edit dialog (Phase 3); a back-fill before
-  // start_date still extends the walk.
+  // Walk stops at end_date when set, so historic streaks are frozen.
+  final endDateUtc = habit.endDate != null
+      ? localMidnightUtc(habit.endDate!.toLocal())
+      : null;
+  final walkTo =
+      endDateUtc != null && endDateUtc.isBefore(todayUtc) ? endDateUtc : todayUtc;
+
+  // Walk from the earliest of (start_date, oldest backfilled completion).
   var startDay = startDateDay;
   for (final d in completedDays) {
     if (d.isBefore(startDay)) startDay = d;
@@ -55,7 +71,7 @@ StreakResult computeStreaks(
   var longest = 0;
   var d = startDay;
 
-  while (!d.isAfter(todayUtc)) {
+  while (!d.isAfter(walkTo)) {
     if (vacationDays.contains(d)) {
       if (current > 0) {
         current++;
@@ -64,7 +80,10 @@ StreakResult computeStreaks(
       d = _nextDayUtc(d);
       continue;
     }
-    if (!isHabitDueOn(habit, d.toLocal())) {
+    // Use the schedule that was effective on day [d].
+    final entry = effectiveScheduleAt(history, d);
+    final schedule = entry?.schedule ?? habit.schedule;
+    if (!isDueOnSchedule(schedule, d.toLocal())) {
       d = _nextDayUtc(d);
       continue;
     }

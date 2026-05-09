@@ -44,6 +44,7 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
       widget.defaultStartDate ?? DateTime.now();
   String _tracking = 'checkbox';
   String? _iconKey;
+  DateTime? _endDate;
   bool _saving = false;
 
   @override
@@ -98,6 +99,7 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
           : _noteCtrl.text.trim()),
       sortIndex: habits.length,
       startDate: Value(_startDate),
+      endDate: Value(_endDate),
     ));
 
     if (mounted) Navigator.of(context).pop();
@@ -122,6 +124,27 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
       ),
     );
     if (picked != null) setState(() => _startDate = picked);
+  }
+
+  Future<void> _pickEndDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _endDate ?? _startDate,
+      firstDate: _startDate,
+      lastDate: DateTime.now().add(const Duration(days: 365 * 10)),
+      builder: (ctx, child) => Theme(
+        data: ThemeData.dark().copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary: TH.green,
+            onPrimary: TH.bg,
+            surface: TH.bg2,
+            onSurface: TH.fg,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null) setState(() => _endDate = picked);
   }
 
   Future<void> _newGroup() async {
@@ -408,6 +431,44 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
                         color: TH.fg, fontSize: 13),
                   ),
                 ),
+              ),
+
+              // ── end date ─────────────────────────────────────────
+              const SizedBox(height: TH.s14),
+              _Label('end date (optional)'),
+              Row(
+                children: [
+                  GestureDetector(
+                    onTap: _pickEndDate,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: TH.s8, vertical: TH.s8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: TH.line2),
+                        borderRadius: BorderRadius.all(TH.r4),
+                      ),
+                      child: Text(
+                        _endDate != null
+                            ? _formatDate(_endDate!)
+                            : '— no end date —',
+                        style: TextStyle(
+                            color: _endDate != null
+                                ? TH.fg
+                                : TH.fgFaint,
+                            fontSize: 13),
+                      ),
+                    ),
+                  ),
+                  if (_endDate != null) ...[
+                    const SizedBox(width: TH.s8),
+                    GestureDetector(
+                      onTap: () => setState(() => _endDate = null),
+                      child: const Text('[ clear ]',
+                          style: TextStyle(
+                              color: TH.fgMute, fontSize: 12)),
+                    ),
+                  ],
+                ],
               ),
 
               // ── note ──────────────────────────────────────────────

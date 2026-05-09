@@ -7,12 +7,13 @@ import 'tables.dart';
 
 part 'database.g.dart';
 
-@DriftDatabase(tables: [Groups, Habits, Completions, Vacations, AppSettings])
+@DriftDatabase(
+    tables: [Groups, Habits, Completions, Vacations, AppSettings, HabitScheduleHistory])
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -26,6 +27,8 @@ class AppDatabase extends _$AppDatabase {
               'CREATE INDEX idx_habits_group_sort ON habits(group_id, sort_index)');
           await customStatement(
               'CREATE INDEX idx_habits_archived ON habits(archived_at)');
+          await customStatement(
+              'CREATE INDEX idx_schedule_history_habit ON habit_schedule_history(habit_id, effective_from)');
           await _seedDefaults();
         },
         onUpgrade: (m, from, to) async {
@@ -40,6 +43,15 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 4) {
             await m.addColumn(groups, groups.icon);
+          }
+          if (from < 5) {
+            await m.createTable(habitScheduleHistory);
+            await customStatement(
+                'CREATE INDEX idx_schedule_history_habit ON habit_schedule_history(habit_id, effective_from)');
+            await m.addColumn(habits, habits.endDate);
+            await customStatement(
+                'INSERT INTO habit_schedule_history (habit_id, effective_from, schedule, tracking, created_at) '
+                'SELECT id, start_date, schedule, tracking, CURRENT_TIMESTAMP FROM habits');
           }
         },
       );
@@ -147,8 +159,12 @@ class AppDatabase extends _$AppDatabase {
   Future<Habit> getHabit(int id) =>
       (select(habits)..where((h) => h.id.equals(id))).getSingle();
 
-  Future<int> createHabit(HabitsCompanion companion) =>
-      into(habits).insert(companion);
+  Future<int> createHabit(HabitsCompanion companion) async {
+    final id = await into(habits).insert(companion);
+    final h = await (select(habits)..where((r) => r.id.equals(id))).getSingle();
+    await _insertHistoryRow(id, h.startDate.toUtc(), h.schedule, h.tracking);
+    return id;
+  }
 
   Future<bool> updateHabit(HabitsCompanion companion) =>
       update(habits).replace(companion);
@@ -176,8 +192,70 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> deleteHabit(int id) async {
     await (delete(completions)..where((c) => c.habitId.equals(id))).go();
+    await (delete(habitScheduleHistory)
+          ..where((r) => r.habitId.equals(id)))
+        .go();
     await (delete(habits)..where((h) => h.id.equals(id))).go();
   }
+
+  // ── Schedule history ────────────────────────────────────────────────────────
+
+  Stream<List<HabitScheduleHistoryData>> watchScheduleHistory(int habitId) =>
+      (select(habitScheduleHistory)
+            ..where((r) => r.habitId.equals(habitId))
+            ..orderBy([(r) => OrderingTerm.desc(r.effectiveFrom)]))
+          .watch();
+
+  Future<List<HabitScheduleHistoryData>> getScheduleHistory(int habitId) =>
+      (select(habitScheduleHistory)
+            ..where((r) => r.habitId.equals(habitId))
+            ..orderBy([(r) => OrderingTerm.desc(r.effectiveFrom)]))
+          .get();
+
+  // Adds a new history row for [habitId] effective from [effectiveFrom].
+  // Call this when the user chooses "keep history" on a schedule change.
+  Future<void> appendScheduleHistory(
+      int habitId, DateTime effectiveFrom, String schedule, String tracking) =>
+      _insertHistoryRow(habitId, effectiveFrom, schedule, tracking);
+
+  // Replaces all history for [habitId] with a single row from [effectiveFrom].
+  // Call this when the user chooses "overwrite" or when no completions exist.
+  Future<void> replaceScheduleHistory(
+      int habitId, DateTime effectiveFrom, String schedule, String tracking) async {
+    await (delete(habitScheduleHistory)
+          ..where((r) => r.habitId.equals(habitId)))
+        .go();
+    await _insertHistoryRow(habitId, effectiveFrom, schedule, tracking);
+  }
+
+  Future<void> _insertHistoryRow(
+      int habitId, DateTime effectiveFrom, String schedule, String tracking) =>
+      into(habitScheduleHistory).insert(HabitScheduleHistoryCompanion.insert(
+        habitId: habitId,
+        effectiveFrom: effectiveFrom,
+        schedule: schedule,
+        tracking: tracking,
+      ));
+
+  // Returns all history records grouped by habitId (desc effective_from).
+  Future<Map<int, List<HabitScheduleHistoryData>>> getAllScheduleHistory() async {
+    final rows = await (select(habitScheduleHistory)
+          ..orderBy([(r) => OrderingTerm.desc(r.effectiveFrom)]))
+        .get();
+    final map = <int, List<HabitScheduleHistoryData>>{};
+    for (final r in rows) (map[r.habitId] ??= []).add(r);
+    return map;
+  }
+
+  Stream<Map<int, List<HabitScheduleHistoryData>>> watchAllScheduleHistory() =>
+      (select(habitScheduleHistory)
+            ..orderBy([(r) => OrderingTerm.desc(r.effectiveFrom)]))
+          .watch()
+          .map((rows) {
+        final map = <int, List<HabitScheduleHistoryData>>{};
+        for (final r in rows) (map[r.habitId] ??= []).add(r);
+        return map;
+      });
 
   // ── Completions ────────────────────────────────────────────────────────────
 

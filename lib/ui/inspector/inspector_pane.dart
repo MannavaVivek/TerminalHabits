@@ -6,6 +6,14 @@ import '../../domain/streaks.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
 
+const _months = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
+String _fmtDate(DateTime d) =>
+    '${_months[d.month - 1]} ${d.day} ${d.year}';
+
 class InspectorPane extends ConsumerWidget {
   const InspectorPane({super.key});
 
@@ -18,22 +26,24 @@ class InspectorPane extends ConsumerWidget {
 
     Widget body = const _EmptyInspector();
 
+    final historyAV = ref.watch(scheduleHistoryProvider);
+
     if (focusedId != null &&
         habitsAV.hasValue &&
         recentAV.hasValue &&
-        vacAV.hasValue) {
+        vacAV.hasValue &&
+        historyAV.hasValue) {
       final habits = habitsAV.requireValue;
       final habit = habits.firstWhere(
         (h) => h.id == focusedId,
-        orElse: () => habits.isEmpty
-            ? _stubHabit
-            : habits.first, // doesn't matter, we check below
+        orElse: () => habits.isEmpty ? _stubHabit : habits.first,
       );
       if (habit.id == focusedId) {
         final comps = recentAV.requireValue[habit.id] ?? const [];
-        final streaks =
-            computeStreaks(habit, comps, DateTime.now(), vacAV.requireValue);
-        body = _HabitInspector(habit: habit, streaks: streaks);
+        final history = historyAV.requireValue[habit.id] ?? const [];
+        final streaks = computeStreaks(
+            habit, comps, DateTime.now(), vacAV.requireValue, history);
+        body = _HabitInspector(habit: habit, streaks: streaks, history: history);
       }
     }
 
@@ -58,6 +68,7 @@ final _stubHabit = Habit(
   healthSource: null,
   createdAt: DateTime(1970),
   startDate: DateTime(1970),
+  endDate: null,
   archivedAt: null,
 );
 
@@ -79,7 +90,11 @@ class _EmptyInspector extends StatelessWidget {
 class _HabitInspector extends StatelessWidget {
   final Habit habit;
   final StreakResult streaks;
-  const _HabitInspector({required this.habit, required this.streaks});
+  final List<HabitScheduleHistoryData> history;
+  const _HabitInspector(
+      {required this.habit,
+      required this.streaks,
+      required this.history});
 
   @override
   Widget build(BuildContext context) {
@@ -102,11 +117,25 @@ class _HabitInspector extends StatelessWidget {
         _Block(label: 'habit', children: [
           _Row('tracking', h.tracking),
           _Row('schedule', scheduleLabel(h.schedule)),
-          if (h.targetTime != null && h.targetTime!.isNotEmpty)
-            _Row('target', h.targetTime!),
+          _Row('started', _fmtDate(h.startDate.toLocal())),
+          if (h.endDate != null)
+            _Row('ends', _fmtDate(h.endDate!.toLocal())),
           if (h.note != null && h.note!.isNotEmpty)
             _Row('note', h.note!),
         ]),
+        if (history.length > 1) ...[
+          const SizedBox(height: TH.s8),
+          _Block(
+            label: 'schedule history',
+            children: [
+              for (final e in history)
+                _Row(
+                  _fmtDate(e.effectiveFrom.toLocal()),
+                  scheduleLabel(e.schedule),
+                ),
+            ],
+          ),
+        ],
       ],
     );
   }
