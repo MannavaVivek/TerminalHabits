@@ -120,32 +120,30 @@
 
 ## Phase 3 — Habit editing & start date (≈ 1 week)
 
-> After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit per `constitution.md §7`.
+**Completed: 2026-05-09**
 
 **Goal:** any habit field is editable from the UI. Habits respect a start date, so back-dated views don't show habits that didn't exist yet.
 
 ### Scope
-- **Right-click on habit row** (PC) and **long-press** (Android stub, full coverage in Phase 10) → context menu: `edit`, `archive`, `delete`. Use `Listener` or `GestureDetector` with secondary-tap.
-- **`EditHabitDialog`**: same fields as `NewHabitDialog` plus:
-  - `note` (textarea, multi-line).
-  - `startDate` (date picker; defaults to `created_at` for existing habits).
-  - `targetTime` (optional HH:mm picker).
-  - `groupId` (dropdown of existing groups).
-  - `tracking` (read-only in this phase if existing completions exist; editable only if completions table is empty for this habit).
-- **Schedule changes** in this phase do **not** preserve old data — they overwrite. The dialog warns: "Changing the schedule will overwrite past completion validity. Continue? (Phase 5 will preserve history.)" This warning is only shown if completions exist on days no longer covered by the new schedule.
-- **Start date enforcement**: `dailyStateProvider` filters habits by `selectedDay >= habit.startDate`. Streak engine only walks dates `>= startDate`.
-- **Archive flow**: sets `archivedAt`; archived habits stay in DB and remain visible in stats but don't appear in daily view.
-- **Delete flow**: confirmation dialog, then cascades — deletes habit + all its completions.
+- **Right-click on habit row** (PC) and **long-press** (mobile stub) → context menu (`edit`, `archive`, `delete`) via `habit_menu.dart`.
+- **`EditHabitDialog`**: name, group (dropdown with inline `+ new`), schedule, color, icon, note, startDate (date picker), targetTime (HH:mm picker). Tracking type read-only when completions exist.
+- **Schedule change warning**: shown only when completions exist on days dropped by the new schedule. Overwrites without history (history preserved in Phase 5).
+- **Start date enforcement**: `dailyStateProvider` filters habits by `selectedDay >= habit.startDate`; streak engine walks from `min(habit.startDate, oldest_completion)`.
+- **`NewHabitDialog`** gains a `defaultStartDate` parameter: the `[ + new habit ]` button in the daily view passes `selectedDay`; ⌘N and the command palette pass nothing (defaults to `DateTime.now()`).
+- **Archive flow**: sets `archivedAt`; archived habits removed from daily view but preserved in DB.
+- **Delete flow**: confirmation dialog, cascades to completions.
+- **Archive view** (`archive_view.dart`): listed in sidebar under the existing nav items; shows archived habits with relative archive time, restore and delete actions.
+- **`[ + new habit ]` button** moved from sidebar to the bottom of the daily-view habit list. On mobile (empty day) it also appears at the top. On desktop (empty day) only a text hint (`press ⌘N`) is shown.
 
 ### Schema changes
-- Migration v3: add `habits.start_date DATETIME NOT NULL`. Backfill from `created_at` for existing rows.
+- Migration v3: `ALTER TABLE habits ADD COLUMN start_date DATETIME NOT NULL DEFAULT '…'`, then `UPDATE habits SET start_date = created_at`.
 
 ### Exit criteria
-- [ ] Right-click on a habit row opens the context menu; selecting `edit` opens `EditHabitDialog` populated with current values.
-- [ ] Saving the dialog persists changes immediately; UI updates without restart.
-- [ ] A habit with `startDate` 7 days ago does not appear when navigating to a day older than that.
-- [ ] Archive removes habit from daily view; delete removes it everywhere (with confirmation).
-- [ ] All Phase 1 / Phase 2 features still work.
+- [x] Right-click on a habit row opens the context menu; selecting `edit` opens `EditHabitDialog` populated with current values.
+- [x] Saving the dialog persists changes immediately; UI updates without restart.
+- [x] A habit with `startDate` 7 days ago does not appear when navigating to a day older than that.
+- [x] Archive removes habit from daily view; delete removes it everywhere (with confirmation).
+- [x] All Phase 1 / Phase 2 features still work.
 
 ### Out of scope
 - "Keep old progress" prompt for schedule changes (Phase 5).
