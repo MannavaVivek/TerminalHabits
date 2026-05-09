@@ -139,7 +139,7 @@ class _DailyHeader extends ConsumerWidget {
         // Calendar + date
         Row(
           children: [
-            const Text('📆', style: TextStyle(fontSize: 13)),
+            const Icon(LucideIcons.calendar, size: 13, color: TH.fgDim),
             const SizedBox(width: TH.s8),
             Text(dateLine,
                 style: const TextStyle(color: TH.fg, fontSize: 13)),
