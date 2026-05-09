@@ -149,17 +149,23 @@ class _DailyHeader extends ConsumerWidget {
         // Streak summary
         Row(
           children: [
-            const Icon(LucideIcons.flame, size: 13, color: TH.amber),
+            Icon(LucideIcons.flame, size: 13,
+                color: state.overallStreak.todayAtRisk ? TH.fgMute : TH.amber),
             const SizedBox(width: 4),
-            Text('${state.maxCurrentStreak} days',
-                style: const TextStyle(color: TH.amber, fontSize: 12)),
+            Text(
+              '${state.overallStreak.displayStreak} days',
+              style: TextStyle(
+                fontSize: 12,
+                color: state.overallStreak.todayAtRisk ? TH.fgMute : TH.amber,
+              ),
+            ),
             const SizedBox(width: TH.s8),
             const Text('*',
                 style: TextStyle(color: TH.fgMute, fontSize: 12)),
             const SizedBox(width: TH.s8),
             const Icon(LucideIcons.shield, size: 12, color: TH.blue),
             const SizedBox(width: 4),
-            Text('${state.sumShields}',
+            Text('${state.availableShields}',
                 style: const TextStyle(color: TH.blue, fontSize: 12)),
           ],
         ),

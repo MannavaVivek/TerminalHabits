@@ -89,16 +89,15 @@ class DailyGroup {
 class DailyState {
   final List<DailyGroup> groups;
   final DateTime today;
-  // Aggregate metrics across all active habits visible on [today].
-  final int maxCurrentStreak;
-  final int sumShields;
+  final StreakResult overallStreak;
+  final int availableShields; // always 0 until Phase 8
   final int totalCompletionsAllTime;
 
   const DailyState({
     required this.groups,
     required this.today,
-    required this.maxCurrentStreak,
-    required this.sumShields,
+    required this.overallStreak,
+    required this.availableShields,
     required this.totalCompletionsAllTime,
   });
 
@@ -137,15 +136,12 @@ final dailyStateProvider = Provider<AsyncValue<DailyState>>((ref) {
         historyMap[h.id] ?? const [],
       ),
   };
-  var maxCurrent = 0;
-  var sumShields = 0;
   var totalCompletions = 0;
   for (final h in habits) {
-    final s = allStreaks[h.id]!;
-    if (s.current > maxCurrent) maxCurrent = s.current;
-    sumShields += s.shields;
     totalCompletions += (recentMap[h.id] ?? const []).length;
   }
+  final overallStreak =
+      computeOverallStreak(habits, recentMap, vacList, historyMap, today);
 
   final dailyGroups = groups
       .map((group) {
@@ -188,8 +184,8 @@ final dailyStateProvider = Provider<AsyncValue<DailyState>>((ref) {
   return AsyncValue.data(DailyState(
     groups: dailyGroups,
     today: selectedDay,
-    maxCurrentStreak: maxCurrent,
-    sumShields: sumShields,
+    overallStreak: overallStreak,
+    availableShields: overallStreak.displayStreak ~/ 7,
     totalCompletionsAllTime: totalCompletions,
   ));
 });

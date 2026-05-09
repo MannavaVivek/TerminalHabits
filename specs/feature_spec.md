@@ -166,12 +166,28 @@ Drag-and-drop within a group on desktop. On mobile, long-press → "move up / mo
 
 Authoritative algorithm in [data_model.md](data_model.md) §6. Surface behavior:
 
-- **Current streak** displays in habit row (right-aligned, dim) and inspector (large).
+### Per-habit streak (habit row + inspector)
+
+- While today is still open (today is a due day and not yet completed): show **yesterday's streak in gray/dim** — never show 0 just because today isn't done yet. `todayAtRisk = true`.
+- Once today's habit is completed (or today is not a due day): show the **current streak in amber**.
+- After midnight if today was missed: current streak resets to 0 on the next wake.
+- `StreakResult.displayStreak` returns `pending` when `todayAtRisk`, `current` otherwise.
 - **Longest streak** displays in inspector and Stats Streaks block.
-- **Shield count:** every 7 consecutive days earns 1 shield. A shield absorbs one missed day per week (max 1 per 7-day window).
-  - Display in inspector: `shields: 3`.
-  - Auto-consumed when a missed day would otherwise break the streak.
-  - User cannot manually spend or save shields — automatic only.
+
+### Overall day-wise streak (daily view header)
+
+- The header flame counts **consecutive days where every due habit was completed** (100% completion rate per day). Previously it showed `maxCurrentStreak` (the max streak across all habits); that is replaced.
+- A day with no due habits is *neutral* — it neither contributes nor breaks the streak.
+- Vacation days are neutral (skipped).
+- Same pending/at-risk display logic as per-habit: gray when today is open and at least one due habit is incomplete, amber otherwise.
+
+### Shields (Phase 8 placeholder)
+
+`shields` in `StreakResult` is always 0. The shield system ships in Phase 8 with the following behavior (specified in [roadmap.md](roadmap.md) §Phase 8):
+- One shield per day: if any habits were missed, one shield from the pool is consumed (not one per missed habit).
+- Days with a consumed shield show a shield icon in the week strip instead of the flame.
+- The shield counts as a successful day for streak purposes; the pending streak counts a shielded day as done.
+- If a habit is later edited so that the shielded day is no longer tracked, the shield is kept (not reclaimed). No attempt to recover shields from schedule edits.
 
 Vacation days are ignored entirely (neither break nor extend streaks).
 

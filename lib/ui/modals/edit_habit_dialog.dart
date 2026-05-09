@@ -39,6 +39,7 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
   String? _iconKey;
   bool _saving = false;
   bool _hasCompletions = false;
+  List<Completion> _completions = const [];
 
   @override
   void initState() {
@@ -63,7 +64,10 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
   Future<void> _loadCompletionFlag() async {
     final comps =
         await ref.read(dbProvider).getCompletionsForHabit(widget.habit.id);
-    if (mounted) setState(() => _hasCompletions = comps.isNotEmpty);
+    if (mounted) setState(() {
+      _completions = comps;
+      _hasCompletions = comps.isNotEmpty;
+    });
   }
 
   @override
@@ -80,26 +84,89 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
 
     final newScheduleJson = _scheduleJsonFromKey(_scheduleKey);
     final scheduleChanged = newScheduleJson != widget.habit.schedule;
+    final typeChanged = _tracking != widget.habit.tracking;
+    final newStartUtc = localMidnightUtc(_startDate);
+    final oldStartUtc = localMidnightUtc(widget.habit.startDate);
+    final startMovedLater = newStartUtc.isAfter(oldStartUtc);
 
-    // When schedule changes, decide whether to keep or overwrite history.
-    String? historyChoice; // 'keep' | 'overwrite' | null (no dialog needed)
-    if (scheduleChanged) {
-      if (_hasCompletions) {
-        if (!mounted) return;
-        historyChoice = await _confirmScheduleHistory(context);
-        if (historyChoice == null) return; // user cancelled
+    // Pre-compute schedule overlap so we can choose the right warning and action.
+    final oldDays = scheduleChanged
+        ? (jsonDecode(widget.habit.schedule)['days'] as List).cast<int>().toSet()
+        : const <int>{};
+    final newDays = scheduleChanged
+        ? (jsonDecode(newScheduleJson)['days'] as List).cast<int>().toSet()
+        : const <int>{};
+    final removedDays = oldDays.difference(newDays); // days leaving the schedule
+    final noOverlap = scheduleChanged && oldDays.intersection(newDays).isEmpty;
+    final isExpanding = scheduleChanged && newDays.containsAll(oldDays);
+    final isContracting = scheduleChanged && !isExpanding && !noOverlap;
+
+    // ── warnings ─────────────────────────────────────────────────────────────
+
+    // Type change clears everything — show first, it's the most severe.
+    if (typeChanged && _hasCompletions) {
+      if (!mounted) return;
+      final ok = await _warnDestructive(
+        context,
+        'Tracking type changed',
+        'Changing the tracking type permanently deletes all recorded '
+            'completions for this habit. This cannot be undone.',
+      );
+      if (ok != true) return;
+    }
+
+    // Schedule change — skip if type also changed (type warning already covers it).
+    if (scheduleChanged && _hasCompletions && !typeChanged) {
+      if (!mounted) return;
+      final String title;
+      final String body;
+      if (noOverlap) {
+        title = 'Schedule changed';
+        body = 'There is no overlap between the old and new schedules. '
+            'All recorded completions will be permanently deleted. '
+            'This cannot be undone.';
+      } else if (isContracting) {
+        final removed = _dayNames(removedDays);
+        final kept = _dayNames(newDays);
+        title = 'Schedule narrowed';
+        body = 'Completions on $removed will be permanently deleted. '
+            'Completions on $kept are preserved. '
+            'This cannot be undone.';
       } else {
-        historyChoice = 'overwrite'; // no completions — silent overwrite
+        // Expanding (e.g. weekdays/weekends → daily).
+        final added = _dayNames(newDays.difference(oldDays));
+        title = 'Schedule expanded';
+        body = '$added will be added to the tracked schedule. '
+            'Existing completions are kept, but your streak will reset '
+            'because those days have no prior completions. '
+            'This cannot be undone.';
+      }
+      final ok = await _warnDestructive(context, title, body);
+      if (ok != true) return;
+    }
+
+    // Start date moved later — only if no other change already clears data.
+    if (!typeChanged && !scheduleChanged && startMovedLater) {
+      final hasEarlierComps =
+          _completions.any((c) => c.day.toUtc().isBefore(newStartUtc));
+      if (hasEarlierComps) {
+        if (!mounted) return;
+        final ok = await _warnDestructive(
+          context,
+          'Start date moved forward',
+          'Moving the start date to ${_formatDate(_startDate)} permanently '
+              'deletes all completions recorded before that date. '
+              'This cannot be undone.',
+        );
+        if (ok != true) return;
       }
     }
 
-    setState(() => _saving = true);
-
+    // ── target validation ────────────────────────────────────────────────────
     int? target;
     String? unit;
     if (_tracking == 'counter') {
       target = int.tryParse(_targetCtrl.text.trim());
-      unit = null;
     } else if (_tracking == 'duration') {
       target = int.tryParse(_targetCtrl.text.trim());
       unit = 'min';
@@ -107,57 +174,38 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
 
     if (target != null && target > 999) {
       if (!mounted) return;
-      await showDialog<void>(
-        context: context,
-        barrierColor: Colors.black54,
-        builder: (ctx) => Dialog(
-          backgroundColor: TH.bg2,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.all(TH.r10)),
-          child: SizedBox(
-            width: 300,
-            child: Padding(
-              padding: const EdgeInsets.all(TH.s22),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('target too large',
-                      style: TextStyle(
-                          color: TH.fg,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600)),
-                  const SizedBox(height: TH.s8),
-                  const Text('target must be 999 or less.',
-                      style: TextStyle(color: TH.fgDim, fontSize: 12)),
-                  const SizedBox(height: TH.s22),
-                  Center(
-                    child: GestureDetector(
-                      onTap: () => Navigator.of(ctx).pop(),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: TH.s22, vertical: TH.s8),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: TH.green),
-                          borderRadius: BorderRadius.all(TH.r4),
-                        ),
-                        child: const Text('[ understood ]',
-                            style: TextStyle(
-                                color: TH.green, fontSize: 13)),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-      setState(() => _saving = false);
+      await _showTargetTooLarge(context);
       return;
     }
 
+    setState(() => _saving = true);
+
     final db = ref.read(dbProvider);
+
+    // ── data cleanup ─────────────────────────────────────────────────────────
+    if (typeChanged) {
+      // Clears all completions and resets schedule history.
+      await db.clearHabitProgress(
+          widget.habit.id, newStartUtc, newScheduleJson, _tracking);
+    } else if (scheduleChanged) {
+      if (noOverlap) {
+        // No shared days — delete everything.
+        await db.clearHabitProgress(
+            widget.habit.id, newStartUtc, newScheduleJson, _tracking);
+      } else if (isContracting) {
+        // Remove completions only on days leaving the schedule; keep the rest.
+        await db.clearCompletionsOnDays(widget.habit.id, removedDays);
+        await db.replaceScheduleHistory(
+            widget.habit.id, newStartUtc, newScheduleJson, _tracking);
+      } else {
+        // Expanding — keep all completions, just update schedule history.
+        await db.replaceScheduleHistory(
+            widget.habit.id, newStartUtc, newScheduleJson, _tracking);
+      }
+    } else if (startMovedLater) {
+      await db.clearCompletionsBefore(widget.habit.id, newStartUtc);
+    }
+
     await db.patchHabit(
       widget.habit.id,
       HabitsCompanion(
@@ -176,17 +224,6 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
         endDate: Value(_endDate),
       ),
     );
-
-    // Apply schedule history change after patching the habit row.
-    if (historyChoice == 'keep') {
-      final todayUtc = localMidnightUtc(DateTime.now());
-      await db.appendScheduleHistory(
-          widget.habit.id, todayUtc, newScheduleJson, _tracking);
-    } else if (historyChoice == 'overwrite') {
-      final startUtc = localMidnightUtc(_startDate);
-      await db.replaceScheduleHistory(
-          widget.habit.id, startUtc, newScheduleJson, _tracking);
-    }
 
     if (mounted) Navigator.of(context).pop();
   }
@@ -333,16 +370,10 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
                       child: _Pill(
                         label: t,
                         selected: _tracking == t,
-                        onTap: () {
-                          if (_hasCompletions && t != _tracking) {
-                            _showTypeLocked(context);
-                            return;
-                          }
-                          setState(() {
-                            _tracking = t;
-                            _targetCtrl.clear();
-                          });
-                        },
+                        onTap: () => setState(() {
+                          _tracking = t;
+                          _targetCtrl.clear();
+                        }),
                       ),
                     ),
                 ],
@@ -590,6 +621,12 @@ String _scheduleJsonFromKey(String key) {
   }
 }
 
+// Formats a set of weekday indices (0=Mon..6=Sun) as a human-readable list.
+String _dayNames(Set<int> days) {
+  const names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  return (days.toList()..sort()).map((d) => names[d]).join(', ');
+}
+
 String _formatDate(DateTime d) {
   const months = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -598,7 +635,10 @@ String _formatDate(DateTime d) {
   return '${months[d.month - 1]} ${d.day} ${d.year}';
 }
 
-Future<void> _showTypeLocked(BuildContext context) => showDialog<void>(
+// Destructive-action confirmation: returns true (proceed) or false/null (cancel).
+Future<bool?> _warnDestructive(
+        BuildContext context, String title, String body) =>
+    showDialog<bool>(
       context: context,
       barrierColor: Colors.black54,
       builder: (ctx) => Dialog(
@@ -606,25 +646,80 @@ Future<void> _showTypeLocked(BuildContext context) => showDialog<void>(
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.all(TH.r10)),
         child: SizedBox(
-          width: 380,
+          width: 420,
           child: Padding(
             padding: const EdgeInsets.all(TH.s22),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Tracking type locked',
+                Text(title,
+                    style: const TextStyle(
+                        color: TH.fg,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600)),
+                const SizedBox(height: TH.s8),
+                Text(body,
+                    style: const TextStyle(
+                        color: TH.fgDim, fontSize: 12)),
+                const SizedBox(height: TH.s22),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    GestureDetector(
+                      onTap: () => Navigator.of(ctx).pop(false),
+                      child: const Text('[ cancel ]',
+                          style: TextStyle(
+                              color: TH.fgMute, fontSize: 12)),
+                    ),
+                    const SizedBox(width: TH.s14),
+                    GestureDetector(
+                      onTap: () => Navigator.of(ctx).pop(true),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: TH.s14, vertical: TH.s8),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: TH.red),
+                          borderRadius: BorderRadius.all(TH.r4),
+                        ),
+                        child: const Text('[ proceed ]',
+                            style: TextStyle(
+                                color: TH.red, fontSize: 12)),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+Future<void> _showTargetTooLarge(BuildContext context) => showDialog<void>(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (ctx) => Dialog(
+        backgroundColor: TH.bg2,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(TH.r10)),
+        child: SizedBox(
+          width: 300,
+          child: Padding(
+            padding: const EdgeInsets.all(TH.s22),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Target too large',
                     style: TextStyle(
                         color: TH.fg,
                         fontSize: 14,
                         fontWeight: FontWeight.w600)),
                 const SizedBox(height: TH.s8),
-                const Text(
-                  'The tracking type cannot be changed once completions '
-                  'have been recorded. Delete all completions for this '
-                  'habit first if you need to switch types.',
-                  style: TextStyle(color: TH.fgDim, fontSize: 12),
-                ),
+                const Text('Target must be 999 or less.',
+                    style: TextStyle(
+                        color: TH.fgDim, fontSize: 12)),
                 const SizedBox(height: TH.s22),
                 Center(
                   child: GestureDetector(
@@ -633,12 +728,12 @@ Future<void> _showTypeLocked(BuildContext context) => showDialog<void>(
                       padding: const EdgeInsets.symmetric(
                           horizontal: TH.s22, vertical: TH.s8),
                       decoration: BoxDecoration(
-                        border: Border.all(color: TH.amber),
+                        border: Border.all(color: TH.green),
                         borderRadius: BorderRadius.all(TH.r4),
                       ),
                       child: const Text('[ understood ]',
                           style: TextStyle(
-                              color: TH.amber, fontSize: 13)),
+                              color: TH.green, fontSize: 13)),
                     ),
                   ),
                 ),
@@ -648,107 +743,6 @@ Future<void> _showTypeLocked(BuildContext context) => showDialog<void>(
         ),
       ),
     );
-
-// Returns 'keep', 'overwrite', or null (cancelled).
-Future<String?> _confirmScheduleHistory(BuildContext context) =>
-    showDialog<String>(
-      context: context,
-      barrierColor: Colors.black54,
-      builder: (ctx) => Dialog(
-        backgroundColor: TH.bg2,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(TH.r10)),
-        child: SizedBox(
-          width: 440,
-          child: Padding(
-            padding: const EdgeInsets.all(TH.s22),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Schedule changed',
-                    style: TextStyle(
-                        color: TH.fg,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600)),
-                const SizedBox(height: TH.s8),
-                const Text(
-                  'You have existing completions. Choose how to apply the new schedule:',
-                  style: TextStyle(color: TH.fgDim, fontSize: 12),
-                ),
-                const SizedBox(height: TH.s14),
-                _HistoryOption(
-                  title: 'Keep history',
-                  body:
-                      'Past completions stay valid on their original schedule. The new schedule applies from today forward.',
-                  onTap: () => Navigator.of(ctx).pop('keep'),
-                  color: TH.green,
-                ),
-                const SizedBox(height: TH.s8),
-                _HistoryOption(
-                  title: 'Overwrite',
-                  body:
-                      'The new schedule is applied retroactively. Completions on days no longer covered will no longer count toward streaks.',
-                  onTap: () => Navigator.of(ctx).pop('overwrite'),
-                  color: TH.amber,
-                ),
-                const SizedBox(height: TH.s14),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: GestureDetector(
-                    onTap: () => Navigator.of(ctx).pop(),
-                    child: const Text('[ cancel ]',
-                        style: TextStyle(
-                            color: TH.fgMute, fontSize: 12)),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-
-class _HistoryOption extends StatelessWidget {
-  final String title;
-  final String body;
-  final VoidCallback onTap;
-  final Color color;
-  const _HistoryOption(
-      {required this.title,
-      required this.body,
-      required this.onTap,
-      required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(TH.s8),
-        decoration: BoxDecoration(
-          border: Border.all(color: color),
-          borderRadius: BorderRadius.all(TH.r4),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title,
-                style: TextStyle(
-                    color: color,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600)),
-            const SizedBox(height: 3),
-            Text(body,
-                style:
-                    const TextStyle(color: TH.fgDim, fontSize: 11)),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _Label extends StatelessWidget {
   final String text;

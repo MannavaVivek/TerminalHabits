@@ -83,7 +83,7 @@
   - `{userName}@TerminalHabits $ daily` — terminal prompt line. `userName` comes from the `settings.userName` row via `userNameProvider`.
   - `// {N} completions. {dynamic motivational comment}` — comment line; copy is bucketed by completion count.
   - `📆 {Weekday}, {Month} {Day} {Year}` — calendar icon + selected-day label.
-  - `🔥 {maxCurrentStreak} days * 🛡 {sumShields}` — aggregate streak/shield summary computed across all active habits (not just ones due on the selected day).
+  - `🔥 {overallStreak} days * 🛡 {availableShields}` — overall day-wise streak: consecutive days where every due habit was completed (100%); shown in amber when today is on track, gray/dim when today is at risk. Shield count shows the available pool (always 0 until Phase 8).
 - **Week strip** redesign:
   - Day-of-week labels above day numbers (`Mon` / `23`).
   - Selected day prefixed with `*` and rendered with `TH.bg3` background.
@@ -192,26 +192,29 @@
 
 ## Phase 5 — Schedule history, end date & progress preservation (≈ 1.5 weeks)
 
-> After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit per `constitution.md §7`.
+**Completed: 2026-05-09**
 
 **Goal:** changing a habit's schedule preserves past completion validity. A daily-then-weekend habit shows correctly on weekdays before the change and weekends after. Habits can also be given an end date after which they stop appearing.
 
 ### Scope
 - **New table** `habit_schedule_history`:
   - `id INTEGER PK`, `habit_id INTEGER FK`, `effective_from DATETIME (UTC midnight)`, `schedule TEXT (JSON)`, `tracking TEXT`, `created_at DATETIME`.
-  - Index on `(habit_id, effective_from DESC)` for the lookup query.
+  - Index on `(habit_id, effective_from DESC, id DESC)` for deterministic tie-breaking.
 - **Insert-on-create**: when a habit is created, also insert one history row with `effective_from = start_date` and the current schedule + tracking.
-- **Edit dialog flow**: when the user changes `schedule` and saves (tracking type remains locked while completions exist), the dialog prompts with three options:
-  - **Keep history** — insert a new history row with `effective_from = today_utc`. Old completions stay valid on the days they were due.
-  - **Overwrite** — delete all history rows; insert a single row with `effective_from = start_date` and the new schedule.
-  - **Cancel** — abort the save entirely.
-  - When no completions exist, the history row is silently overwritten (no dialog shown).
+- **Edit dialog — destructive change warnings** (replaces the old Keep/Overwrite/Cancel prompt):
+  - **Tracking type change** (when completions exist): red warning "all history will be cleared, irreversible" → Cancel / Proceed. Proceed deletes all completions and replaces schedule history.
+  - **Schedule change** (without tracking-type change, when completions exist): behavior depends on overlap between old and new day sets:
+    - *No overlap* (e.g. Weekdays ↔ Weekends): red warning that all completions will be deleted. Proceed clears all completions and replaces history.
+    - *Contracting* (new days ⊂ old days, e.g. Daily → Weekdays): warning lists which days will be deleted ("Sat, Sun completions removed") and which are kept. Proceed deletes only completions on the removed days; adds a new history row with `effective_from = today_utc`.
+    - *Expanding* (new days ⊃ old days, e.g. Weekdays → Daily): no data deleted; only a new history row is inserted. Warning explains that streak may appear to reset until the new days accumulate completions.
+  - **Start date moved later** (no type/schedule change): warns about loss of completions before the new start date. Proceed deletes completions with `day < new_start_date`.
+  - When no completions exist or the change does not affect data, save silently (no dialog).
 - **End date** (`habits.end_date DATETIME NULL`): optional field in both `NewHabitDialog` and `EditHabitDialog`. When set:
   - Habit is hidden from the daily view on any day after the end date.
   - The streak walk stops at `min(today, end_date)` so past streaks are preserved.
   - The week strip ratios exclude the habit on days after the end date.
   - End date must be on or after start date (validated before save).
-- **Lookup helper** `effectiveScheduleAt(List<HabitScheduleHistory> history, DateTime dayUtc)` — pure domain function returning the most recent history row with `effective_from <= dayUtc`.
+- **Lookup helper** `effectiveScheduleAt(List<HabitScheduleHistory> history, DateTime dayUtc)` — pure domain function, order-independent, returning the most recent history row with `effective_from <= dayUtc`; ties broken by `id DESC`.
 - **Update `isHabitDueOn` call sites** and **streak engine** to call `effectiveScheduleAt` per day instead of reading `habits.schedule` directly.
 - **Inspector pane** gains a "schedule history" section listing entries with their effective dates and a "ends" row when `end_date` is set.
 
@@ -222,15 +225,18 @@
   - Backfill: `INSERT INTO habit_schedule_history SELECT id, start_date, schedule, tracking, CURRENT_TIMESTAMP FROM habits`.
 
 ### Exit criteria
-- [ ] Create a `daily` habit, log completions for a week, change to `weekends`, choose **Keep history**: weekday completions remain counted in streak; from the change date forward, the habit only appears Sat/Sun.
-- [ ] Choosing **Overwrite** re-evaluates all completions against the new schedule retroactively.
-- [ ] Setting an end date hides the habit from the daily view the day after; habit still appears on days before the end date.
-- [ ] Streak walk stops at end date; a habit with an end date in the past shows a fixed historic streak.
-- [ ] `dailyStateProvider` and the streak engine produce the same results as Phase 4 for habits whose schedule has never changed.
-- [ ] Inspector "schedule history" section lists all entries with their effective dates.
+- [x] Create a `daily` habit, log completions for a week, change to `weekdays`: Sat/Sun completions are deleted, Mon–Fri completions and streaks are preserved; from today forward the habit only appears Mon–Fri.
+- [x] Change a `daily` habit to `weekends`: Mon–Fri completions deleted; Sat/Sun completions kept; streak is now weekend-only.
+- [x] Change from `weekdays` to `weekends` (no overlap): all completions deleted, red "no overlap" warning shown.
+- [x] Change `weekdays` to `daily` (expanding): all completions kept, new history row inserted, no data deleted.
+- [x] Tracking-type change clears all completions after warning.
+- [x] Setting an end date hides the habit from the daily view the day after; habit still appears on days before the end date.
+- [x] Streak walk stops at end date; a habit with an end date in the past shows a fixed historic streak.
+- [x] `dailyStateProvider` and the streak engine produce the same results as Phase 4 for habits whose schedule has never changed.
+- [x] Inspector "schedule history" section lists all entries with their effective dates.
 
 ### Out of scope
-- Tracking-type history (type remains locked once completions exist).
+- Tracking-type history (type resets completions when changed).
 - Editing `start_date` after history rows exist.
 - Surfacing schedule changes in stats view (Phase 7).
 
@@ -307,52 +313,49 @@
 
 > After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit per `constitution.md §7`.
 
-**Goal:** replace the per-habit shield counter (Phase 1) with a per-day shield concept that acts as a real recovery mechanism. A shielded day counts as a successful day for streak purposes whether you applied the shield manually, the system auto-applied one at end-of-day, or you back-filled the day to clear it on its own.
+**Goal:** add a shield pool that can absorb missed days in the overall day-wise streak. One shield covers one missed day regardless of how many habits were missed that day.
 
 ### Scope
 - **New table** `day_shields(id INTEGER PK, day DATETIME UNIQUE, source TEXT, applied_at DATETIME)`.
   - `day` is UTC-midnight-of-local-day (same convention as `completions.day`).
   - `source` ∈ `{'manual', 'auto'}`.
   - `UNIQUE` on `day` so a single day can hold at most one shield.
-- **Day-success definition** (depends on Phase 6 settings):
-  - A day is *successful* when `dailyCompletionPct(day) >= minDailyCompletionPct` OR a row in `day_shields` exists for that day.
-  - `dailyCompletionPct(day)` = `dueAndCompleted(day) / dueOnDay(day)` (vacation days excluded).
-- **Streak engine** is rewritten around day-success rather than per-habit completion. The new walker:
-  - Iterates from `min(habit.start_date, oldest completion)` to today (per-habit walk is replaced with a single per-day walk because shields are global).
-  - Skips non-due days (no habit due) and vacation days.
-  - For each "active" day: success → run++, miss → run = 0.
-  - Per-habit streaks become *derived* (consecutive completed-due days for that habit, with no shield logic).
+- **One shield per day**: if any habits were incomplete on a given day, one shield is consumed from the pool — not one per missed habit. Vacation days do not consume shields.
+- **Day-success definition**: a day is *successful* when all due habits are completed OR a row in `day_shields` exists for that day.
+- **Overall streak engine update**: the existing `computeOverallStreak` walker treats a shielded day as outcome `1` (success) even if habits were missed.
+- **Per-habit streaks** remain unchanged: consecutive completed-due days for that habit with no shield interaction.
 - **Shield earning**: every N consecutive successful days earns 1 shield to the available pool. `N` defaults to 7, configurable in settings (`shieldEarnInterval`). Earned shields live in a single `available_shields` counter (kept in `settings`).
+- **UI — habit row**: on a day where a shield was consumed and the habit was *not* completed, the flame icon for that habit is replaced by a shield icon. Multiple habits missed → all show shield icon, but only one shield was consumed total.
+- **UI — pending / gray streak**: the gray pending streak (shown while today is still open) counts a shielded day as a successful day, same as a completed day.
 - **Manual apply / remove**: right-click on a day cell in the week strip → menu (`apply shield`, `remove shield`). On Android, long-press. Removing returns the shield to the available pool. Applying to a future day is allowed (planned travel).
-- **Auto-apply at end-of-day**: at app launch, scan all calendar days from the last-seen date to yesterday. For each:
-  - If success without shield → no-op.
-  - If miss and `available_shields > 0` → insert `day_shields(day, 'auto', now)` and decrement available pool.
-  - If miss and no shields → leave as miss (streak breaks normally).
-- **Auto-recovery**: when `dailyCompletionPct(day) >= min` for a day that has a `source='auto'` shield, the shield is released (row deleted, available pool incremented). Triggered by the same launch-scan and by any completion write that touches a previously-shielded day.
+- **Auto-apply at end-of-day**: at app launch, scan all calendar days from the last-seen date to yesterday. For each missed day with `available_shields > 0`: insert `day_shields(day, 'auto', now)` and decrement available pool. If no shields → leave as miss.
+- **Auto-recovery**: when a missed day is back-filled to 100% completion and it had a `source='auto'` shield, the shield row is deleted and the available pool is incremented. Triggered by the launch-scan and by any completion write.
+- **Shield permanence on schedule edits**: if a habit's schedule is later changed so that a previously shielded day is no longer tracked, the shield is kept (not reclaimed). No logic to recover shields from retroactive edits.
 - **UI surfacing**:
-  - Week-strip day cell renders a small `🛡` overlay when the day has a shield (color differs by `source`: amber for manual, dim for auto).
-  - Aggregate header reads `🛡 {available}` (the pool), not the old per-habit count.
+  - Week-strip day cell renders a `🛡` overlay when a shield was consumed.
+  - Header reads `🛡 {available}` (available pool count).
   - Inspector pane on a day-cell focus shows `applied_at` and `source`.
-- **Migration cleanup**:
-  - Drop the per-habit `StreakResult.shields` field (or keep it set to 0 for compatibility while UI moves over).
-  - Old habit-row `🛡 N` annotation is removed.
+- **Migration cleanup**: `StreakResult.shields` field is removed (currently always 0); `DailyState.availableShields` replaces it, backed by the settings row.
 
 ### Schema changes
-- Migration v5: create `day_shields`. Add `available_shields` row to `settings` initialized to 0. Add `shieldEarnInterval` setting (default 7).
+- Migration (new version): create `day_shields`. Add `available_shields` row to `settings` initialized to 0. Add `shieldEarnInterval` setting (default 7).
 
 ### Exit criteria
-- [ ] Right-click a past day in the week strip → "apply shield"; the day's intensity bar gets a 🛡 overlay and the streak immediately recomputes through it.
-- [ ] Right-click again → "remove shield"; shield returns to the pool, streak recomputes without it.
-- [ ] Apply a shield to a future day; on the day itself, that shield holds even if no habits are completed.
-- [ ] Quit at end of day after a partial day (below `minDailyCompletionPct`) with shields available; relaunch next day → yesterday auto-shielded, banner notifies.
-- [ ] Back-fill an auto-shielded day to clear the threshold → shield auto-returns to pool.
-- [ ] Per-habit streak still computes correctly without shield interaction.
-- [ ] No regressions in Phases 1–6.
+- [ ] Right-click a past day in the week strip → "apply shield"; streak immediately recomputes through it as a success.
+- [ ] Right-click again → "remove shield"; shield returns to pool, streak recomputes without it.
+- [ ] On a day where any habit was missed and a shield was consumed, each missed habit's row shows a shield icon instead of a flame.
+- [ ] Only one shield is consumed per day regardless of how many habits were missed.
+- [ ] Quit at end of a missed day with shields available; relaunch → yesterday auto-shielded, streak preserved.
+- [ ] Back-fill an auto-shielded day to 100% completion → shield auto-returns to pool.
+- [ ] Gray pending streak correctly counts shielded past days as successes (not misses).
+- [ ] Schedule change that removes a shielded day from tracking does not reclaim the shield.
+- [ ] Per-habit streaks compute correctly and are unaffected by shields.
+- [ ] No regressions in Phases 1–7.
 
 ### Out of scope
 - Earning shields by manual purchase or vacation conversion (Backlog).
 - Multiple shields per day.
-- Removing a shield from a past day that's load-bearing for a multi-week streak: allowed, the streak just breaks. No special warning in this phase.
+- Warning when removing a load-bearing shield.
 
 ---
 

@@ -109,7 +109,7 @@ class _HabitInspector extends StatelessWidget {
                 color: TH.fg, fontSize: 14, fontWeight: FontWeight.w600)),
         const SizedBox(height: TH.s14),
         _Block(label: 'streak', children: [
-          _Row('current', '${s.current}'),
+          _Row('current', '${s.displayStreak}'),
           _Row('longest', '${s.longest}'),
           _Row('shields', '${s.shields}'),
         ]),

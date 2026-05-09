@@ -48,29 +48,29 @@ void main() {
 
   group('basic streaks', () {
     test('0 completions → streak 0', () {
-      final r = computeStreaks(_habit(), [], today, []);
+      final r = computeStreaks(_habit(), [], today, [], const []);
       expect(r.current, 0);
       expect(r.longest, 0);
       expect(r.shields, 0);
     });
 
     test('checked today only → streak 1', () {
-      final r = computeStreaks(_habit(), [_done(today)], today, []);
+      final r = computeStreaks(_habit(), [_done(today)], today, [], const []);
       expect(r.current, 1);
       expect(r.longest, 1);
     });
 
     test('continuous 14-day run ending today', () {
       final from = today.subtract(const Duration(days: 13));
-      final r = computeStreaks(_habit(), _range(from, today), today, []);
+      final r = computeStreaks(_habit(), _range(from, today), today, [], const []);
       expect(r.current, 14);
       expect(r.longest, 14);
-      expect(r.shields, 2); // 14 / 7
+      expect(r.shields, 0); // Phase 8
     });
 
     test('missed today breaks streak (yesterday was last)', () {
       final yesterday = today.subtract(const Duration(days: 1));
-      final r = computeStreaks(_habit(), [_done(yesterday)], today, []);
+      final r = computeStreaks(_habit(), [_done(yesterday)], today, [], const []);
       expect(r.current, 0);
       expect(r.longest, 1);
     });
@@ -81,7 +81,7 @@ void main() {
         ..removeWhere((c) =>
             c.day == localMidnightUtc(today.subtract(const Duration(days: 6))));
       // Days -9..-7 = 3-day run. -6 missed. -5..0 = 6-day run.
-      final r = computeStreaks(_habit(), completions, today, []);
+      final r = computeStreaks(_habit(), completions, today, [], const []);
       expect(r.current, 6);
       expect(r.longest, 6);
     });
@@ -93,7 +93,7 @@ void main() {
         ..removeWhere((c) =>
             c.day == localMidnightUtc(today.subtract(const Duration(days: 2))));
       // Days -4, -3 (run 2), gap, -1, 0 (run 2).
-      final r = computeStreaks(_habit(), completions, today, []);
+      final r = computeStreaks(_habit(), completions, today, [], const []);
       expect(r.current, 2);
       expect(r.longest, 2);
     });
@@ -104,7 +104,7 @@ void main() {
       // Habit created today, but user back-fills the prior 4 days.
       final from = today.subtract(const Duration(days: 4));
       final habit = _habit(createdAt: today);
-      final r = computeStreaks(habit, _range(from, today), today, []);
+      final r = computeStreaks(habit, _range(from, today), today, [], const []);
       expect(r.current, 5);
       expect(r.longest, 5);
     });
@@ -118,7 +118,7 @@ void main() {
         createdAt: DateTime(2026, 1, 1),
         startDate: from,
       );
-      final r = computeStreaks(habit, _range(from, today), today, []);
+      final r = computeStreaks(habit, _range(from, today), today, [], const []);
       expect(r.current, 3);
       expect(r.longest, 3);
     });
@@ -131,7 +131,7 @@ void main() {
         createdAt: DateTime(2026, 1, 1),
         startDate: start,
       );
-      final r = computeStreaks(habit, _range(earliest, today), today, []);
+      final r = computeStreaks(habit, _range(earliest, today), today, [], const []);
       expect(r.current, 6);
     });
   });
@@ -143,7 +143,7 @@ void main() {
       final tue = DateTime(2026, 5, 5);
       final completions = [_done(mon), _done(tue), _done(today)];
       final r = computeStreaks(
-          _habit(schedule: weekdaySchedule()), completions, today, []);
+          _habit(schedule: weekdaySchedule()), completions, today, [], const []);
       expect(r.current, 3); // Mon, Tue, Wed
     });
 
@@ -154,7 +154,7 @@ void main() {
           _habit(schedule: weekendSchedule(), createdAt: today);
       final sat = DateTime(2026, 5, 2);
       final sun = DateTime(2026, 5, 3);
-      final r = computeStreaks(habit, [_done(sat), _done(sun)], today, []);
+      final r = computeStreaks(habit, [_done(sat), _done(sun)], today, [], const []);
       expect(r.current, 2);
       expect(r.longest, 2);
     });
@@ -177,7 +177,7 @@ void main() {
           final d = c.day.toLocal();
           return !d.isBefore(vacStart) && !d.isAfter(vacEnd);
         });
-      final r = computeStreaks(_habit(), completions, today, [vacation]);
+      final r = computeStreaks(_habit(), completions, today, [vacation], const []);
       expect(r.current, 10);
     });
   });

@@ -19,7 +19,10 @@ class HabitRow extends ConsumerWidget {
     final h = dailyHabit.habit;
     final done = dailyHabit.isDoneToday;
     final focused = ref.watch(focusedHabitIdProvider) == h.id;
-    final streak = dailyHabit.streaks.current;
+    final streak = dailyHabit.streaks.displayStreak;
+    final streakAtRisk = dailyHabit.streaks.todayAtRisk;
+    final selectedDay = ref.watch(selectedDayProvider);
+    final isToday = _isToday(selectedDay);
     final iconColor = _colorFor(h.color);
     final iconData = lucideIconData(h.icon);
 
@@ -89,13 +92,18 @@ class HabitRow extends ConsumerWidget {
                       Icon(
                         LucideIcons.flame,
                         size: 13,
-                        color: streak > 0 ? TH.amber : TH.fgFaint,
+                        color: isToday
+                            ? (streak > 0
+                                ? (streakAtRisk ? TH.fgDim : TH.amber)
+                                : TH.fgFaint)
+                            : (done ? TH.fgDim : TH.fgFaint),
                       ),
                       const SizedBox(width: 3),
-                      if (streak > 0)
+                      if (isToday && streak > 0)
                         Text('$streak',
-                            style: const TextStyle(
-                                color: TH.amber, fontSize: 12)),
+                            style: TextStyle(
+                                color: streakAtRisk ? TH.fgDim : TH.amber,
+                                fontSize: 12)),
                     ],
                   ),
                 ),
@@ -171,6 +179,11 @@ class HabitRow extends ConsumerWidget {
     }
     final t = (h.target ?? 0).clamp(0, 999);
     return t > 0 ? '$v/$t' : '$v';
+  }
+
+  static bool _isToday(DateTime day) {
+    final now = DateTime.now();
+    return day.year == now.year && day.month == now.month && day.day == now.day;
   }
 
   static Color _colorFor(String color) {

@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../theme/tokens.dart';
 
@@ -12,11 +13,19 @@ Future<bool> confirmFutureToggle(BuildContext context) async {
   return false;
 }
 
+const _messages = [
+  "Nice try, Doctor Who. The TARDIS doesn't work on habit streaks.",
+  "Time travel is currently under maintenance. Try again in 24 hours.",
+  "This action would disrupt the space-time continuum. Stick to today!",
+  "You aren't there yet. Literally.",
+];
+
 class _FutureWarnDialog extends StatelessWidget {
   const _FutureWarnDialog();
 
   @override
   Widget build(BuildContext context) {
+    final message = _messages[Random().nextInt(_messages.length)];
     return Dialog(
       backgroundColor: TH.bg2,
       shape: RoundedRectangleBorder(
@@ -29,16 +38,15 @@ class _FutureWarnDialog extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text("can't mark a future day",
+              const Text("Not so fast!",
                   style: TextStyle(
                       color: TH.fg,
                       fontSize: 14,
                       fontWeight: FontWeight.w600)),
               const SizedBox(height: TH.s8),
-              const Text(
-                "this day hasn't happened yet.\n"
-                "track habits in the present — come back when it's today.",
-                style: TextStyle(color: TH.fgDim, fontSize: 12),
+              Text(
+                message,
+                style: const TextStyle(color: TH.fgDim, fontSize: 12),
               ),
               const SizedBox(height: TH.s22),
               Center(

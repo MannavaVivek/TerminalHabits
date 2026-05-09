@@ -209,20 +209,33 @@ class AppDatabase extends _$AppDatabase {
   Stream<List<HabitScheduleHistoryData>> watchScheduleHistory(int habitId) =>
       (select(habitScheduleHistory)
             ..where((r) => r.habitId.equals(habitId))
-            ..orderBy([(r) => OrderingTerm.desc(r.effectiveFrom)]))
+            ..orderBy([
+              (r) => OrderingTerm.desc(r.effectiveFrom),
+              (r) => OrderingTerm.desc(r.id),
+            ]))
           .watch();
 
   Future<List<HabitScheduleHistoryData>> getScheduleHistory(int habitId) =>
       (select(habitScheduleHistory)
             ..where((r) => r.habitId.equals(habitId))
-            ..orderBy([(r) => OrderingTerm.desc(r.effectiveFrom)]))
+            ..orderBy([
+              (r) => OrderingTerm.desc(r.effectiveFrom),
+              (r) => OrderingTerm.desc(r.id),
+            ]))
           .get();
 
   // Adds a new history row for [habitId] effective from [effectiveFrom].
-  // Call this when the user chooses "keep history" on a schedule change.
+  // Replaces any existing row with the same (habitId, effectiveFrom) so that
+  // repeated same-day edits never leave stale duplicate entries.
   Future<void> appendScheduleHistory(
-      int habitId, DateTime effectiveFrom, String schedule, String tracking) =>
-      _insertHistoryRow(habitId, effectiveFrom, schedule, tracking);
+      int habitId, DateTime effectiveFrom, String schedule, String tracking) async {
+    await (delete(habitScheduleHistory)
+          ..where((r) =>
+              r.habitId.equals(habitId) &
+              r.effectiveFrom.equals(effectiveFrom)))
+        .go();
+    await _insertHistoryRow(habitId, effectiveFrom, schedule, tracking);
+  }
 
   // Replaces all history for [habitId] with a single row from [effectiveFrom].
   // Call this when the user chooses "overwrite" or when no completions exist.
@@ -244,10 +257,13 @@ class AppDatabase extends _$AppDatabase {
         createdAt: Value(DateTime.now()),
       ));
 
-  // Returns all history records grouped by habitId (desc effective_from).
+  // Returns all history records grouped by habitId (desc effective_from, desc id).
   Future<Map<int, List<HabitScheduleHistoryData>>> getAllScheduleHistory() async {
     final rows = await (select(habitScheduleHistory)
-          ..orderBy([(r) => OrderingTerm.desc(r.effectiveFrom)]))
+          ..orderBy([
+            (r) => OrderingTerm.desc(r.effectiveFrom),
+            (r) => OrderingTerm.desc(r.id),
+          ]))
         .get();
     final map = <int, List<HabitScheduleHistoryData>>{};
     for (final r in rows) (map[r.habitId] ??= []).add(r);
@@ -256,7 +272,10 @@ class AppDatabase extends _$AppDatabase {
 
   Stream<Map<int, List<HabitScheduleHistoryData>>> watchAllScheduleHistory() =>
       (select(habitScheduleHistory)
-            ..orderBy([(r) => OrderingTerm.desc(r.effectiveFrom)]))
+            ..orderBy([
+              (r) => OrderingTerm.desc(r.effectiveFrom),
+              (r) => OrderingTerm.desc(r.id),
+            ]))
           .watch()
           .map((rows) {
         final map = <int, List<HabitScheduleHistoryData>>{};
@@ -320,6 +339,39 @@ class AppDatabase extends _$AppDatabase {
           ..where((c) =>
               c.habitId.equals(habitId) & c.day.equals(dayUtc)))
         .go();
+  }
+
+  // Deletes all completions for [habitId] and resets schedule history to a
+  // single row starting at [startDateUtc]. Call when type or schedule changes.
+  Future<void> clearHabitProgress(
+      int habitId, DateTime startDateUtc, String schedule, String tracking) async {
+    await (delete(completions)..where((c) => c.habitId.equals(habitId))).go();
+    await replaceScheduleHistory(habitId, startDateUtc, schedule, tracking);
+  }
+
+  // Deletes all completions for [habitId] with day strictly before [cutoffUtc].
+  Future<void> clearCompletionsBefore(int habitId, DateTime cutoffUtc) async {
+    await (delete(completions)
+          ..where((c) =>
+              c.habitId.equals(habitId) &
+              c.day.isSmallerThanValue(cutoffUtc)))
+        .go();
+  }
+
+  // Deletes completions for [habitId] whose local weekday (0=Mon..6=Sun) is
+  // in [deleteWeekdays]. Used when narrowing a schedule to remove completions
+  // on days that are no longer tracked.
+  Future<void> clearCompletionsOnDays(
+      int habitId, Set<int> deleteWeekdays) async {
+    if (deleteWeekdays.isEmpty) return;
+    final comps = await getCompletionsForHabit(habitId);
+    final ids = comps
+        .where((c) =>
+            deleteWeekdays.contains((c.day.toLocal().weekday + 6) % 7))
+        .map((c) => c.id)
+        .toList();
+    if (ids.isEmpty) return;
+    await (delete(completions)..where((c) => c.id.isIn(ids))).go();
   }
 
   Future<void> incrementCompletion(
