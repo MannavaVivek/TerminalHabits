@@ -34,7 +34,6 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
   late String _groupId;
   late DateTime _startDate;
   late String _tracking;
-  late String _originalTracking;
   String? _iconKey;
   bool _saving = false;
   bool _hasCompletions = false;
@@ -55,7 +54,6 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
     _groupId = h.groupId;
     _startDate = h.startDate;
     _tracking = h.tracking;
-    _originalTracking = h.tracking;
     _loadCompletionFlag();
   }
 
@@ -80,14 +78,7 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
     final newScheduleJson = _scheduleJsonFromKey(_scheduleKey);
     final scheduleChanged = newScheduleJson != widget.habit.schedule;
 
-    // Step 1: warn if tracking type changed while completions exist.
-    if (_tracking != _originalTracking && _hasCompletions) {
-      if (!mounted) return;
-      await _warnTypeChange(context);
-      if (!mounted) return;
-    }
-
-    // Step 2: warn if schedule change will orphan past completions.
+    // Warn if schedule change will orphan past completions.
     if (scheduleChanged && _hasCompletions) {
       final losing = await _completionsOnDroppedDays(
           widget.habit, newScheduleJson);
@@ -318,10 +309,16 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
                       child: _Pill(
                         label: t,
                         selected: _tracking == t,
-                        onTap: () => setState(() {
-                          _tracking = t;
-                          _targetCtrl.clear();
-                        }),
+                        onTap: () {
+                          if (_hasCompletions && t != _tracking) {
+                            _showTypeLocked(context);
+                            return;
+                          }
+                          setState(() {
+                            _tracking = t;
+                            _targetCtrl.clear();
+                          });
+                        },
                       ),
                     ),
                 ],
@@ -542,7 +539,7 @@ String _formatDate(DateTime d) {
   return '${months[d.month - 1]} ${d.day} ${d.year}';
 }
 
-Future<void> _warnTypeChange(BuildContext context) => showDialog<void>(
+Future<void> _showTypeLocked(BuildContext context) => showDialog<void>(
       context: context,
       barrierColor: Colors.black54,
       builder: (ctx) => Dialog(
@@ -557,16 +554,16 @@ Future<void> _warnTypeChange(BuildContext context) => showDialog<void>(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('tracking type changed',
+                const Text('Tracking type locked',
                     style: TextStyle(
                         color: TH.fg,
                         fontSize: 14,
                         fontWeight: FontWeight.w600)),
                 const SizedBox(height: TH.s8),
                 const Text(
-                  'existing completions are kept, but done-logic and '
-                  'progress display will reflect the new type. '
-                  'past streaks may shift.',
+                  'The tracking type cannot be changed once completions '
+                  'have been recorded. Delete all completions for this '
+                  'habit first if you need to switch types.',
                   style: TextStyle(color: TH.fgDim, fontSize: 12),
                 ),
                 const SizedBox(height: TH.s22),
@@ -610,17 +607,17 @@ Future<bool> _confirmScheduleOverwrite(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('overwrite past completions?',
+              const Text('Change schedule?',
                   style: TextStyle(
                       color: TH.fg,
                       fontSize: 14,
                       fontWeight: FontWeight.w600)),
               const SizedBox(height: TH.s8),
               Text(
-                '$losingCount completion${losingCount == 1 ? '' : 's'} '
-                'fall on days the new schedule no longer covers.\n'
-                "they'll stay in the database but stop counting toward "
-                'streaks/stats. (phase 5 will preserve full history.)',
+                '$losingCount ${losingCount == 1 ? 'completion falls' : 'completions fall'} '
+                'on days the new schedule no longer covers. '
+                '${losingCount == 1 ? 'It' : 'They'} will remain in the database '
+                'but will no longer count toward your streaks or statistics.',
                 style: const TextStyle(color: TH.fgDim, fontSize: 12),
               ),
               const SizedBox(height: TH.s22),
@@ -643,7 +640,7 @@ Future<bool> _confirmScheduleOverwrite(
                         border: Border.all(color: TH.amber),
                         borderRadius: BorderRadius.all(TH.r4),
                       ),
-                      child: const Text('[ overwrite ]',
+                      child: const Text('[ confirm ]',
                           style: TextStyle(
                               color: TH.amber, fontSize: 12)),
                     ),
