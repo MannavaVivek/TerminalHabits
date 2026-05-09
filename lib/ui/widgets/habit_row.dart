@@ -8,6 +8,7 @@ import '../../theme/icon_library.dart';
 import '../../theme/tokens.dart';
 import '../modals/future_warn_dialog.dart';
 import '../modals/habit_menu.dart';
+import '../modals/value_input_dialog.dart';
 
 class HabitRow extends ConsumerWidget {
   final DailyHabit dailyHabit;
@@ -155,9 +156,19 @@ class HabitRow extends ConsumerWidget {
 
     switch (h.tracking) {
       case 'counter':
-        await db.incrementCompletion(h.id, dayUtc, 1.0);
       case 'duration':
-        await db.incrementCompletion(h.id, dayUtc, 5.0);
+        if (!context.mounted) return;
+        final result = await ValueInputDialog.show(
+          context,
+          habit: h,
+          currentValue: dailyHabit.todayValue,
+        );
+        if (result == null) return;
+        if (result <= 0) {
+          await db.clearCompletion(h.id, dayUtc);
+        } else {
+          await db.setCompletionValue(h.id, dayUtc, result);
+        }
       default:
         await db.toggleCompletion(h.id, dayUtc);
     }

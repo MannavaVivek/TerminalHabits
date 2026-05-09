@@ -41,12 +41,14 @@ class HabitGroupWidget extends ConsumerWidget {
               children: [
                 Row(
                   children: [
-                    if (iconKey != null && lucideIconData(iconKey) != null)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: Icon(lucideIconData(iconKey)!,
-                            size: 13, color: TH.fgDim),
+                    Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: Icon(
+                        lucideIconData(iconKey) ?? LucideIcons.folder,
+                        size: 13,
+                        color: TH.fgDim,
                       ),
+                    ),
                     Text(g.group.name,
                         style: const TextStyle(
                             color: TH.fgDim,

@@ -219,6 +219,13 @@ class AppDatabase extends _$AppDatabase {
     ));
   }
 
+  Future<void> clearCompletion(int habitId, DateTime dayUtc) async {
+    await (delete(completions)
+          ..where((c) =>
+              c.habitId.equals(habitId) & c.day.equals(dayUtc)))
+        .go();
+  }
+
   Future<void> incrementCompletion(
       int habitId, DateTime dayUtc, double delta) async {
     final existing = await (select(completions)
