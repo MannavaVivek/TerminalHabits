@@ -110,6 +110,58 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
       unit = 'min';
     }
 
+    if (target != null && target > 999) {
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        barrierColor: Colors.black54,
+        builder: (ctx) => Dialog(
+          backgroundColor: TH.bg2,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.all(TH.r10)),
+          child: SizedBox(
+            width: 300,
+            child: Padding(
+              padding: const EdgeInsets.all(TH.s22),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('target too large',
+                      style: TextStyle(
+                          color: TH.fg,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600)),
+                  const SizedBox(height: TH.s8),
+                  const Text('target must be 999 or less.',
+                      style: TextStyle(color: TH.fgDim, fontSize: 12)),
+                  const SizedBox(height: TH.s22),
+                  Center(
+                    child: GestureDetector(
+                      onTap: () => Navigator.of(ctx).pop(),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: TH.s22, vertical: TH.s8),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: TH.green),
+                          borderRadius: BorderRadius.all(TH.r4),
+                        ),
+                        child: const Text('[ understood ]',
+                            style: TextStyle(
+                                color: TH.green, fontSize: 13)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      setState(() => _saving = false);
+      return;
+    }
+
     final db = ref.read(dbProvider);
     await db.patchHabit(
       widget.habit.id,
@@ -284,6 +336,8 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
                         controller: _targetCtrl,
                         hint: '10',
                         keyboardType: TextInputType.number,
+                        digitsOnly: true,
+                        maxLength: 3,
                       ),
                     ),
                     const SizedBox(width: TH.s8),
@@ -303,6 +357,8 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
                         controller: _targetCtrl,
                         hint: '30',
                         keyboardType: TextInputType.number,
+                        digitsOnly: true,
+                        maxLength: 3,
                       ),
                     ),
                     const SizedBox(width: TH.s8),
@@ -621,6 +677,7 @@ class _StyledField extends StatelessWidget {
   final int? maxLength;
   final TextInputType? keyboardType;
   final bool denyNewlines;
+  final bool digitsOnly;
   final void Function(String)? onSubmitted;
 
   const _StyledField({
@@ -630,19 +687,24 @@ class _StyledField extends StatelessWidget {
     this.maxLength,
     this.keyboardType,
     this.denyNewlines = false,
+    this.digitsOnly = false,
     this.onSubmitted,
   });
 
   @override
   Widget build(BuildContext context) {
+    final formatters = <TextInputFormatter>[
+      if (digitsOnly) FilteringTextInputFormatter.digitsOnly,
+      if (maxLength != null && digitsOnly)
+        LengthLimitingTextInputFormatter(maxLength),
+      if (denyNewlines) FilteringTextInputFormatter.deny(RegExp(r'\n')),
+    ];
     return TextField(
       controller: controller,
       maxLines: maxLines,
       maxLength: maxLength,
       keyboardType: keyboardType,
-      inputFormatters: denyNewlines
-          ? [FilteringTextInputFormatter.deny(RegExp(r'\n'))]
-          : null,
+      inputFormatters: formatters.isEmpty ? null : formatters,
       style: const TextStyle(color: TH.fg, fontSize: 14),
       decoration: InputDecoration(
         hintText: hint,

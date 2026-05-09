@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/database.dart';
 import '../../state/providers.dart';
+import '../../theme/icon_library.dart';
 import '../../theme/tokens.dart';
 
 class ArchiveView extends ConsumerWidget {
@@ -96,8 +97,14 @@ class _ArchivedRow extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          Text(habit.icon,
-              style: const TextStyle(color: TH.fgDim, fontSize: 13)),
+          () {
+            final d = lucideIconData(habit.icon);
+            return d != null
+                ? Icon(d, size: 14, color: TH.fgDim)
+                : Text(habit.icon,
+                    style:
+                        const TextStyle(color: TH.fgDim, fontSize: 13));
+          }(),
           const SizedBox(width: TH.s8),
           Expanded(
             child: Column(
