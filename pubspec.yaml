@@ -2,7 +2,7 @@ name: terminal_habits
 description: A terminal-themed habit tracker for macOS, Linux, and Android.
 publish_to: none
 
-version: 0.2.2+4
+version: 0.3.0+5
 
 environment:
   sdk: ^3.11.5

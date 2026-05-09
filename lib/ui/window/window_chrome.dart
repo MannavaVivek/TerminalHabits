@@ -47,7 +47,7 @@ class _VersionMeta extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Text(
-      'v0.2.2 · matrix',
+      'v0.3.0 · matrix',
       style: TextStyle(fontSize: 11, color: TH.fgMute),
     );
   }

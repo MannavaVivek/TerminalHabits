@@ -153,7 +153,7 @@
 
 ## Phase 4 — Icons, tracking types, group notes (≈ 1 week)
 
-> After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit per `constitution.md §7`.
+**Completed: 2026-05-09**
 
 **Goal:** habits and groups show Lucide icons with color; tracking type (checkbox / counter / duration) is selectable at creation; count and elapsed time surface in the row next to the streak flame.
 
@@ -173,15 +173,15 @@
 - Migration v4: `ALTER TABLE groups ADD COLUMN icon TEXT NULL`. No backfill — null renders without an icon slot.
 
 ### Exit criteria
-- [ ] Icon picker opens from a `[ pick icon ]` button in `NewHabitDialog` and `EditHabitDialog`; searching narrows the grid live.
-- [ ] Selecting an icon shows a live preview of the icon+color combination in the dialog before save.
-- [ ] Habit row renders the Lucide icon in the habit's color; old `●` habits display as text fallback.
-- [ ] Group header shows the group icon (if set) before the name; collapse chevron is on the far right.
-- [ ] Creating a group via `[ + new ]` in the habit dialog opens `NewGroupDialog` with name + note fields.
-- [ ] `counter` and `duration` tracking types are selectable in `NewHabitDialog`; their targets save correctly.
-- [ ] Row shows `value/target` for counter/duration; tapping increments; done state reflects target.
-- [ ] Flame in habit row and daily header is a Lucide `Icon`, not an emoji.
-- [ ] No regressions from Phases 1–3.
+- [x] Icon picker opens from a `[ pick icon ]` button in `NewHabitDialog` and `EditHabitDialog`; searching narrows the grid live.
+- [x] Selecting an icon shows a live preview of the icon+color combination in the dialog before save.
+- [x] Habit row renders the Lucide icon in the habit's color; old `●` habits display as text fallback.
+- [x] Group header shows the group icon (if set) before the name; collapse chevron is on the far right.
+- [x] Creating a group via `[ + new ]` in the habit dialog opens `NewGroupDialog` with name + note fields.
+- [x] `counter` and `duration` tracking types are selectable in `NewHabitDialog`; their targets save correctly.
+- [x] Row shows `value/target` for counter/duration; tapping opens value dialog; done state reflects target.
+- [x] Flame in habit row and daily header is a Lucide `Icon`, not an emoji.
+- [x] No regressions from Phases 1–3.
 
 ### Out of scope
 - Color palette expansion beyond the current 6 (Phase 6 settings dialog).
