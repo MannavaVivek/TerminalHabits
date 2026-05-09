@@ -33,6 +33,7 @@ class ValueInputDialog extends StatefulWidget {
 class _ValueInputDialogState extends State<ValueInputDialog> {
   late final TextEditingController _ctrl;
   late double _value;
+  bool _overflowWarning = false;
 
   bool get _isDuration => widget.habit.tracking == 'duration';
   String get _unit => _isDuration ? 'min' : '';
@@ -41,21 +42,41 @@ class _ValueInputDialogState extends State<ValueInputDialog> {
   @override
   void initState() {
     super.initState();
-    _value = widget.currentValue;
+    // Cap initial value so an old out-of-range entry can't bypass the limit.
+    _value = widget.currentValue.clamp(0, 999).toDouble();
     _ctrl = TextEditingController(
         text: _value > 0 ? _value.toInt().toString() : '');
+    _ctrl.addListener(_onTextChanged);
   }
 
   @override
   void dispose() {
+    _ctrl.removeListener(_onTextChanged);
     _ctrl.dispose();
     super.dispose();
+  }
+
+  void _onTextChanged() {
+    final parsed = double.tryParse(_ctrl.text.trim());
+    if (parsed != null && parsed > 999) {
+      // Immediately cap the field text and show the inline warning.
+      _ctrl
+        ..text = '999'
+        ..selection = const TextSelection.collapsed(offset: 3);
+      setState(() {
+        _value = 999;
+        _overflowWarning = true;
+      });
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) setState(() => _overflowWarning = false);
+      });
+    }
   }
 
   void _applyText() {
     final parsed = double.tryParse(_ctrl.text.trim());
     if (parsed != null && parsed >= 0) {
-      setState(() => _value = parsed);
+      setState(() => _value = parsed.clamp(0, 999).toDouble());
     }
   }
 
@@ -206,6 +227,11 @@ class _ValueInputDialogState extends State<ValueInputDialog> {
                   ),
                 ],
               ),
+              if (_overflowWarning) ...[
+                const SizedBox(height: TH.s4),
+                const Text('// max is 999',
+                    style: TextStyle(color: TH.red, fontSize: 11)),
+              ],
               const SizedBox(height: TH.s14),
 
               // ── quick-set chips when target is known ─────────────

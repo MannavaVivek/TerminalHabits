@@ -83,19 +83,21 @@ class HabitRow extends ConsumerWidget {
                 const SizedBox(width: TH.s8),
                 SizedBox(
                   width: 44,
-                  child: streak > 0
-                      ? Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(LucideIcons.flame,
-                                size: 13, color: TH.amber),
-                            const SizedBox(width: 3),
-                            Text('$streak',
-                                style: const TextStyle(
-                                    color: TH.amber, fontSize: 12)),
-                          ],
-                        )
-                      : null,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        LucideIcons.flame,
+                        size: 13,
+                        color: streak > 0 ? TH.amber : TH.fgFaint,
+                      ),
+                      const SizedBox(width: 3),
+                      if (streak > 0)
+                        Text('$streak',
+                            style: const TextStyle(
+                                color: TH.amber, fontSize: 12)),
+                    ],
+                  ),
                 ),
                 SizedBox(
                   width: 56,
@@ -111,32 +113,13 @@ class HabitRow extends ConsumerWidget {
                 ),
               ],
             ),
-            // ── sub-line: note + optional target time ─────────────
-            if ((h.note != null && h.note!.isNotEmpty) ||
-                (h.targetTime != null && h.targetTime!.isNotEmpty))
+            // ── sub-line: note ─────────────────────────────────────
+            if (h.note != null && h.note!.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(left: 44, top: 2),
-                child: Row(
-                  children: [
-                    if (h.note != null && h.note!.isNotEmpty)
-                      Expanded(
-                        child: Text('// ${h.note}',
-                            style: const TextStyle(
-                                color: TH.fgFaint, fontSize: 11)),
-                      )
-                    else
-                      const Spacer(),
-                    if (h.targetTime != null &&
-                        h.targetTime!.isNotEmpty) ...[
-                      Icon(LucideIcons.clock,
-                          size: 11, color: TH.fgMute),
-                      const SizedBox(width: 2),
-                      Text(h.targetTime!,
-                          style: const TextStyle(
-                              color: TH.fgMute, fontSize: 11)),
-                    ],
-                  ],
-                ),
+                child: Text('// ${h.note}',
+                    style: const TextStyle(
+                        color: TH.fgFaint, fontSize: 11)),
               ),
           ],
         ),

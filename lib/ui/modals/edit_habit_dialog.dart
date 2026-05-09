@@ -35,7 +35,6 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
   late DateTime _startDate;
   late String _tracking;
   String? _iconKey;
-  String? _targetTime;
   bool _saving = false;
   bool _hasCompletions = false;
 
@@ -55,7 +54,6 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
     _groupId = h.groupId;
     _startDate = h.startDate;
     _tracking = h.tracking;
-    _targetTime = h.targetTime;
     _loadCompletionFlag();
   }
 
@@ -122,10 +120,6 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
             : _noteCtrl.text.trim()),
         groupId: Value(_groupId),
         startDate: Value(_startDate),
-        targetTime: Value(
-            _targetTime == null || _targetTime!.isEmpty
-                ? null
-                : _targetTime),
       ),
     );
 
@@ -164,33 +158,6 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
       ),
     );
     if (picked != null) setState(() => _startDate = picked);
-  }
-
-  Future<void> _pickTargetTime() async {
-    final initial = _targetTime != null && _targetTime!.contains(':')
-        ? TimeOfDay(
-            hour: int.tryParse(_targetTime!.split(':')[0]) ?? 9,
-            minute: int.tryParse(_targetTime!.split(':')[1]) ?? 0)
-        : const TimeOfDay(hour: 9, minute: 0);
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: initial,
-      builder: (ctx, child) => Theme(
-        data: ThemeData.dark().copyWith(
-          colorScheme: const ColorScheme.dark(
-            primary: TH.green,
-            onPrimary: TH.bg,
-            surface: TH.bg2,
-            onSurface: TH.fg,
-          ),
-        ),
-        child: child!,
-      ),
-    );
-    if (picked != null) {
-      setState(() => _targetTime =
-          '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}');
-    }
   }
 
   Future<void> _newGroup() async {
@@ -460,37 +427,6 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
                     style: const TextStyle(color: TH.fg, fontSize: 13),
                   ),
                 ),
-              ),
-              const SizedBox(height: TH.s14),
-              _Label('target time (optional)'),
-              Row(
-                children: [
-                  GestureDetector(
-                    onTap: _pickTargetTime,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: TH.s8, vertical: TH.s8),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: TH.line2),
-                        borderRadius: BorderRadius.all(TH.r4),
-                      ),
-                      child: Text(
-                        _targetTime ?? '—',
-                        style:
-                            const TextStyle(color: TH.fg, fontSize: 13),
-                      ),
-                    ),
-                  ),
-                  if (_targetTime != null) ...[
-                    const SizedBox(width: TH.s8),
-                    GestureDetector(
-                      onTap: () => setState(() => _targetTime = null),
-                      child: const Text('[ clear ]',
-                          style: TextStyle(
-                              color: TH.fgMute, fontSize: 12)),
-                    ),
-                  ],
-                ],
               ),
               const SizedBox(height: TH.s14),
               _Label('note (optional)'),
