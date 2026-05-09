@@ -49,9 +49,10 @@ class AppDatabase extends _$AppDatabase {
             await customStatement(
                 'CREATE INDEX idx_schedule_history_habit ON habit_schedule_history(habit_id, effective_from)');
             await m.addColumn(habits, habits.endDate);
+            final nowMs = DateTime.now().millisecondsSinceEpoch;
             await customStatement(
                 'INSERT INTO habit_schedule_history (habit_id, effective_from, schedule, tracking, created_at) '
-                'SELECT id, start_date, schedule, tracking, CURRENT_TIMESTAMP FROM habits');
+                'SELECT id, start_date, schedule, tracking, $nowMs FROM habits');
           }
         },
       );
