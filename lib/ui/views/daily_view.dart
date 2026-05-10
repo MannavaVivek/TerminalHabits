@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../state/providers.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/tokens.dart';
 import '../modals/new_habit_dialog.dart';
 import '../widgets/habit_group.dart';
@@ -13,15 +14,16 @@ class DailyView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final col = context.col;
     final dailyAV = ref.watch(dailyStateProvider);
 
     return dailyAV.when(
-      loading: () => const Center(
+      loading: () => Center(
           child: Text('loading...',
-              style: TextStyle(color: TH.fgDim, fontSize: 13))),
+              style: TextStyle(color: col.fgDim, fontSize: 13))),
       error: (e, _) => Center(
           child: Text('error: $e',
-              style: const TextStyle(color: TH.red, fontSize: 13))),
+              style: TextStyle(color: col.red, fontSize: 13))),
       data: (state) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -68,6 +70,7 @@ class _AddHabitButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final col = context.col;
     return GestureDetector(
       onTap: () => NewHabitDialog.show(
         context,
@@ -76,12 +79,12 @@ class _AddHabitButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: TH.s8),
         decoration: BoxDecoration(
-          border: Border.all(color: TH.line2),
-          borderRadius: BorderRadius.all(TH.r4),
+          border: Border.all(color: col.line2),
+          borderRadius: const BorderRadius.all(TH.r4),
         ),
-        child: const Center(
+        child: Center(
           child: Text('[ + new habit ]',
-              style: TextStyle(color: TH.fgDim, fontSize: 12)),
+              style: TextStyle(color: col.fgDim, fontSize: 12)),
         ),
       ),
     );
@@ -103,8 +106,8 @@ class _DailyHeader extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final userName =
-        ref.watch(userNameProvider);
+    final col = context.col;
+    final userName = ref.watch(userNameProvider);
     final day = state.today;
     final dateLine =
         '${_days[day.weekday - 1]}, ${_months[day.month - 1]} ${day.day} ${day.year}';
@@ -113,60 +116,55 @@ class _DailyHeader extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Prompt line
         Text.rich(TextSpan(children: [
           TextSpan(
             text: userName,
-            style: const TextStyle(color: TH.green, fontSize: 13),
+            style: TextStyle(color: col.green, fontSize: 13),
           ),
-          const TextSpan(
+          TextSpan(
               text: '@TerminalHabits ',
-              style: TextStyle(color: TH.fgDim, fontSize: 13)),
-          const TextSpan(
+              style: TextStyle(color: col.fgDim, fontSize: 13)),
+          TextSpan(
               text: '\$ ',
-              style: TextStyle(color: TH.fgMute, fontSize: 13)),
-          const TextSpan(
+              style: TextStyle(color: col.fgMute, fontSize: 13)),
+          TextSpan(
               text: 'daily',
-              style: TextStyle(color: TH.fg, fontSize: 13)),
+              style: TextStyle(color: col.fg, fontSize: 13)),
         ])),
         const SizedBox(height: 4),
-        // Comment line — completions count + tone-of-voice copy
         Text(
           _completionComment(n),
-          style: const TextStyle(color: TH.fgMute, fontSize: 12),
+          style: TextStyle(color: col.fgMute, fontSize: 12),
         ),
         const SizedBox(height: TH.s8),
-        // Calendar + date
         Row(
           children: [
-            const Icon(LucideIcons.calendar, size: 13, color: TH.fgDim),
+            Icon(LucideIcons.calendar, size: 13, color: col.fgDim),
             const SizedBox(width: TH.s8),
             Text(dateLine,
-                style: const TextStyle(color: TH.fg, fontSize: 13)),
+                style: TextStyle(color: col.fg, fontSize: 13)),
           ],
         ),
         const SizedBox(height: 2),
-        // Streak summary
         Row(
           children: [
             Icon(LucideIcons.flame, size: 13,
-                color: state.overallStreak.todayAtRisk ? TH.fgMute : TH.amber),
+                color: state.overallStreak.todayAtRisk ? col.fgMute : col.amber),
             const SizedBox(width: 4),
             Text(
               '${state.overallStreak.displayStreak} days',
               style: TextStyle(
                 fontSize: 12,
-                color: state.overallStreak.todayAtRisk ? TH.fgMute : TH.amber,
+                color: state.overallStreak.todayAtRisk ? col.fgMute : col.amber,
               ),
             ),
             const SizedBox(width: TH.s8),
-            const Text('*',
-                style: TextStyle(color: TH.fgMute, fontSize: 12)),
+            Text('*', style: TextStyle(color: col.fgMute, fontSize: 12)),
             const SizedBox(width: TH.s8),
-            const Icon(LucideIcons.shield, size: 12, color: TH.blue),
+            Icon(LucideIcons.shield, size: 12, color: col.blue),
             const SizedBox(width: 4),
             Text('${state.availableShields}',
-                style: const TextStyle(color: TH.blue, fontSize: 12)),
+                style: TextStyle(color: col.blue, fontSize: 12)),
           ],
         ),
       ],
@@ -195,6 +193,7 @@ class _EmptyDay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final col = context.col;
     final isDesktop = Platform.isMacOS || Platform.isLinux;
     final hint = isDesktop
         ? 'press ⌘N to add a habit.'
@@ -214,12 +213,12 @@ class _EmptyDay extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('no habits here.',
-                    style: TextStyle(color: TH.fgDim, fontSize: 14)),
+                Text('no habits here.',
+                    style: TextStyle(color: col.fgDim, fontSize: 14)),
                 const SizedBox(height: 8),
                 Text(hint,
-                    style: const TextStyle(
-                        color: TH.fgFaint, fontSize: 13)),
+                    style: TextStyle(
+                        color: col.fgFaint, fontSize: 13)),
               ],
             ),
           ),

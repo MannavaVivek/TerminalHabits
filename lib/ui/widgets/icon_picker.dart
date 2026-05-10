@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/icon_library.dart';
 import '../../theme/tokens.dart';
 
@@ -41,15 +42,16 @@ class _IconPickerDialogState extends State<IconPickerDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final col = context.col;
     final isSearching = _query.isNotEmpty;
     final entries = isSearching
         ? searchIcons(_query)
         : iconCategories[_category] ?? [];
 
     return Dialog(
-      backgroundColor: TH.bg2,
+      backgroundColor: col.bg2,
       shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.all(TH.r10)),
+          RoundedRectangleBorder(borderRadius: const BorderRadius.all(TH.r10)),
       child: SizedBox(
         width: 460,
         height: 500,
@@ -60,16 +62,16 @@ class _IconPickerDialogState extends State<IconPickerDialog> {
             children: [
               Row(
                 children: [
-                  const Text('pick icon',
+                  Text('pick icon',
                       style: TextStyle(
-                          color: TH.fg,
+                          color: col.fg,
                           fontSize: 15,
                           fontWeight: FontWeight.w600)),
                   const Spacer(),
                   GestureDetector(
                     onTap: () => Navigator.of(context).pop(),
-                    child: const Text('[ cancel ]',
-                        style: TextStyle(color: TH.fgMute, fontSize: 12)),
+                    child: Text('[ cancel ]',
+                        style: TextStyle(color: col.fgMute, fontSize: 12)),
                   ),
                 ],
               ),
@@ -77,22 +79,22 @@ class _IconPickerDialogState extends State<IconPickerDialog> {
               TextField(
                 controller: _searchCtrl,
                 autofocus: true,
-                style: const TextStyle(color: TH.fg, fontSize: 13),
+                style: TextStyle(color: col.fg, fontSize: 13),
                 decoration: InputDecoration(
                   hintText: 'search icons…',
                   hintStyle:
-                      const TextStyle(color: TH.fgFaint, fontSize: 13),
-                  prefixIcon: const Icon(LucideIcons.search,
-                      size: 14, color: TH.fgMute),
+                      TextStyle(color: col.fgFaint, fontSize: 13),
+                  prefixIcon: Icon(LucideIcons.search,
+                      size: 14, color: col.fgMute),
                   enabledBorder: OutlineInputBorder(
-                    borderSide: const BorderSide(color: TH.line2),
-                    borderRadius: BorderRadius.all(TH.r4),
+                    borderSide: BorderSide(color: col.line2),
+                    borderRadius: const BorderRadius.all(TH.r4),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderSide: const BorderSide(color: TH.green),
-                    borderRadius: BorderRadius.all(TH.r4),
+                    borderSide: BorderSide(color: col.green),
+                    borderRadius: const BorderRadius.all(TH.r4),
                   ),
-                  fillColor: TH.bg1,
+                  fillColor: col.bg1,
                   filled: true,
                   isDense: true,
                   contentPadding: const EdgeInsets.symmetric(
@@ -111,6 +113,7 @@ class _IconPickerDialogState extends State<IconPickerDialog> {
                           child: _CategoryPill(
                             label: cat,
                             selected: _category == cat,
+                            col: col,
                             onTap: () =>
                                 setState(() => _category = cat),
                           ),
@@ -121,10 +124,10 @@ class _IconPickerDialogState extends State<IconPickerDialog> {
               const SizedBox(height: TH.s8),
               Expanded(
                 child: entries.isEmpty
-                    ? const Center(
+                    ? Center(
                         child: Text('no icons found',
                             style: TextStyle(
-                                color: TH.fgFaint, fontSize: 12)))
+                                color: col.fgFaint, fontSize: 12)))
                     : GridView.builder(
                         gridDelegate:
                             const SliverGridDelegateWithMaxCrossAxisExtent(
@@ -144,15 +147,15 @@ class _IconPickerDialogState extends State<IconPickerDialog> {
                             child: Container(
                               decoration: BoxDecoration(
                                 color: isSelected
-                                    ? TH.bg3
+                                    ? col.bg3
                                     : Colors.transparent,
                                 border: Border.all(
                                   color: isSelected
-                                      ? TH.green
-                                      : TH.line2,
+                                      ? col.green
+                                      : col.line2,
                                 ),
                                 borderRadius:
-                                    BorderRadius.all(TH.r4),
+                                    const BorderRadius.all(TH.r4),
                               ),
                               child: Tooltip(
                                 message: e.key,
@@ -160,8 +163,8 @@ class _IconPickerDialogState extends State<IconPickerDialog> {
                                   child: Icon(e.data,
                                       size: 18,
                                       color: isSelected
-                                          ? TH.green
-                                          : TH.fgDim),
+                                          ? col.green
+                                          : col.fgDim),
                                 ),
                               ),
                             ),
@@ -181,10 +184,12 @@ class _CategoryPill extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
+  final AppColors col;
   const _CategoryPill(
       {required this.label,
       required this.selected,
-      required this.onTap});
+      required this.onTap,
+      required this.col});
 
   @override
   Widget build(BuildContext context) {
@@ -193,13 +198,13 @@ class _CategoryPill extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: TH.s8, vertical: 3),
         decoration: BoxDecoration(
-          border: Border.all(color: selected ? TH.green : TH.line2),
-          borderRadius: BorderRadius.all(TH.r4),
-          color: selected ? TH.bg3 : Colors.transparent,
+          border: Border.all(color: selected ? col.green : col.line2),
+          borderRadius: const BorderRadius.all(TH.r4),
+          color: selected ? col.bg3 : Colors.transparent,
         ),
         child: Text(label,
             style: TextStyle(
-                color: selected ? TH.green : TH.fgDim, fontSize: 11)),
+                color: selected ? col.green : col.fgDim, fontSize: 11)),
       ),
     );
   }

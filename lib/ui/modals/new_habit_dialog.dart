@@ -6,15 +6,13 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../data/database.dart';
 import '../../domain/schedule.dart';
 import '../../state/providers.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/icon_library.dart';
 import '../../theme/tokens.dart';
 import '../widgets/icon_picker.dart';
 import 'new_group_dialog.dart';
 
 class NewHabitDialog extends ConsumerStatefulWidget {
-  // Pre-fills the start date. Pass selectedDay when opening from the daily
-  // view so a habit added while looking at last Tuesday starts on Tuesday.
-  // Leave null when opening from the command palette / ⌘N (defaults to today).
   final DateTime? defaultStartDate;
   const NewHabitDialog({super.key, this.defaultStartDate});
 
@@ -108,6 +106,7 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
   }
 
   Future<void> _pickStartDate() async {
+    final col = context.col;
     final picked = await showDatePicker(
       context: context,
       initialDate: _startDate,
@@ -115,11 +114,11 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
       lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
       builder: (ctx, child) => Theme(
         data: ThemeData.dark().copyWith(
-          colorScheme: const ColorScheme.dark(
-            primary: TH.green,
-            onPrimary: TH.bg,
-            surface: TH.bg2,
-            onSurface: TH.fg,
+          colorScheme: ColorScheme.dark(
+            primary: col.green,
+            onPrimary: col.bg,
+            surface: col.bg2,
+            onSurface: col.fg,
           ),
         ),
         child: child!,
@@ -129,6 +128,7 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
   }
 
   Future<void> _pickEndDate() async {
+    final col = context.col;
     final picked = await showDatePicker(
       context: context,
       initialDate: _endDate ?? _startDate,
@@ -136,11 +136,11 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
       lastDate: DateTime.now().add(const Duration(days: 365 * 10)),
       builder: (ctx, child) => Theme(
         data: ThemeData.dark().copyWith(
-          colorScheme: const ColorScheme.dark(
-            primary: TH.green,
-            onPrimary: TH.bg,
-            surface: TH.bg2,
-            onSurface: TH.fg,
+          colorScheme: ColorScheme.dark(
+            primary: col.green,
+            onPrimary: col.bg,
+            surface: col.bg2,
+            onSurface: col.fg,
           ),
         ),
         child: child!,
@@ -161,6 +161,15 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final col = context.col;
+    final colorMap = {
+      'green': col.green,
+      'amber': col.amber,
+      'blue': col.blue,
+      'purple': col.purple,
+      'teal': col.teal,
+      'red': col.red,
+    };
     final groupsAV = ref.watch(groupsProvider);
     final groups = groupsAV.valueOrNull ?? const <Group>[];
     if (_groupId == null && groups.isNotEmpty) {
@@ -170,12 +179,12 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
     }
 
     final iconData = lucideIconData(_iconKey);
-    final iconColor = _colorMap[_color] ?? TH.green;
+    final iconColor = colorMap[_color] ?? col.green;
 
     return Dialog(
-      backgroundColor: TH.bg2,
+      backgroundColor: col.bg2,
       shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(TH.r10)),
+          borderRadius: const BorderRadius.all(TH.r10)),
       child: SizedBox(
         width: 440,
         child: SingleChildScrollView(
@@ -186,37 +195,35 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
             children: [
               Row(
                 children: [
-                  const Text('new habit',
+                  Text('new habit',
                       style: TextStyle(
-                          color: TH.fg,
+                          color: col.fg,
                           fontSize: 15,
                           fontWeight: FontWeight.w600)),
                   const Spacer(),
                   GestureDetector(
                     onTap: () => Navigator.of(context).pop(),
-                    child: const Text('[ cancel ]',
+                    child: Text('[ cancel ]',
                         style: TextStyle(
-                            color: TH.fgMute, fontSize: 12)),
+                            color: col.fgMute, fontSize: 12)),
                   ),
                 ],
               ),
               const SizedBox(height: TH.s22),
 
-              // ── name ─────────────────────────────────────────────
-              _Label('name'),
+              _Label('name', col: col),
               TextField(
                 controller: _nameCtrl,
                 autofocus: true,
                 maxLength: 60,
-                style: const TextStyle(color: TH.fg, fontSize: 14),
-                decoration: _fieldDeco('e.g. meditate, read, journal'),
+                style: TextStyle(color: col.fg, fontSize: 14),
+                decoration: _fieldDeco('e.g. meditate, read, journal', col),
                 inputFormatters: [
                   FilteringTextInputFormatter.deny(RegExp(r'\n')),
                 ],
                 onSubmitted: (_) => _save(),
               ),
 
-              // ── icon + color (side by side) ───────────────────────
               const SizedBox(height: TH.s14),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -225,17 +232,17 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _Label('icon'),
+                        _Label('icon', col: col),
                         Row(
                           children: [
                             Container(
                               width: 36,
                               height: 36,
                               decoration: BoxDecoration(
-                                border: Border.all(color: TH.line2),
+                                border: Border.all(color: col.line2),
                                 borderRadius:
-                                    BorderRadius.all(TH.r4),
-                                color: TH.bg1,
+                                    const BorderRadius.all(TH.r4),
+                                color: col.bg1,
                               ),
                               child: Center(
                                 child: iconData != null
@@ -262,13 +269,13 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
                                     vertical: TH.s4),
                                 decoration: BoxDecoration(
                                   border:
-                                      Border.all(color: TH.line2),
+                                      Border.all(color: col.line2),
                                   borderRadius:
-                                      BorderRadius.all(TH.r4),
+                                      const BorderRadius.all(TH.r4),
                                 ),
-                                child: const Text('[ pick ]',
+                                child: Text('[ pick ]',
                                     style: TextStyle(
-                                        color: TH.fgDim,
+                                        color: col.fgDim,
                                         fontSize: 12)),
                               ),
                             ),
@@ -281,15 +288,15 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _Label('color'),
+                      _Label('color', col: col),
                       Row(
                         children: [
-                          for (final c in _colorMap.keys)
+                          for (final c in colorMap.keys)
                             Padding(
                               padding:
                                   const EdgeInsets.only(right: 8),
                               child: _ColorDot(
-                                color: _colorMap[c]!,
+                                color: colorMap[c]!,
                                 selected: _color == c,
                                 onTap: () =>
                                     setState(() => _color = c),
@@ -302,9 +309,8 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
                 ],
               ),
 
-              // ── group ─────────────────────────────────────────────
               const SizedBox(height: TH.s14),
-              _Label('group'),
+              _Label('group', col: col),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -313,20 +319,21 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
                     _Pill(
                       label: g.name,
                       selected: _groupId == g.id,
+                      col: col,
                       onTap: () => setState(() => _groupId = g.id),
                     ),
                   _Pill(
                     label: '+ new',
                     selected: false,
                     accent: true,
+                    col: col,
                     onTap: _newGroup,
                   ),
                 ],
               ),
 
-              // ── schedule ──────────────────────────────────────────
               const SizedBox(height: TH.s14),
-              _Label('schedule'),
+              _Label('schedule', col: col),
               Row(
                 children: [
                   for (final s in ['daily', 'weekdays', 'weekends'])
@@ -335,6 +342,7 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
                       child: _Pill(
                         label: s,
                         selected: _schedule == s,
+                        col: col,
                         onTap: () =>
                             setState(() => _schedule = s),
                       ),
@@ -342,9 +350,8 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
                 ],
               ),
 
-              // ── tracking type ─────────────────────────────────────
               const SizedBox(height: TH.s14),
-              _Label('type'),
+              _Label('type', col: col),
               Row(
                 children: [
                   for (final t in ['checkbox', 'counter', 'duration'])
@@ -353,6 +360,7 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
                       child: _Pill(
                         label: t,
                         selected: _tracking == t,
+                        col: col,
                         onTap: () {
                           setState(() {
                             _tracking = t;
@@ -376,16 +384,16 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
                           FilteringTextInputFormatter.digitsOnly,
                           LengthLimitingTextInputFormatter(3),
                         ],
-                        style: const TextStyle(
-                            color: TH.fg, fontSize: 13),
-                        decoration: _fieldDeco('10'),
+                        style: TextStyle(
+                            color: col.fg, fontSize: 13),
+                        decoration: _fieldDeco('10', col),
                         onSubmitted: (_) => _save(),
                       ),
                     ),
                     const SizedBox(width: TH.s8),
-                    const Text('min count',
+                    Text('min count',
                         style: TextStyle(
-                            color: TH.fgMute, fontSize: 12)),
+                            color: col.fgMute, fontSize: 12)),
                   ],
                 ),
               ],
@@ -402,43 +410,41 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
                           FilteringTextInputFormatter.digitsOnly,
                           LengthLimitingTextInputFormatter(3),
                         ],
-                        style: const TextStyle(
-                            color: TH.fg, fontSize: 13),
-                        decoration: _fieldDeco('30'),
+                        style: TextStyle(
+                            color: col.fg, fontSize: 13),
+                        decoration: _fieldDeco('30', col),
                         onSubmitted: (_) => _save(),
                       ),
                     ),
                     const SizedBox(width: TH.s8),
-                    const Text('target min',
+                    Text('target min',
                         style: TextStyle(
-                            color: TH.fgMute, fontSize: 12)),
+                            color: col.fgMute, fontSize: 12)),
                   ],
                 ),
               ],
 
-              // ── start date ────────────────────────────────────────
               const SizedBox(height: TH.s14),
-              _Label('start date'),
+              _Label('start date', col: col),
               GestureDetector(
                 onTap: _pickStartDate,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                       horizontal: TH.s8, vertical: TH.s8),
                   decoration: BoxDecoration(
-                    border: Border.all(color: TH.line2),
-                    borderRadius: BorderRadius.all(TH.r4),
+                    border: Border.all(color: col.line2),
+                    borderRadius: const BorderRadius.all(TH.r4),
                   ),
                   child: Text(
                     _formatDate(_startDate),
-                    style: const TextStyle(
-                        color: TH.fg, fontSize: 13),
+                    style: TextStyle(
+                        color: col.fg, fontSize: 13),
                   ),
                 ),
               ),
 
-              // ── end date ─────────────────────────────────────────
               const SizedBox(height: TH.s14),
-              _Label('end date (optional)'),
+              _Label('end date (optional)', col: col),
               Row(
                 children: [
                   GestureDetector(
@@ -447,8 +453,8 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: TH.s8, vertical: TH.s8),
                       decoration: BoxDecoration(
-                        border: Border.all(color: TH.line2),
-                        borderRadius: BorderRadius.all(TH.r4),
+                        border: Border.all(color: col.line2),
+                        borderRadius: const BorderRadius.all(TH.r4),
                       ),
                       child: Text(
                         _endDate != null
@@ -456,8 +462,8 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
                             : '— no end date —',
                         style: TextStyle(
                             color: _endDate != null
-                                ? TH.fg
-                                : TH.fgFaint,
+                                ? col.fg
+                                : col.fgFaint,
                             fontSize: 13),
                       ),
                     ),
@@ -466,44 +472,42 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
                     const SizedBox(width: TH.s8),
                     GestureDetector(
                       onTap: () => setState(() => _endDate = null),
-                      child: const Text('[ clear ]',
+                      child: Text('[ clear ]',
                           style: TextStyle(
-                              color: TH.fgMute, fontSize: 12)),
+                              color: col.fgMute, fontSize: 12)),
                     ),
                   ],
                 ],
               ),
 
-              // ── note ──────────────────────────────────────────────
               const SizedBox(height: TH.s14),
-              _Label('note (optional)'),
+              _Label('note (optional)', col: col),
               TextField(
                 controller: _noteCtrl,
                 maxLines: 1,
                 maxLength: 100,
-                style: const TextStyle(color: TH.fg, fontSize: 13),
+                style: TextStyle(color: col.fg, fontSize: 13),
                 decoration:
-                    _fieldDeco('// shown under the row in daily view'),
+                    _fieldDeco('// shown under the row in daily view', col),
                 inputFormatters: [
                   FilteringTextInputFormatter.deny(RegExp(r'\n')),
                 ],
               ),
 
-              // ── save ──────────────────────────────────────────────
               const SizedBox(height: TH.s22),
               GestureDetector(
                 onTap: _saving ? null : _save,
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: TH.s8),
                   decoration: BoxDecoration(
-                    border: Border.all(color: TH.green),
-                    borderRadius: BorderRadius.all(TH.r4),
+                    border: Border.all(color: col.green),
+                    borderRadius: const BorderRadius.all(TH.r4),
                   ),
                   child: Center(
                     child: Text(
                       _saving ? 'saving...' : '[ save ]',
-                      style: const TextStyle(
-                          color: TH.green, fontSize: 13),
+                      style: TextStyle(
+                          color: col.green, fontSize: 13),
                     ),
                   ),
                 ),
@@ -514,77 +518,70 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
       ),
     );
   }
-
-  static const _colorMap = {
-    'green': TH.green,
-    'amber': TH.amber,
-    'blue': TH.blue,
-    'purple': TH.purple,
-    'teal': TH.teal,
-    'red': TH.red,
-  };
 }
 
-Future<void> _showTargetOverflowDialog(BuildContext context) =>
-    showDialog<void>(
-      context: context,
-      barrierColor: Colors.black54,
-      builder: (ctx) => Dialog(
-        backgroundColor: TH.bg2,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(TH.r10)),
-        child: SizedBox(
-          width: 300,
-          child: Padding(
-            padding: const EdgeInsets.all(TH.s22),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('target too large',
-                    style: TextStyle(
-                        color: TH.fg,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600)),
-                const SizedBox(height: TH.s8),
-                const Text('target must be 999 or less.',
-                    style: TextStyle(color: TH.fgDim, fontSize: 12)),
-                const SizedBox(height: TH.s22),
-                Center(
-                  child: GestureDetector(
-                    onTap: () => Navigator.of(ctx).pop(),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: TH.s22, vertical: TH.s8),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: TH.green),
-                        borderRadius: BorderRadius.all(TH.r4),
-                      ),
-                      child: const Text('[ understood ]',
-                          style: TextStyle(
-                              color: TH.green, fontSize: 13)),
+Future<void> _showTargetOverflowDialog(BuildContext context) {
+  final col = AppColors.of(context);
+  return showDialog<void>(
+    context: context,
+    barrierColor: Colors.black54,
+    builder: (ctx) => Dialog(
+      backgroundColor: col.bg2,
+      shape: RoundedRectangleBorder(
+          borderRadius: const BorderRadius.all(TH.r10)),
+      child: SizedBox(
+        width: 300,
+        child: Padding(
+          padding: const EdgeInsets.all(TH.s22),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('target too large',
+                  style: TextStyle(
+                      color: col.fg,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600)),
+              const SizedBox(height: TH.s8),
+              Text('target must be 999 or less.',
+                  style: TextStyle(color: col.fgDim, fontSize: 12)),
+              const SizedBox(height: TH.s22),
+              Center(
+                child: GestureDetector(
+                  onTap: () => Navigator.of(ctx).pop(),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: TH.s22, vertical: TH.s8),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: col.green),
+                      borderRadius: const BorderRadius.all(TH.r4),
                     ),
+                    child: Text('[ understood ]',
+                        style: TextStyle(
+                            color: col.green, fontSize: 13)),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
-    );
+    ),
+  );
+}
 
-InputDecoration _fieldDeco(String hint) => InputDecoration(
+InputDecoration _fieldDeco(String hint, AppColors col) => InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(color: TH.fgFaint, fontSize: 13),
+      hintStyle: TextStyle(color: col.fgFaint, fontSize: 13),
       enabledBorder: OutlineInputBorder(
-        borderSide: const BorderSide(color: TH.line2),
-        borderRadius: BorderRadius.all(TH.r4),
+        borderSide: BorderSide(color: col.line2),
+        borderRadius: const BorderRadius.all(TH.r4),
       ),
       focusedBorder: OutlineInputBorder(
-        borderSide: const BorderSide(color: TH.green),
-        borderRadius: BorderRadius.all(TH.r4),
+        borderSide: BorderSide(color: col.green),
+        borderRadius: const BorderRadius.all(TH.r4),
       ),
-      fillColor: TH.bg1,
+      fillColor: col.bg1,
       filled: true,
       isDense: true,
       contentPadding:
@@ -601,12 +598,13 @@ String _formatDate(DateTime d) {
 
 class _Label extends StatelessWidget {
   final String text;
-  const _Label(this.text);
+  final AppColors col;
+  const _Label(this.text, {required this.col});
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(bottom: TH.s4),
         child: Text(text,
-            style: const TextStyle(color: TH.fgDim, fontSize: 12)),
+            style: TextStyle(color: col.fgDim, fontSize: 12)),
       );
 }
 
@@ -615,25 +613,27 @@ class _Pill extends StatelessWidget {
   final bool selected;
   final bool accent;
   final VoidCallback onTap;
+  final AppColors col;
   const _Pill({
     required this.label,
     required this.selected,
     required this.onTap,
+    required this.col,
     this.accent = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final borderColor = selected
-        ? TH.green
+        ? col.green
         : accent
-            ? TH.amber
-            : TH.line2;
+            ? col.amber
+            : col.line2;
     final textColor = selected
-        ? TH.green
+        ? col.green
         : accent
-            ? TH.amber
-            : TH.fgDim;
+            ? col.amber
+            : col.fgDim;
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -641,8 +641,8 @@ class _Pill extends StatelessWidget {
             const EdgeInsets.symmetric(horizontal: TH.s8, vertical: 4),
         decoration: BoxDecoration(
           border: Border.all(color: borderColor),
-          borderRadius: BorderRadius.all(TH.r4),
-          color: selected ? TH.bg3 : Colors.transparent,
+          borderRadius: const BorderRadius.all(TH.r4),
+          color: selected ? col.bg3 : Colors.transparent,
         ),
         child: Text(label,
             style: TextStyle(color: textColor, fontSize: 12)),

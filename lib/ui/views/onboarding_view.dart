@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/database.dart';
 import '../../domain/schedule.dart';
 import '../../state/providers.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/tokens.dart';
 import '../widgets/prompt_line.dart';
 import 'app_scaffold.dart';
@@ -80,20 +81,20 @@ class _OnboardingViewState extends ConsumerState<OnboardingView> {
     );
   }
 
-  // (name, icon)
   static const _starterDefs = {
     'meditate': ('meditate', '🧘'),
-    'journal': ('journal', '📓'),
+    'journal':  ('journal',  '📓'),
     'exercise': ('exercise', '💪'),
-    'read': ('read', '📚'),
-    'water': ('drink water', '💧'),
-    'sleep': ('sleep on time', '🌙'),
+    'read':     ('read',     '📚'),
+    'water':    ('drink water', '💧'),
+    'sleep':    ('sleep on time', '🌙'),
   };
 
   @override
   Widget build(BuildContext context) {
+    final col = context.col;
     return Scaffold(
-      backgroundColor: TH.bg,
+      backgroundColor: col.bg,
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 480),
@@ -105,12 +106,14 @@ class _OnboardingViewState extends ConsumerState<OnboardingView> {
               const SizedBox(height: TH.s22),
               _StepIndicator(current: _step, total: _totalSteps),
               const SizedBox(height: TH.s22),
-              _buildStepBody(),
+              _buildStepBody(context),
               const SizedBox(height: TH.s36),
               Row(
                 children: [
                   _TermButton(
-                    label: _step < _totalSteps - 1 ? '[ next ]' : '[ begin ]',
+                    label: _step < _totalSteps - 1
+                        ? '[ next ]'
+                        : '[ begin ]',
                     onTap: _next,
                     accent: true,
                   ),
@@ -125,7 +128,7 @@ class _OnboardingViewState extends ConsumerState<OnboardingView> {
     );
   }
 
-  Widget _buildStepBody() {
+  Widget _buildStepBody(BuildContext context) {
     return switch (_step) {
       0 => _NameStep(title: _stepTitles[0], controller: _nameCtrl),
       1 => const _ThemeStep(title: 'pick a theme.'),
@@ -150,22 +153,21 @@ class _OnboardingViewState extends ConsumerState<OnboardingView> {
   }
 }
 
-// ── Step containers ───────────────────────────────────────────────────────────
+// ── Step shell ────────────────────────────────────────────────────────────────
 
 class _StepShell extends StatelessWidget {
   final String title;
   final Widget child;
-
   const _StepShell({required this.title, required this.child});
 
   @override
   Widget build(BuildContext context) {
+    final col = context.col;
     return DecoratedBox(
-      decoration: const BoxDecoration(
-        color: TH.bg1,
-        border:
-            Border.fromBorderSide(BorderSide(color: TH.line, width: 1)),
-        borderRadius: BorderRadius.all(TH.r6),
+      decoration: BoxDecoration(
+        color: col.bg1,
+        border: Border.fromBorderSide(BorderSide(color: col.line, width: 1)),
+        borderRadius: const BorderRadius.all(TH.r6),
       ),
       child: SizedBox(
         width: double.infinity,
@@ -175,9 +177,9 @@ class _StepShell extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('> $title',
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 15,
-                      color: TH.fg,
+                      color: col.fg,
                       fontWeight: FontWeight.w600)),
               const SizedBox(height: TH.s14),
               child,
@@ -189,43 +191,40 @@ class _StepShell extends StatelessWidget {
   }
 }
 
-// ── Step 0: name ──────────────────────────────────────────────────────────────
+// ── Step 0: name ────────────────────────────────��─────────────────────────────
 
 class _NameStep extends StatelessWidget {
   final String title;
   final TextEditingController controller;
-
   const _NameStep({required this.title, required this.controller});
 
   @override
   Widget build(BuildContext context) {
+    final col = context.col;
     return _StepShell(
       title: title,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('what should we call you?',
-              style: TextStyle(color: TH.fgDim, fontSize: 12)),
+          Text('what should we call you?',
+              style: TextStyle(color: col.fgDim, fontSize: 12)),
           const SizedBox(height: TH.s8),
           TextField(
             controller: controller,
             autofocus: true,
-            style: const TextStyle(color: TH.fg, fontSize: 14),
+            style: TextStyle(color: col.fg, fontSize: 14),
             decoration: InputDecoration(
               hintText: 'your name or handle',
-              hintStyle:
-                  const TextStyle(color: TH.fgFaint, fontSize: 14),
+              hintStyle: TextStyle(color: col.fgFaint, fontSize: 14),
               enabledBorder: OutlineInputBorder(
-                borderSide:
-                    const BorderSide(color: TH.line2),
-                borderRadius: BorderRadius.all(TH.r4),
+                borderSide: BorderSide(color: col.line2),
+                borderRadius: const BorderRadius.all(TH.r4),
               ),
               focusedBorder: OutlineInputBorder(
-                borderSide:
-                    const BorderSide(color: TH.green),
-                borderRadius: BorderRadius.all(TH.r4),
+                borderSide: BorderSide(color: col.green),
+                borderRadius: const BorderRadius.all(TH.r4),
               ),
-              fillColor: TH.bg,
+              fillColor: col.bg,
               filled: true,
               contentPadding: const EdgeInsets.symmetric(
                   horizontal: TH.s8, vertical: TH.s8),
@@ -241,31 +240,31 @@ class _NameStep extends StatelessWidget {
 
 class _ThemeStep extends StatelessWidget {
   final String title;
-
   const _ThemeStep({required this.title});
 
   @override
   Widget build(BuildContext context) {
+    final col = context.col;
     return _StepShell(
       title: title,
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('theme: matrix',
               style: TextStyle(
-                  color: TH.green,
+                  color: col.green,
                   fontSize: 13,
                   fontWeight: FontWeight.w600)),
-          SizedBox(height: TH.s8),
+          const SizedBox(height: TH.s8),
           Text(
             'dark background · green accent · monospace font\n'
             'looks best with JetBrains Mono or Fira Code.',
-            style: TextStyle(color: TH.fgDim, fontSize: 12),
+            style: TextStyle(color: col.fgDim, fontSize: 12),
           ),
-          SizedBox(height: TH.s14),
+          const SizedBox(height: TH.s14),
           Text(
-            '// more themes (amber, solarized) coming in Phase 2.',
-            style: TextStyle(color: TH.fgFaint, fontSize: 11),
+            '// change theme anytime via ⌘, settings.',
+            style: TextStyle(color: col.fgFaint, fontSize: 11),
           ),
         ],
       ),
@@ -290,34 +289,33 @@ class _StarterHabitsStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final col = context.col;
     return _StepShell(
       title: title,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('pick some habits to get started (or skip):',
-              style: TextStyle(color: TH.fgDim, fontSize: 12)),
+          Text('pick some habits to get started (or skip):',
+              style: TextStyle(color: col.fgDim, fontSize: 12)),
           const SizedBox(height: TH.s8),
           ...starterDefs.entries.map((e) {
-            final isSelected = selected.contains(e.key);
+            final isSel = selected.contains(e.key);
             return GestureDetector(
               onTap: () => onToggle(e.key),
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Row(
                   children: [
-                    Text(isSelected ? '[✓]' : '[ ]',
+                    Text(isSel ? '[✓]' : '[ ]',
                         style: TextStyle(
-                            color: isSelected ? TH.green : TH.fgMute,
+                            color: isSel ? col.green : col.fgMute,
                             fontSize: 13)),
                     const SizedBox(width: TH.s8),
-                    Text(e.value.$2,
-                        style:
-                            const TextStyle(fontSize: 13)),
+                    Text(e.value.$2, style: const TextStyle(fontSize: 13)),
                     const SizedBox(width: TH.s8),
                     Text(e.value.$1,
                         style: TextStyle(
-                            color: isSelected ? TH.fg : TH.fgDim,
+                            color: isSel ? col.fg : col.fgDim,
                             fontSize: 13)),
                   ],
                 ),
@@ -345,6 +343,7 @@ class _ReadyStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final col = context.col;
     final displayName = name.isEmpty ? 'you' : name;
     final habitLine = habitCount == 0
         ? 'no starter habits — add them any time with ⌘N.'
@@ -356,18 +355,18 @@ class _ReadyStep extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('welcome, $displayName.',
-              style: const TextStyle(
-                  color: TH.green,
+              style: TextStyle(
+                  color: col.green,
                   fontSize: 14,
                   fontWeight: FontWeight.w600)),
           const SizedBox(height: TH.s8),
           Text(habitLine,
-              style: const TextStyle(color: TH.fgDim, fontSize: 12)),
+              style: TextStyle(color: col.fgDim, fontSize: 12)),
           const SizedBox(height: TH.s14),
-          const Text(
+          Text(
             'press [ begin ] to open your dashboard.\n'
             'use ⌘N to add habits · ⌘K to run commands · j/k to navigate.',
-            style: TextStyle(color: TH.fgFaint, fontSize: 12),
+            style: TextStyle(color: col.fgFaint, fontSize: 12),
           ),
         ],
       ),
@@ -380,7 +379,6 @@ class _ReadyStep extends StatelessWidget {
 class _StepIndicator extends StatelessWidget {
   final int current;
   final int total;
-
   const _StepIndicator({required this.current, required this.total});
 
   @override
@@ -388,7 +386,7 @@ class _StepIndicator extends StatelessWidget {
     return Text(
       'step ${current + 1} of $total  —  '
       '${List.generate(total, (i) => i <= current ? '●' : '○').join(' ')}',
-      style: const TextStyle(fontSize: 12, color: TH.fgMute),
+      style: TextStyle(fontSize: 12, color: context.col.fgMute),
     );
   }
 }
@@ -403,14 +401,12 @@ class _TermButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final col = context.col;
     return GestureDetector(
       onTap: onTap,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          border: Border.all(
-            color: accent ? TH.green : TH.line,
-            width: 1,
-          ),
+          border: Border.all(color: accent ? col.green : col.line, width: 1),
           borderRadius: const BorderRadius.all(TH.r4),
         ),
         child: Padding(
@@ -419,9 +415,7 @@ class _TermButton extends StatelessWidget {
           child: Text(
             label,
             style: TextStyle(
-              fontSize: 13,
-              color: accent ? TH.green : TH.fgDim,
-            ),
+                fontSize: 13, color: accent ? col.green : col.fgDim),
           ),
         ),
       ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../state/providers.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/tokens.dart';
 import 'new_habit_dialog.dart';
 import 'settings_dialog.dart';
@@ -15,9 +16,6 @@ class _Command {
 }
 
 class CommandPalette extends ConsumerStatefulWidget {
-  // The context that opened the palette. Used to dispatch follow-up
-  // dialogs/intents AFTER this dialog pops (the dialog's own context is
-  // unmounted by then, so it can't host new modal routes).
   final BuildContext invokerContext;
 
   const CommandPalette({super.key, required this.invokerContext});
@@ -58,8 +56,6 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
     super.dispose();
   }
 
-  // Intercept arrow up/down on the text field's focus node so they navigate
-  // the result list instead of moving the text caret.
   KeyEventResult _handleFieldKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
@@ -118,14 +114,15 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
 
   @override
   Widget build(BuildContext context) {
+    final col = context.col;
     final results = _filtered;
     final selectedIdx =
         results.isEmpty ? -1 : _selected.clamp(0, results.length - 1);
 
     return Dialog(
-      backgroundColor: TH.bg2,
+      backgroundColor: col.bg2,
       shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(TH.r10)),
+          borderRadius: const BorderRadius.all(TH.r10)),
       child: SizedBox(
         width: 480,
         child: Column(
@@ -138,20 +135,20 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
                 controller: _ctrl,
                 focusNode: _focus,
                 autofocus: true,
-                style: const TextStyle(color: TH.fg, fontSize: 14),
+                style: TextStyle(color: col.fg, fontSize: 14),
                 decoration: InputDecoration(
                   hintText: '> type a command…',
                   hintStyle:
-                      const TextStyle(color: TH.fgFaint, fontSize: 14),
+                      TextStyle(color: col.fgFaint, fontSize: 14),
                   enabledBorder: OutlineInputBorder(
-                    borderSide: const BorderSide(color: TH.line2),
-                    borderRadius: BorderRadius.all(TH.r4),
+                    borderSide: BorderSide(color: col.line2),
+                    borderRadius: const BorderRadius.all(TH.r4),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderSide: const BorderSide(color: TH.green),
-                    borderRadius: BorderRadius.all(TH.r4),
+                    borderSide: BorderSide(color: col.green),
+                    borderRadius: const BorderRadius.all(TH.r4),
                   ),
-                  fillColor: TH.bg1,
+                  fillColor: col.bg1,
                   filled: true,
                   contentPadding: const EdgeInsets.symmetric(
                       horizontal: TH.s8, vertical: TH.s8),
@@ -165,10 +162,10 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
             ),
             const SizedBox(height: TH.s8),
             if (results.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(TH.s22),
+              Padding(
+                padding: const EdgeInsets.all(TH.s22),
                 child: Text('no commands match',
-                    style: TextStyle(color: TH.fgFaint, fontSize: 13)),
+                    style: TextStyle(color: col.fgFaint, fontSize: 13)),
               )
             else
               ListView.builder(
@@ -179,6 +176,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
                 itemBuilder: (_, i) => _CommandRow(
                   command: results[i],
                   selected: i == selectedIdx,
+                  col: col,
                   onTap: () => _invoke(results[i]),
                 ),
               ),
@@ -193,11 +191,13 @@ class _CommandRow extends StatelessWidget {
   final _Command command;
   final bool selected;
   final VoidCallback onTap;
+  final AppColors col;
 
   const _CommandRow({
     required this.command,
     required this.selected,
     required this.onTap,
+    required this.col,
   });
 
   @override
@@ -209,28 +209,28 @@ class _CommandRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(
             horizontal: TH.s8, vertical: TH.s8),
         decoration: BoxDecoration(
-          color: selected ? TH.bg3 : Colors.transparent,
-          border: const Border(
-              bottom: BorderSide(color: TH.line, width: 1)),
+          color: selected ? col.bg3 : Colors.transparent,
+          border: Border(
+              bottom: BorderSide(color: col.line, width: 1)),
         ),
         child: Row(
           children: [
             SizedBox(
               width: 14,
               child: selected
-                  ? const Text('▸',
+                  ? Text('▸',
                       style:
-                          TextStyle(color: TH.amber, fontSize: 12))
+                          TextStyle(color: col.amber, fontSize: 12))
                   : null,
             ),
             Text(command.label,
                 style: TextStyle(
-                    color: selected ? TH.fg : TH.fgDim,
+                    color: selected ? col.fg : col.fgDim,
                     fontSize: 13)),
             const Spacer(),
             Text(command.hint,
                 style:
-                    const TextStyle(color: TH.fgMute, fontSize: 11)),
+                    TextStyle(color: col.fgMute, fontSize: 11)),
           ],
         ),
       ),

@@ -1,9 +1,8 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/tokens.dart';
 
-// Shows a "marking future days is disabled" notice. Always returns false —
-// the caller never proceeds with the toggle.
 Future<bool> confirmFutureToggle(BuildContext context) async {
   await showDialog<void>(
     context: context,
@@ -25,10 +24,11 @@ class _FutureWarnDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final col = context.col;
     final message = _messages[Random().nextInt(_messages.length)];
     return Dialog(
-      backgroundColor: TH.bg2,
-      shape: RoundedRectangleBorder(
+      backgroundColor: col.bg2,
+      shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.all(TH.r10)),
       child: SizedBox(
         width: 400,
@@ -38,16 +38,14 @@ class _FutureWarnDialog extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text("Not so fast!",
+              Text('Not so fast!',
                   style: TextStyle(
-                      color: TH.fg,
+                      color: col.fg,
                       fontSize: 14,
                       fontWeight: FontWeight.w600)),
               const SizedBox(height: TH.s8),
-              Text(
-                message,
-                style: const TextStyle(color: TH.fgDim, fontSize: 12),
-              ),
+              Text(message,
+                  style: TextStyle(color: col.fgDim, fontSize: 12)),
               const SizedBox(height: TH.s22),
               Center(
                 child: GestureDetector(
@@ -56,12 +54,11 @@ class _FutureWarnDialog extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(
                         horizontal: TH.s14, vertical: TH.s8),
                     decoration: BoxDecoration(
-                      border: Border.all(color: TH.amber),
-                      borderRadius: BorderRadius.all(TH.r4),
+                      border: Border.all(color: col.amber),
+                      borderRadius: const BorderRadius.all(TH.r4),
                     ),
-                    child: const Text('[ understood ]',
-                        style: TextStyle(
-                            color: TH.amber, fontSize: 12)),
+                    child: Text('[ understood ]',
+                        style: TextStyle(color: col.amber, fontSize: 12)),
                   ),
                 ),
               ),

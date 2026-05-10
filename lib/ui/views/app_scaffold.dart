@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/streaks.dart';
 import '../../shortcuts/intents.dart';
 import '../../state/providers.dart';
-import '../../theme/tokens.dart';
+import '../../theme/app_colors.dart';
 import '../inspector/inspector_pane.dart';
 import '../modals/command_palette.dart';
 import '../modals/future_warn_dialog.dart';
@@ -22,6 +22,7 @@ class AppScaffold extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final col = context.col;
     final view = ref.watch(currentViewProvider);
     final isDesktop = Platform.isMacOS || Platform.isLinux;
     final isMeta = Platform.isMacOS;
@@ -35,16 +36,16 @@ class AppScaffold extends ConsumerWidget {
         ? Row(
             children: [
               const Sidebar(),
-              Container(width: 1, color: TH.line),
+              Container(width: 1, color: col.line),
               Expanded(child: mainPane),
-              Container(width: 1, color: TH.line),
+              Container(width: 1, color: col.line),
               const InspectorPane(),
             ],
           )
         : mainPane;
 
     Widget content = Scaffold(
-      backgroundColor: TH.bg,
+      backgroundColor: col.bg,
       body: Column(
         children: [
           if (isDesktop) const WindowChrome(),
@@ -54,7 +55,6 @@ class AppScaffold extends ConsumerWidget {
       ),
     );
 
-    // Touch-only platforms (Android) get no keyboard wiring.
     if (!isDesktop) return content;
 
     return Shortcuts(

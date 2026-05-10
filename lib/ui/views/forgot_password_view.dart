@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../state/providers.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/tokens.dart';
 import '../widgets/auth_widgets.dart';
 import '../widgets/prompt_line.dart';
@@ -41,8 +42,9 @@ class _ForgotPasswordViewState extends ConsumerState<ForgotPasswordView> {
 
   @override
   Widget build(BuildContext context) {
+    final col = context.col;
     return Scaffold(
-      backgroundColor: TH.bg,
+      backgroundColor: col.bg,
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 400),
@@ -63,34 +65,35 @@ class _ForgotPasswordViewState extends ConsumerState<ForgotPasswordView> {
                 if (_error != null) ...[
                   const SizedBox(height: TH.s8),
                   Text(_error!,
-                      style: const TextStyle(color: TH.red, fontSize: 12)),
+                      style: TextStyle(color: col.red, fontSize: 12)),
                 ],
                 if (_password != null) ...[
                   const SizedBox(height: TH.s14),
                   Container(
                     padding: const EdgeInsets.all(TH.s8),
                     decoration: BoxDecoration(
-                      border: Border.all(color: TH.line),
-                      borderRadius: BorderRadius.all(TH.r4),
+                      border: Border.all(color: col.line),
+                      borderRadius: const BorderRadius.all(TH.r4),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('password:',
-                            style: TextStyle(color: TH.fgMute, fontSize: 11)),
+                        Text('password:',
+                            style: TextStyle(
+                                color: col.fgMute, fontSize: 11)),
                         const SizedBox(height: 4),
                         Text(_password!,
-                            style: const TextStyle(
-                                color: TH.amber,
+                            style: TextStyle(
+                                color: col.amber,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600)),
                       ],
                     ),
                   ),
                   const SizedBox(height: TH.s8),
-                  const Text(
+                  Text(
                     '// temporary dev feature — Phase 11 replaces this with email recovery.',
-                    style: TextStyle(color: TH.fgFaint, fontSize: 11),
+                    style: TextStyle(color: col.fgFaint, fontSize: 11),
                   ),
                 ],
                 const SizedBox(height: TH.s22),

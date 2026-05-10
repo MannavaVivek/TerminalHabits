@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../state/providers.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/icon_library.dart';
 import '../../theme/tokens.dart';
 import '../modals/group_menu.dart';
@@ -13,6 +14,7 @@ class HabitGroupWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final col = context.col;
     final g = dailyGroup;
     final collapsed = g.group.collapsed;
     final note = g.group.note;
@@ -46,18 +48,18 @@ class HabitGroupWidget extends ConsumerWidget {
                       child: Icon(
                         lucideIconData(iconKey) ?? LucideIcons.folder,
                         size: 13,
-                        color: TH.fgDim,
+                        color: col.fgDim,
                       ),
                     ),
                     Text(g.group.name,
-                        style: const TextStyle(
-                            color: TH.fgDim,
+                        style: TextStyle(
+                            color: col.fgDim,
                             fontSize: 13,
                             fontWeight: FontWeight.w600)),
                     const Spacer(),
                     Text('[$done/$total]',
                         style: TextStyle(
-                            color: allDone ? TH.green : TH.fgFaint,
+                            color: allDone ? col.green : col.fgFaint,
                             fontSize: 12)),
                     const SizedBox(width: TH.s8),
                     Icon(
@@ -65,23 +67,23 @@ class HabitGroupWidget extends ConsumerWidget {
                           ? LucideIcons.chevronRight
                           : LucideIcons.chevronDown,
                       size: 13,
-                      color: TH.fgMute,
+                      color: col.fgMute,
                     ),
                   ],
                 ),
                 if (note != null && note.isNotEmpty)
                   Padding(
-                    padding: const EdgeInsets.only(left: 0, top: 2),
+                    padding: const EdgeInsets.only(top: 2),
                     child: Text('// $note',
-                        style: const TextStyle(
-                            color: TH.fgFaint, fontSize: 11)),
+                        style: TextStyle(
+                            color: col.fgFaint, fontSize: 11)),
                   ),
               ],
             ),
           ),
         ),
         if (!collapsed) ...g.habits.map((h) => HabitRow(dailyHabit: h)),
-        Container(height: 1, color: TH.line),
+        Container(height: 1, color: col.line),
       ],
     );
   }

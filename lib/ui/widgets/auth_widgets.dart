@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/tokens.dart';
 
 class AuthField extends StatelessWidget {
@@ -19,30 +20,30 @@ class AuthField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final col = context.col;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: const TextStyle(color: TH.fgMute, fontSize: 11)),
+        Text(label, style: TextStyle(color: col.fgMute, fontSize: 11)),
         const SizedBox(height: 4),
         TextField(
           controller: controller,
           obscureText: obscure,
           autofocus: autofocus,
-          style: const TextStyle(color: TH.fg, fontSize: 13),
+          style: TextStyle(color: col.fg, fontSize: 13),
           onSubmitted: onSubmit != null ? (_) => onSubmit!() : null,
           decoration: InputDecoration(
             hintText: obscure ? '••••••••' : label,
-            hintStyle: const TextStyle(color: TH.fgFaint, fontSize: 13),
+            hintStyle: TextStyle(color: col.fgFaint, fontSize: 13),
             enabledBorder: OutlineInputBorder(
-              borderSide: const BorderSide(color: TH.line2),
-              borderRadius: BorderRadius.all(TH.r4),
+              borderSide: BorderSide(color: col.line2),
+              borderRadius: const BorderRadius.all(TH.r4),
             ),
             focusedBorder: OutlineInputBorder(
-              borderSide: const BorderSide(color: TH.green),
-              borderRadius: BorderRadius.all(TH.r4),
+              borderSide: BorderSide(color: col.green),
+              borderRadius: const BorderRadius.all(TH.r4),
             ),
-            fillColor: TH.bg1,
+            fillColor: col.bg1,
             filled: true,
             contentPadding: const EdgeInsets.symmetric(
                 horizontal: TH.s8, vertical: TH.s8),
@@ -67,11 +68,12 @@ class AuthButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final col = context.col;
     final color = onTap == null
-        ? TH.fgFaint
+        ? col.fgFaint
         : accent
-            ? TH.green
-            : TH.fgDim;
+            ? col.green
+            : col.fgDim;
     return GestureDetector(
       onTap: onTap,
       child: DecoratedBox(
@@ -82,8 +84,7 @@ class AuthButton extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(
               horizontal: TH.s14, vertical: TH.s8),
-          child: Text(label,
-              style: TextStyle(color: color, fontSize: 12)),
+          child: Text(label, style: TextStyle(color: color, fontSize: 12)),
         ),
       ),
     );

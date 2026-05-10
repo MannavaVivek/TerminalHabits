@@ -3,17 +3,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/database.dart';
 import '../../state/providers.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/tokens.dart';
 import '../widgets/icon_picker.dart';
 import 'text_prompt.dart';
 
-// Shows the right-click / long-press menu for a group header.
 Future<void> showGroupMenu(
   BuildContext context,
   WidgetRef ref,
   Group group, {
   Offset? at,
 }) async {
+  final col = AppColors.of(context);
   final overlay =
       Overlay.of(context).context.findRenderObject() as RenderBox?;
   final position = at ?? overlay?.localToGlobal(Offset.zero) ?? Offset.zero;
@@ -21,31 +22,29 @@ Future<void> showGroupMenu(
 
   final selected = await showMenu<String>(
     context: context,
-    color: TH.bg2,
+    color: col.bg2,
     position: RelativeRect.fromLTRB(
       position.dx,
       position.dy,
       size.width - position.dx,
       size.height - position.dy,
     ),
-    items: const [
+    items: [
       PopupMenuItem(
         value: 'rename',
-        child: Text('rename', style: TextStyle(color: TH.fg, fontSize: 13)),
+        child: Text('rename', style: TextStyle(color: col.fg, fontSize: 13)),
       ),
       PopupMenuItem(
         value: 'icon',
-        child:
-            Text('edit icon', style: TextStyle(color: TH.fg, fontSize: 13)),
+        child: Text('edit icon', style: TextStyle(color: col.fg, fontSize: 13)),
       ),
       PopupMenuItem(
         value: 'note',
-        child:
-            Text('edit note', style: TextStyle(color: TH.fg, fontSize: 13)),
+        child: Text('edit note', style: TextStyle(color: col.fg, fontSize: 13)),
       ),
       PopupMenuItem(
         value: 'delete',
-        child: Text('delete', style: TextStyle(color: TH.red, fontSize: 13)),
+        child: Text('delete', style: TextStyle(color: col.red, fontSize: 13)),
       ),
     ],
   );
@@ -92,6 +91,7 @@ Future<void> showGroupMenu(
 
 Future<void> _confirmDelete(
     BuildContext context, WidgetRef ref, Group group) async {
+  final col = AppColors.of(context);
   final db = ref.read(dbProvider);
   final userId = ref.read(currentUserIdProvider);
   final allGroups = await db.getGroups(userId);
@@ -103,7 +103,6 @@ Future<void> _confirmDelete(
 
   if (!context.mounted) return;
 
-  // 'cascade' or a group id to reassign to.
   String? choice = reassignTargets.isNotEmpty
       ? reassignTargets.first.id
       : 'cascade';
@@ -113,9 +112,9 @@ Future<void> _confirmDelete(
     barrierColor: Colors.black54,
     builder: (ctx) => StatefulBuilder(
       builder: (ctx, setState) => Dialog(
-        backgroundColor: TH.bg2,
+        backgroundColor: col.bg2,
         shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(TH.r10)),
+            borderRadius: const BorderRadius.all(TH.r10)),
         child: SizedBox(
           width: 420,
           child: Padding(
@@ -125,31 +124,33 @@ Future<void> _confirmDelete(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('delete group "${group.name}"?',
-                    style: const TextStyle(
-                        color: TH.fg,
+                    style: TextStyle(
+                        color: col.fg,
                         fontSize: 14,
                         fontWeight: FontWeight.w600)),
                 const SizedBox(height: TH.s8),
                 if (affected == 0)
-                  const Text('no habits in this group.',
+                  Text('no habits in this group.',
                       style:
-                          TextStyle(color: TH.fgDim, fontSize: 12))
+                          TextStyle(color: col.fgDim, fontSize: 12))
                 else
                   Text('$affected habit${affected == 1 ? '' : 's'} in this group.',
-                      style: const TextStyle(
-                          color: TH.fgDim, fontSize: 12)),
+                      style: TextStyle(
+                          color: col.fgDim, fontSize: 12)),
                 if (affected > 0) ...[
                   const SizedBox(height: TH.s14),
                   for (final t in reassignTargets)
                     _RadioRow(
                       label: 'reassign to "${t.name}"',
                       selected: choice == t.id,
+                      col: col,
                       onTap: () => setState(() => choice = t.id),
                     ),
                   _RadioRow(
                     label: 'delete habits + completions',
                     danger: true,
                     selected: choice == 'cascade',
+                    col: col,
                     onTap: () =>
                         setState(() => choice = 'cascade'),
                   ),
@@ -160,9 +161,9 @@ Future<void> _confirmDelete(
                   children: [
                     GestureDetector(
                       onTap: () => Navigator.of(ctx).pop(false),
-                      child: const Text('[ cancel ]',
+                      child: Text('[ cancel ]',
                           style:
-                              TextStyle(color: TH.fgMute, fontSize: 12)),
+                              TextStyle(color: col.fgMute, fontSize: 12)),
                     ),
                     const SizedBox(width: TH.s14),
                     GestureDetector(
@@ -171,12 +172,12 @@ Future<void> _confirmDelete(
                         padding: const EdgeInsets.symmetric(
                             horizontal: TH.s14, vertical: TH.s8),
                         decoration: BoxDecoration(
-                          border: Border.all(color: TH.red),
-                          borderRadius: BorderRadius.all(TH.r4),
+                          border: Border.all(color: col.red),
+                          borderRadius: const BorderRadius.all(TH.r4),
                         ),
-                        child: const Text('[ delete ]',
+                        child: Text('[ delete ]',
                             style:
-                                TextStyle(color: TH.red, fontSize: 12)),
+                                TextStyle(color: col.red, fontSize: 12)),
                       ),
                     ),
                   ],
@@ -202,19 +203,21 @@ class _RadioRow extends StatelessWidget {
   final bool selected;
   final bool danger;
   final VoidCallback onTap;
+  final AppColors col;
 
   const _RadioRow({
     required this.label,
     required this.selected,
     required this.onTap,
+    required this.col,
     this.danger = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final color = selected
-        ? (danger ? TH.red : TH.green)
-        : TH.fgMute;
+        ? (danger ? col.red : col.green)
+        : col.fgMute;
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
@@ -227,7 +230,7 @@ class _RadioRow extends StatelessWidget {
             const SizedBox(width: TH.s8),
             Text(label,
                 style: TextStyle(
-                    color: selected ? TH.fg : TH.fgDim, fontSize: 12)),
+                    color: selected ? col.fg : col.fgDim, fontSize: 12)),
           ],
         ),
       ),

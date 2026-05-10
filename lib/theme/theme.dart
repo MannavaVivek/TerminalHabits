@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'tokens.dart';
+import 'app_colors.dart';
 
-// Instant page transitions — the app is intentionally quiet.
 class NoTransitionsBuilder extends PageTransitionsBuilder {
   const NoTransitionsBuilder();
 
@@ -16,29 +15,30 @@ class NoTransitionsBuilder extends PageTransitionsBuilder {
   ) => child;
 }
 
-ThemeData buildTheme() {
+ThemeData buildTheme(AppColors col) {
   final base = ThemeData.dark();
   final monoTheme = GoogleFonts.jetBrainsMonoTextTheme(base.textTheme);
 
   final textTheme = monoTheme.copyWith(
-    bodyLarge: monoTheme.bodyLarge?.copyWith(fontSize: 14, color: TH.fg, height: 1.2),
-    bodyMedium: monoTheme.bodyMedium?.copyWith(fontSize: 14, color: TH.fg, height: 1.2),
-    bodySmall: monoTheme.bodySmall?.copyWith(fontSize: 12, color: TH.fgDim, height: 1.2),
-    titleMedium: monoTheme.titleMedium?.copyWith(fontSize: 15, fontWeight: FontWeight.w600, color: TH.fg),
-    labelSmall: monoTheme.labelSmall?.copyWith(fontSize: 11, color: TH.fgDim, height: 1.0),
-    labelMedium: monoTheme.labelMedium?.copyWith(fontSize: 12, color: TH.fgDim),
+    bodyLarge:   monoTheme.bodyLarge?.copyWith(fontSize: 14, color: col.fg,     height: 1.2),
+    bodyMedium:  monoTheme.bodyMedium?.copyWith(fontSize: 14, color: col.fg,    height: 1.2),
+    bodySmall:   monoTheme.bodySmall?.copyWith(fontSize: 12, color: col.fgDim,  height: 1.2),
+    titleMedium: monoTheme.titleMedium?.copyWith(fontSize: 15, fontWeight: FontWeight.w600, color: col.fg),
+    labelSmall:  monoTheme.labelSmall?.copyWith(fontSize: 11, color: col.fgDim, height: 1.0),
+    labelMedium: monoTheme.labelMedium?.copyWith(fontSize: 12, color: col.fgDim),
   );
 
   return base.copyWith(
-    scaffoldBackgroundColor: TH.bg,
-    canvasColor: TH.bg,
-    colorScheme: const ColorScheme.dark(
-      surface: TH.bg,
-      onSurface: TH.fg,
-      primary: TH.green,
-      onPrimary: TH.bg,
-      error: TH.red,
-      onError: TH.fg,
+    extensions: [col],
+    scaffoldBackgroundColor: col.bg,
+    canvasColor: col.bg,
+    colorScheme: ColorScheme.dark(
+      surface: col.bg,
+      onSurface: col.fg,
+      primary: col.green,
+      onPrimary: col.bg,
+      error: col.red,
+      onError: col.fg,
     ),
     textTheme: textTheme,
     splashFactory: NoSplash.splashFactory,
@@ -47,16 +47,16 @@ ThemeData buildTheme() {
     focusColor: Colors.transparent,
     pageTransitionsTheme: const PageTransitionsTheme(
       builders: {
-        TargetPlatform.macOS: NoTransitionsBuilder(),
-        TargetPlatform.linux: NoTransitionsBuilder(),
+        TargetPlatform.macOS:   NoTransitionsBuilder(),
+        TargetPlatform.linux:   NoTransitionsBuilder(),
         TargetPlatform.android: NoTransitionsBuilder(),
       },
     ),
-    dividerColor: TH.line,
-    dividerTheme: const DividerThemeData(color: TH.line, thickness: 1, space: 1),
-    appBarTheme: const AppBarTheme(
-      backgroundColor: TH.bg1,
-      foregroundColor: TH.fg,
+    dividerColor: col.line,
+    dividerTheme: DividerThemeData(color: col.line, thickness: 1, space: 1),
+    appBarTheme: AppBarTheme(
+      backgroundColor: col.bg1,
+      foregroundColor: col.fg,
       elevation: 0,
     ),
   );

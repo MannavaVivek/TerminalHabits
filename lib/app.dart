@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'state/providers.dart';
+import 'theme/app_colors.dart';
 import 'theme/theme.dart';
 import 'ui/views/splash_view.dart';
 
@@ -15,12 +16,14 @@ class App extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final themeId  = ref.watch(themeIdProvider).valueOrNull  ?? 'matrix';
     final fontSize = ref.watch(fontSizeProvider).valueOrNull ?? 'md';
-    final scale = _fontScale(fontSize);
+    final colors   = AppColors.all[themeId] ?? AppColors.matrix;
+    final scale    = _fontScale(fontSize);
 
     return MaterialApp(
       title: 'TerminalHabits',
-      theme: buildTheme(),
+      theme: buildTheme(colors),
       builder: (ctx, child) => MediaQuery(
         data: MediaQuery.of(ctx).copyWith(
             textScaler: TextScaler.linear(scale)),

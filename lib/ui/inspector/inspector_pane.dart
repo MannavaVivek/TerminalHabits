@@ -4,6 +4,7 @@ import '../../data/database.dart';
 import '../../domain/schedule.dart';
 import '../../domain/streaks.dart';
 import '../../state/providers.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/tokens.dart';
 
 const _months = [
@@ -51,7 +52,6 @@ class InspectorPane extends ConsumerWidget {
   }
 }
 
-// Sentinel — never displayed; only used by orElse so the closure compiles.
 final _stubHabit = Habit(
   id: -1,
   userId: 0,
@@ -78,11 +78,11 @@ class _EmptyInspector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return Center(
       child: Text(
         'select a habit\nto inspect',
         textAlign: TextAlign.center,
-        style: TextStyle(color: TH.fgFaint, fontSize: 12),
+        style: TextStyle(color: context.col.fgFaint, fontSize: 12),
       ),
     );
   }
@@ -99,6 +99,7 @@ class _HabitInspector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final col = context.col;
     final h = habit;
     final s = streaks;
 
@@ -106,33 +107,35 @@ class _HabitInspector extends StatelessWidget {
       padding: const EdgeInsets.all(TH.s14),
       children: [
         Text('${h.icon} ${h.name}',
-            style: const TextStyle(
-                color: TH.fg, fontSize: 14, fontWeight: FontWeight.w600)),
+            style: TextStyle(
+                color: col.fg, fontSize: 14, fontWeight: FontWeight.w600)),
         const SizedBox(height: TH.s14),
-        _Block(label: 'streak', children: [
-          _Row('current', '${s.displayStreak}'),
-          _Row('longest', '${s.longest}'),
-          _Row('shields', '${s.shields}'),
+        _Block(label: 'streak', col: col, children: [
+          _Row('current', '${s.displayStreak}', col: col),
+          _Row('longest', '${s.longest}', col: col),
+          _Row('shields', '${s.shields}', col: col),
         ]),
         const SizedBox(height: TH.s8),
-        _Block(label: 'habit', children: [
-          _Row('tracking', h.tracking),
-          _Row('schedule', scheduleLabel(h.schedule)),
-          _Row('started', _fmtDate(h.startDate.toLocal())),
+        _Block(label: 'habit', col: col, children: [
+          _Row('tracking', h.tracking, col: col),
+          _Row('schedule', scheduleLabel(h.schedule), col: col),
+          _Row('started', _fmtDate(h.startDate.toLocal()), col: col),
           if (h.endDate != null)
-            _Row('ends', _fmtDate(h.endDate!.toLocal())),
+            _Row('ends', _fmtDate(h.endDate!.toLocal()), col: col),
           if (h.note != null && h.note!.isNotEmpty)
-            _Row('note', h.note!),
+            _Row('note', h.note!, col: col),
         ]),
         if (history.length > 1) ...[
           const SizedBox(height: TH.s8),
           _Block(
             label: 'schedule history',
+            col: col,
             children: [
               for (final e in history)
                 _Row(
                   _fmtDate(e.effectiveFrom.toLocal()),
                   scheduleLabel(e.schedule),
+                  col: col,
                 ),
             ],
           ),
@@ -145,21 +148,22 @@ class _HabitInspector extends StatelessWidget {
 class _Block extends StatelessWidget {
   final String label;
   final List<Widget> children;
-  const _Block({required this.label, required this.children});
+  final AppColors col;
+  const _Block({required this.label, required this.children, required this.col});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: TH.line),
-        borderRadius: BorderRadius.all(TH.r4),
+        border: Border.all(color: col.line),
+        borderRadius: const BorderRadius.all(TH.r4),
       ),
       padding: const EdgeInsets.all(TH.s8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('── $label',
-              style: const TextStyle(color: TH.fgMute, fontSize: 11)),
+              style: TextStyle(color: col.fgMute, fontSize: 11)),
           const SizedBox(height: TH.s4),
           ...children,
         ],
@@ -171,7 +175,8 @@ class _Block extends StatelessWidget {
 class _Row extends StatelessWidget {
   final String label;
   final String value;
-  const _Row(this.label, this.value);
+  final AppColors col;
+  const _Row(this.label, this.value, {required this.col});
 
   @override
   Widget build(BuildContext context) {
@@ -183,11 +188,11 @@ class _Row extends StatelessWidget {
           SizedBox(
             width: 72,
             child: Text('$label:',
-                style: const TextStyle(color: TH.fgDim, fontSize: 12)),
+                style: TextStyle(color: col.fgDim, fontSize: 12)),
           ),
           Expanded(
             child: Text(value,
-                style: const TextStyle(color: TH.fg, fontSize: 12)),
+                style: TextStyle(color: col.fg, fontSize: 12)),
           ),
         ],
       ),

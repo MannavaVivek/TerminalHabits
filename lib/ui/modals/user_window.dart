@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/database.dart';
 import '../../state/providers.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/tokens.dart';
 import '../views/login_view.dart';
 import 'settings_dialog.dart';
@@ -61,23 +62,24 @@ class _UserWindowDialogState extends ConsumerState<_UserWindowDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final col = context.col;
     final userAV = ref.watch(currentUserProvider);
     final dailyAV = ref.watch(dailyStateProvider);
 
     return Dialog(
-      backgroundColor: TH.bg2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(TH.r10)),
+      backgroundColor: col.bg2,
+      shape: RoundedRectangleBorder(borderRadius: const BorderRadius.all(TH.r10)),
       child: SizedBox(
         width: 340,
         child: Padding(
           padding: const EdgeInsets.all(TH.s22),
           child: userAV.when(
-            loading: () => const Center(
+            loading: () => Center(
               child: Text('loading...',
-                  style: TextStyle(color: TH.fgDim, fontSize: 12)),
+                  style: TextStyle(color: col.fgDim, fontSize: 12)),
             ),
             error: (e, _) => Text('error: $e',
-                style: const TextStyle(color: TH.red, fontSize: 12)),
+                style: TextStyle(color: col.red, fontSize: 12)),
             data: (user) {
               if (user == null) return const SizedBox();
               if (_nameCtrl.text.isEmpty && !_editingName) {
@@ -92,23 +94,22 @@ class _UserWindowDialogState extends ConsumerState<_UserWindowDialog> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── header ──────────────────────────────────────────────
                   Row(
                     children: [
                       Container(
                         width: 36,
                         height: 36,
                         decoration: BoxDecoration(
-                          border: Border.all(color: TH.green),
-                          borderRadius: BorderRadius.all(TH.r4),
+                          border: Border.all(color: col.green),
+                          borderRadius: const BorderRadius.all(TH.r4),
                         ),
                         child: Center(
                           child: Text(
                             user.displayName.isNotEmpty
                                 ? user.displayName[0].toUpperCase()
                                 : '?',
-                            style: const TextStyle(
-                                color: TH.green,
+                            style: TextStyle(
+                                color: col.green,
                                 fontSize: 18,
                                 fontWeight: FontWeight.w600),
                           ),
@@ -120,13 +121,13 @@ class _UserWindowDialogState extends ConsumerState<_UserWindowDialog> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(user.displayName,
-                                style: const TextStyle(
-                                    color: TH.fg,
+                                style: TextStyle(
+                                    color: col.fg,
                                     fontSize: 14,
                                     fontWeight: FontWeight.w600)),
                             Text('@${user.username}',
-                                style: const TextStyle(
-                                    color: TH.fgMute, fontSize: 11)),
+                                style: TextStyle(
+                                    color: col.fgMute, fontSize: 11)),
                           ],
                         ),
                       ),
@@ -136,12 +137,12 @@ class _UserWindowDialogState extends ConsumerState<_UserWindowDialog> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: TH.s8, vertical: 4),
                           decoration: BoxDecoration(
-                            border: Border.all(color: TH.line2),
-                            borderRadius: BorderRadius.all(TH.r4),
+                            border: Border.all(color: col.line2),
+                            borderRadius: const BorderRadius.all(TH.r4),
                           ),
-                          child: const Text('[ ⚙ settings ]',
+                          child: Text('[ ⚙ settings ]',
                               style: TextStyle(
-                                  color: TH.fgDim, fontSize: 11)),
+                                  color: col.fgDim, fontSize: 11)),
                         ),
                       ),
                     ],
@@ -149,33 +150,32 @@ class _UserWindowDialogState extends ConsumerState<_UserWindowDialog> {
                   const SizedBox(height: TH.s22),
                   Container(
                     decoration: BoxDecoration(
-                      border: Border.all(color: TH.line),
-                      borderRadius: BorderRadius.all(TH.r4),
+                      border: Border.all(color: col.line),
+                      borderRadius: const BorderRadius.all(TH.r4),
                     ),
                     padding: const EdgeInsets.all(TH.s14),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('── profile',
+                        Text('── profile',
                             style: TextStyle(
-                                color: TH.fgMute, fontSize: 11)),
+                                color: col.fgMute, fontSize: 11)),
                         const SizedBox(height: TH.s8),
-                        // display name — editable
                         Row(
                           children: [
-                            const SizedBox(
+                            SizedBox(
                               width: 88,
                               child: Text('display name:',
                                   style: TextStyle(
-                                      color: TH.fgDim, fontSize: 12)),
+                                      color: col.fgDim, fontSize: 12)),
                             ),
                             if (_editingName)
                               Expanded(
                                 child: TextField(
                                   controller: _nameCtrl,
                                   autofocus: true,
-                                  style: const TextStyle(
-                                      color: TH.fg, fontSize: 12),
+                                  style: TextStyle(
+                                      color: col.fg, fontSize: 12),
                                   onSubmitted: (_) =>
                                       _saveDisplayName(user),
                                   decoration: InputDecoration(
@@ -184,18 +184,18 @@ class _UserWindowDialogState extends ConsumerState<_UserWindowDialog> {
                                         const EdgeInsets.symmetric(
                                             horizontal: 6, vertical: 4),
                                     enabledBorder: OutlineInputBorder(
-                                      borderSide: const BorderSide(
-                                          color: TH.line2),
+                                      borderSide: BorderSide(
+                                          color: col.line2),
                                       borderRadius:
-                                          BorderRadius.all(TH.r4),
+                                          const BorderRadius.all(TH.r4),
                                     ),
                                     focusedBorder: OutlineInputBorder(
-                                      borderSide: const BorderSide(
-                                          color: TH.green),
+                                      borderSide: BorderSide(
+                                          color: col.green),
                                       borderRadius:
-                                          BorderRadius.all(TH.r4),
+                                          const BorderRadius.all(TH.r4),
                                     ),
-                                    fillColor: TH.bg,
+                                    fillColor: col.bg,
                                     filled: true,
                                   ),
                                   onTapOutside: (_) =>
@@ -209,17 +209,17 @@ class _UserWindowDialogState extends ConsumerState<_UserWindowDialog> {
                                   setState(() => _editingName = true);
                                 },
                                 child: Text(user.displayName,
-                                    style: const TextStyle(
-                                        color: TH.fg, fontSize: 12)),
+                                    style: TextStyle(
+                                        color: col.fg, fontSize: 12)),
                               ),
                           ],
                         ),
                         const SizedBox(height: 6),
-                        _InfoRow('username', '@${user.username}'),
+                        _InfoRow('username', '@${user.username}', col: col),
                         _InfoRow('member since',
-                            _fmtDate(user.createdAt.toLocal())),
-                        _InfoRow('completions', '$completions'),
-                        _InfoRow('streak', '$streak days'),
+                            _fmtDate(user.createdAt.toLocal()), col: col),
+                        _InfoRow('completions', '$completions', col: col),
+                        _InfoRow('streak', '$streak days', col: col),
                       ],
                     ),
                   ),
@@ -230,11 +230,11 @@ class _UserWindowDialogState extends ConsumerState<_UserWindowDialog> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: TH.s14, vertical: TH.s8),
                       decoration: BoxDecoration(
-                        border: Border.all(color: TH.red),
-                        borderRadius: BorderRadius.all(TH.r4),
+                        border: Border.all(color: col.red),
+                        borderRadius: const BorderRadius.all(TH.r4),
                       ),
-                      child: const Text('[ log out ]',
-                          style: TextStyle(color: TH.red, fontSize: 12)),
+                      child: Text('[ log out ]',
+                          style: TextStyle(color: col.red, fontSize: 12)),
                     ),
                   ),
                 ],
@@ -250,7 +250,8 @@ class _UserWindowDialogState extends ConsumerState<_UserWindowDialog> {
 class _InfoRow extends StatelessWidget {
   final String label;
   final String value;
-  const _InfoRow(this.label, this.value);
+  final AppColors col;
+  const _InfoRow(this.label, this.value, {required this.col});
 
   @override
   Widget build(BuildContext context) {
@@ -261,11 +262,11 @@ class _InfoRow extends StatelessWidget {
           SizedBox(
             width: 88,
             child: Text('$label:',
-                style: const TextStyle(color: TH.fgDim, fontSize: 12)),
+                style: TextStyle(color: col.fgDim, fontSize: 12)),
           ),
           Expanded(
             child: Text(value,
-                style: const TextStyle(color: TH.fg, fontSize: 12)),
+                style: TextStyle(color: col.fg, fontSize: 12)),
           ),
         ],
       ),

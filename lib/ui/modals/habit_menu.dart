@@ -2,16 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/database.dart';
 import '../../state/providers.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/tokens.dart';
 import 'edit_habit_dialog.dart';
 
-// Right-click / long-press menu on a habit row.
 Future<void> showHabitMenu(
   BuildContext context,
   WidgetRef ref,
   Habit habit, {
   Offset? at,
 }) async {
+  final col = AppColors.of(context);
   final overlay =
       Overlay.of(context).context.findRenderObject() as RenderBox?;
   final position = at ?? overlay?.localToGlobal(Offset.zero) ?? Offset.zero;
@@ -19,28 +20,26 @@ Future<void> showHabitMenu(
 
   final action = await showMenu<String>(
     context: context,
-    color: TH.bg2,
+    color: col.bg2,
     position: RelativeRect.fromLTRB(
       position.dx,
       position.dy,
       size.width - position.dx,
       size.height - position.dy,
     ),
-    items: const [
+    items: [
       PopupMenuItem(
         value: 'edit',
-        child:
-            Text('edit', style: TextStyle(color: TH.fg, fontSize: 13)),
+        child: Text('edit', style: TextStyle(color: col.fg, fontSize: 13)),
       ),
       PopupMenuItem(
         value: 'archive',
         child: Text('archive',
-            style: TextStyle(color: TH.fgDim, fontSize: 13)),
+            style: TextStyle(color: col.fgDim, fontSize: 13)),
       ),
       PopupMenuItem(
         value: 'delete',
-        child:
-            Text('delete', style: TextStyle(color: TH.red, fontSize: 13)),
+        child: Text('delete', style: TextStyle(color: col.red, fontSize: 13)),
       ),
     ],
   );
@@ -62,13 +61,14 @@ Future<void> showHabitMenu(
 }
 
 Future<bool> _confirmDelete(BuildContext context, Habit habit) async {
+  final col = AppColors.of(context);
   final result = await showDialog<bool>(
     context: context,
     barrierColor: Colors.black54,
     builder: (ctx) => Dialog(
-      backgroundColor: TH.bg2,
+      backgroundColor: col.bg2,
       shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.all(TH.r10)),
+          RoundedRectangleBorder(borderRadius: const BorderRadius.all(TH.r10)),
       child: SizedBox(
         width: 400,
         child: Padding(
@@ -78,15 +78,15 @@ Future<bool> _confirmDelete(BuildContext context, Habit habit) async {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('delete "${habit.name}"?',
-                  style: const TextStyle(
-                      color: TH.fg,
+                  style: TextStyle(
+                      color: col.fg,
                       fontSize: 14,
                       fontWeight: FontWeight.w600)),
               const SizedBox(height: TH.s8),
-              const Text(
+              Text(
                 'this removes the habit and every completion record. '
                 'archive instead if you want to keep the history.',
-                style: TextStyle(color: TH.fgDim, fontSize: 12),
+                style: TextStyle(color: col.fgDim, fontSize: 12),
               ),
               const SizedBox(height: TH.s22),
               Row(
@@ -94,9 +94,9 @@ Future<bool> _confirmDelete(BuildContext context, Habit habit) async {
                 children: [
                   GestureDetector(
                     onTap: () => Navigator.of(ctx).pop(false),
-                    child: const Text('[ cancel ]',
+                    child: Text('[ cancel ]',
                         style:
-                            TextStyle(color: TH.fgMute, fontSize: 12)),
+                            TextStyle(color: col.fgMute, fontSize: 12)),
                   ),
                   const SizedBox(width: TH.s14),
                   GestureDetector(
@@ -105,12 +105,12 @@ Future<bool> _confirmDelete(BuildContext context, Habit habit) async {
                       padding: const EdgeInsets.symmetric(
                           horizontal: TH.s14, vertical: TH.s8),
                       decoration: BoxDecoration(
-                        border: Border.all(color: TH.red),
-                        borderRadius: BorderRadius.all(TH.r4),
+                        border: Border.all(color: col.red),
+                        borderRadius: const BorderRadius.all(TH.r4),
                       ),
-                      child: const Text('[ delete ]',
+                      child: Text('[ delete ]',
                           style:
-                              TextStyle(color: TH.red, fontSize: 12)),
+                              TextStyle(color: col.red, fontSize: 12)),
                     ),
                   ),
                 ],

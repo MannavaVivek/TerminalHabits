@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/database.dart';
 import '../../state/providers.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/icon_library.dart';
 import '../../theme/tokens.dart';
 
@@ -10,17 +11,18 @@ class ArchiveView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final col = context.col;
     final archivedAV = ref.watch(archivedHabitsProvider);
     final groupsAV = ref.watch(groupsProvider);
 
     return archivedAV.when(
-      loading: () => const Center(
+      loading: () => Center(
         child: Text('loading...',
-            style: TextStyle(color: TH.fgDim, fontSize: 13)),
+            style: TextStyle(color: col.fgDim, fontSize: 13)),
       ),
       error: (e, _) => Center(
         child: Text('error: $e',
-            style: const TextStyle(color: TH.red, fontSize: 13)),
+            style: TextStyle(color: col.red, fontSize: 13)),
       ),
       data: (archived) {
         final groups = groupsAV.valueOrNull ?? const <Group>[];
@@ -35,9 +37,9 @@ class ArchiveView extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('archive',
+                  Text('archive',
                       style: TextStyle(
-                          color: TH.fg,
+                          color: col.fg,
                           fontSize: 14,
                           fontWeight: FontWeight.w600)),
                   const SizedBox(height: 2),
@@ -45,20 +47,20 @@ class ArchiveView extends ConsumerWidget {
                     archived.isEmpty
                         ? '// nothing here yet.'
                         : '// ${archived.length} habit${archived.length == 1 ? '' : 's'} archived. restore to bring back to daily.',
-                    style: const TextStyle(
-                        color: TH.fgMute, fontSize: 12),
+                    style: TextStyle(
+                        color: col.fgMute, fontSize: 12),
                   ),
                 ],
               ),
             ),
-            Container(height: 1, color: TH.line),
+            Container(height: 1, color: col.line),
             Expanded(
               child: archived.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Text(
                         'no archived habits',
                         style: TextStyle(
-                            color: TH.fgFaint, fontSize: 13),
+                            color: col.fgFaint, fontSize: 13),
                       ),
                     )
                   : ListView.builder(
@@ -85,25 +87,25 @@ class _ArchivedRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final col = context.col;
     final db = ref.read(dbProvider);
     final archivedOn = habit.archivedAt;
 
     return Container(
       padding: const EdgeInsets.symmetric(
           horizontal: TH.s22, vertical: TH.s8),
-      decoration: const BoxDecoration(
-        border:
-            Border(bottom: BorderSide(color: TH.line, width: 1)),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: col.line, width: 1)),
       ),
       child: Row(
         children: [
           () {
             final d = lucideIconData(habit.icon);
             return d != null
-                ? Icon(d, size: 14, color: TH.fgDim)
+                ? Icon(d, size: 14, color: col.fgDim)
                 : Text(habit.icon,
                     style:
-                        const TextStyle(color: TH.fgDim, fontSize: 13));
+                        TextStyle(color: col.fgDim, fontSize: 13));
           }(),
           const SizedBox(width: TH.s8),
           Expanded(
@@ -111,15 +113,15 @@ class _ArchivedRow extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(habit.name,
-                    style: const TextStyle(
-                        color: TH.fgDim, fontSize: 14)),
+                    style: TextStyle(
+                        color: col.fgDim, fontSize: 14)),
                 const SizedBox(height: 2),
                 Text(
                   archivedOn == null
                       ? groupLabel
                       : '$groupLabel · archived ${_relative(archivedOn)}',
-                  style: const TextStyle(
-                      color: TH.fgFaint, fontSize: 11),
+                  style: TextStyle(
+                      color: col.fgFaint, fontSize: 11),
                 ),
               ],
             ),
@@ -128,11 +130,11 @@ class _ArchivedRow extends ConsumerWidget {
             onTap: () async {
               await db.unarchiveHabit(habit.id);
             },
-            child: const Padding(
+            child: Padding(
               padding:
-                  EdgeInsets.symmetric(horizontal: TH.s8, vertical: 4),
+                  const EdgeInsets.symmetric(horizontal: TH.s8, vertical: 4),
               child: Text('[ restore ]',
-                  style: TextStyle(color: TH.green, fontSize: 12)),
+                  style: TextStyle(color: col.green, fontSize: 12)),
             ),
           ),
           GestureDetector(
@@ -140,11 +142,11 @@ class _ArchivedRow extends ConsumerWidget {
               final confirmed = await _confirmDelete(context, habit);
               if (confirmed) await db.deleteHabit(habit.id);
             },
-            child: const Padding(
+            child: Padding(
               padding:
-                  EdgeInsets.symmetric(horizontal: TH.s8, vertical: 4),
+                  const EdgeInsets.symmetric(horizontal: TH.s8, vertical: 4),
               child: Text('[ delete ]',
-                  style: TextStyle(color: TH.red, fontSize: 12)),
+                  style: TextStyle(color: col.red, fontSize: 12)),
             ),
           ),
         ],
@@ -162,13 +164,14 @@ String _relative(DateTime when) {
 }
 
 Future<bool> _confirmDelete(BuildContext context, Habit habit) async {
+  final col = AppColors.of(context);
   final result = await showDialog<bool>(
     context: context,
     barrierColor: Colors.black54,
     builder: (ctx) => Dialog(
-      backgroundColor: TH.bg2,
+      backgroundColor: col.bg2,
       shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.all(TH.r10)),
+          RoundedRectangleBorder(borderRadius: const BorderRadius.all(TH.r10)),
       child: SizedBox(
         width: 400,
         child: Padding(
@@ -178,14 +181,14 @@ Future<bool> _confirmDelete(BuildContext context, Habit habit) async {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('permanently delete "${habit.name}"?',
-                  style: const TextStyle(
-                      color: TH.fg,
+                  style: TextStyle(
+                      color: col.fg,
                       fontSize: 14,
                       fontWeight: FontWeight.w600)),
               const SizedBox(height: TH.s8),
-              const Text(
+              Text(
                 "this removes the habit and every completion record.",
-                style: TextStyle(color: TH.fgDim, fontSize: 12),
+                style: TextStyle(color: col.fgDim, fontSize: 12),
               ),
               const SizedBox(height: TH.s22),
               Row(
@@ -193,9 +196,9 @@ Future<bool> _confirmDelete(BuildContext context, Habit habit) async {
                 children: [
                   GestureDetector(
                     onTap: () => Navigator.of(ctx).pop(false),
-                    child: const Text('[ cancel ]',
+                    child: Text('[ cancel ]',
                         style:
-                            TextStyle(color: TH.fgMute, fontSize: 12)),
+                            TextStyle(color: col.fgMute, fontSize: 12)),
                   ),
                   const SizedBox(width: TH.s14),
                   GestureDetector(
@@ -204,12 +207,12 @@ Future<bool> _confirmDelete(BuildContext context, Habit habit) async {
                       padding: const EdgeInsets.symmetric(
                           horizontal: TH.s14, vertical: TH.s8),
                       decoration: BoxDecoration(
-                        border: Border.all(color: TH.red),
-                        borderRadius: BorderRadius.all(TH.r4),
+                        border: Border.all(color: col.red),
+                        borderRadius: const BorderRadius.all(TH.r4),
                       ),
-                      child: const Text('[ delete ]',
+                      child: Text('[ delete ]',
                           style:
-                              TextStyle(color: TH.red, fontSize: 12)),
+                              TextStyle(color: col.red, fontSize: 12)),
                     ),
                   ),
                 ],

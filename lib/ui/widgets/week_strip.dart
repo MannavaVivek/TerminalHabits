@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../state/providers.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/tokens.dart';
 
 class WeekStrip extends ConsumerWidget {
@@ -8,6 +9,7 @@ class WeekStrip extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final col = context.col;
     final selected = ref.watch(selectedDayProvider);
     final today = DateTime.now();
     final ratios = ref.watch(weeklyRatiosProvider);
@@ -29,6 +31,7 @@ class WeekStrip extends ConsumerWidget {
       children: [
         _NavArrow(
           label: '<',
+          col: col,
           onTap: () => ref.read(selectedDayProvider.notifier).state =
               DateTime(selected.year, selected.month, selected.day - 7),
         ),
@@ -40,6 +43,7 @@ class WeekStrip extends ConsumerWidget {
                   ref.read(selectedDayProvider.notifier).state = days[i],
               behavior: HitTestBehavior.opaque,
               child: _DayCell(
+                col: col,
                 label: labels[i],
                 date: days[i],
                 isSelected: _sameDay(days[i], selected),
@@ -53,6 +57,7 @@ class WeekStrip extends ConsumerWidget {
         const SizedBox(width: 4),
         _NavArrow(
           label: '>',
+          col: col,
           onTap: () => ref.read(selectedDayProvider.notifier).state =
               DateTime(selected.year, selected.month, selected.day + 7),
         ),
@@ -67,7 +72,8 @@ class WeekStrip extends ConsumerWidget {
 class _NavArrow extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
-  const _NavArrow({required this.label, required this.onTap});
+  final AppColors col;
+  const _NavArrow({required this.label, required this.onTap, required this.col});
 
   @override
   Widget build(BuildContext context) {
@@ -79,7 +85,7 @@ class _NavArrow extends StatelessWidget {
         height: 56,
         child: Center(
           child: Text(label,
-              style: const TextStyle(color: TH.fgMute, fontSize: 14)),
+              style: TextStyle(color: col.fgMute, fontSize: 14)),
         ),
       ),
     );
@@ -92,6 +98,7 @@ class _DayCell extends StatelessWidget {
   final bool isSelected;
   final bool isToday;
   final double ratio;
+  final AppColors col;
 
   const _DayCell({
     required this.label,
@@ -99,26 +106,27 @@ class _DayCell extends StatelessWidget {
     required this.isSelected,
     required this.isToday,
     required this.ratio,
+    required this.col,
   });
 
   @override
   Widget build(BuildContext context) {
     final color = isSelected
-        ? TH.amber
+        ? col.amber
         : isToday
-            ? TH.fg
-            : TH.fgMute;
+            ? col.fg
+            : col.fgMute;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(label,
-            style: TextStyle(color: TH.fgMute, fontSize: 10)),
+            style: TextStyle(color: col.fgMute, fontSize: 10)),
         const SizedBox(height: 2),
         Container(
           padding: const EdgeInsets.symmetric(vertical: 4),
           decoration: BoxDecoration(
-            color: isSelected ? TH.bg3 : Colors.transparent,
-            borderRadius: BorderRadius.all(TH.r4),
+            color: isSelected ? col.bg3 : Colors.transparent,
+            borderRadius: const BorderRadius.all(TH.r4),
           ),
           child: Center(
             child: Text(
@@ -133,7 +141,7 @@ class _DayCell extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 4),
-        _IntensityBar(ratio: ratio),
+        _IntensityBar(ratio: ratio, col: col),
       ],
     );
   }
@@ -141,7 +149,8 @@ class _DayCell extends StatelessWidget {
 
 class _IntensityBar extends StatelessWidget {
   final double ratio;
-  const _IntensityBar({required this.ratio});
+  final AppColors col;
+  const _IntensityBar({required this.ratio, required this.col});
 
   @override
   Widget build(BuildContext context) {
@@ -154,16 +163,16 @@ class _IntensityBar extends StatelessWidget {
             width: width,
             height: 6,
             decoration: BoxDecoration(
-              color: TH.bg2,
-              borderRadius: BorderRadius.all(Radius.circular(2)),
+              color: col.bg2,
+              borderRadius: const BorderRadius.all(Radius.circular(2)),
             ),
           ),
           Container(
             width: width * ratio,
             height: 6,
             decoration: BoxDecoration(
-              color: TH.amber,
-              borderRadius: BorderRadius.all(Radius.circular(2)),
+              color: col.amber,
+              borderRadius: const BorderRadius.all(Radius.circular(2)),
             ),
           ),
         ]);

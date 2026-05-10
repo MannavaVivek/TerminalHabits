@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../data/database.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/tokens.dart';
 
 /// Returns:
@@ -42,7 +43,6 @@ class _ValueInputDialogState extends State<ValueInputDialog> {
   @override
   void initState() {
     super.initState();
-    // Cap initial value so an old out-of-range entry can't bypass the limit.
     _value = widget.currentValue.clamp(0, 999).toDouble();
     _ctrl = TextEditingController(
         text: _value > 0 ? _value.toInt().toString() : '');
@@ -59,7 +59,6 @@ class _ValueInputDialogState extends State<ValueInputDialog> {
   void _onTextChanged() {
     final parsed = double.tryParse(_ctrl.text.trim());
     if (parsed != null && parsed > 999) {
-      // Immediately cap the field text and show the inline warning.
       _ctrl
         ..text = '999'
         ..selection = const TextSelection.collapsed(offset: 3);
@@ -105,15 +104,16 @@ class _ValueInputDialogState extends State<ValueInputDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final col = context.col;
     final target = widget.habit.target;
     final subtitle = target != null
         ? '${widget.habit.tracking} · target $target$_unit'
         : widget.habit.tracking;
 
     return Dialog(
-      backgroundColor: TH.bg2,
+      backgroundColor: col.bg2,
       shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.all(TH.r10)),
+          RoundedRectangleBorder(borderRadius: const BorderRadius.all(TH.r10)),
       child: SizedBox(
         width: 300,
         child: Padding(
@@ -129,35 +129,29 @@ class _ValueInputDialogState extends State<ValueInputDialog> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(widget.habit.name,
-                            style: const TextStyle(
-                                color: TH.fg,
+                            style: TextStyle(
+                                color: col.fg,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600)),
                         Text(subtitle,
-                            style: const TextStyle(
-                                color: TH.fgMute, fontSize: 11)),
+                            style: TextStyle(
+                                color: col.fgMute, fontSize: 11)),
                       ],
                     ),
                   ),
                   GestureDetector(
                     onTap: () => Navigator.of(context).pop(),
-                    child: const Text('[ cancel ]',
+                    child: Text('[ cancel ]',
                         style: TextStyle(
-                            color: TH.fgMute, fontSize: 12)),
+                            color: col.fgMute, fontSize: 12)),
                   ),
                 ],
               ),
               const SizedBox(height: TH.s22),
               Row(
                 children: [
-                  // ── decrement ────────────────────────────────────
-                  _ArrowButton(
-                    label: '−',
-                    onTap: _decrement,
-                  ),
+                  _ArrowButton(label: '−', onTap: _decrement, col: col),
                   const SizedBox(width: TH.s8),
-
-                  // ── value field ──────────────────────────────────
                   Expanded(
                     child: KeyboardListener(
                       focusNode: FocusNode(),
@@ -184,30 +178,30 @@ class _ValueInputDialogState extends State<ValueInputDialog> {
                           FilteringTextInputFormatter.digitsOnly,
                           LengthLimitingTextInputFormatter(3),
                         ],
-                        style: const TextStyle(
-                            color: TH.fg,
+                        style: TextStyle(
+                            color: col.fg,
                             fontSize: 20,
                             fontWeight: FontWeight.w600),
                         decoration: InputDecoration(
                           hintText: '0',
-                          hintStyle: const TextStyle(
-                              color: TH.fgFaint, fontSize: 20),
+                          hintStyle: TextStyle(
+                              color: col.fgFaint, fontSize: 20),
                           suffix: _unit.isNotEmpty
                               ? Text(_unit,
-                                  style: const TextStyle(
-                                      color: TH.fgMute, fontSize: 13))
+                                  style: TextStyle(
+                                      color: col.fgMute, fontSize: 13))
                               : null,
                           enabledBorder: OutlineInputBorder(
                             borderSide:
-                                const BorderSide(color: TH.line2),
-                            borderRadius: BorderRadius.all(TH.r4),
+                                BorderSide(color: col.line2),
+                            borderRadius: const BorderRadius.all(TH.r4),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderSide:
-                                const BorderSide(color: TH.green),
-                            borderRadius: BorderRadius.all(TH.r4),
+                                BorderSide(color: col.green),
+                            borderRadius: const BorderRadius.all(TH.r4),
                           ),
-                          fillColor: TH.bg1,
+                          fillColor: col.bg1,
                           filled: true,
                           isDense: true,
                           contentPadding:
@@ -219,28 +213,22 @@ class _ValueInputDialogState extends State<ValueInputDialog> {
                     ),
                   ),
                   const SizedBox(width: TH.s8),
-
-                  // ── increment ────────────────────────────────────
-                  _ArrowButton(
-                    label: '+',
-                    onTap: _increment,
-                  ),
+                  _ArrowButton(label: '+', onTap: _increment, col: col),
                 ],
               ),
               if (_overflowWarning) ...[
                 const SizedBox(height: TH.s4),
-                const Text('// max is 999',
-                    style: TextStyle(color: TH.red, fontSize: 11)),
+                Text('// max is 999',
+                    style: TextStyle(color: col.red, fontSize: 11)),
               ],
               const SizedBox(height: TH.s14),
-
-              // ── quick-set chips when target is known ─────────────
               if (target != null) ...[
                 Wrap(
                   spacing: 6,
                   children: _quickValues(target)
                       .map((v) => _QuickChip(
                             label: '$v$_unit',
+                            col: col,
                             onTap: () {
                               setState(() {
                                 _value = v.toDouble();
@@ -254,38 +242,35 @@ class _ValueInputDialogState extends State<ValueInputDialog> {
                 ),
                 const SizedBox(height: TH.s14),
               ],
-
               Row(
                 children: [
-                  // ── clear ────────────────────────────────────────
                   GestureDetector(
                     onTap: () => Navigator.of(context).pop(0.0),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: TH.s14, vertical: TH.s8),
                       decoration: BoxDecoration(
-                        border: Border.all(color: TH.line2),
-                        borderRadius: BorderRadius.all(TH.r4),
+                        border: Border.all(color: col.line2),
+                        borderRadius: const BorderRadius.all(TH.r4),
                       ),
-                      child: const Text('[ clear ]',
+                      child: Text('[ clear ]',
                           style: TextStyle(
-                              color: TH.fgMute, fontSize: 12)),
+                              color: col.fgMute, fontSize: 12)),
                     ),
                   ),
                   const Spacer(),
-                  // ── set ──────────────────────────────────────────
                   GestureDetector(
                     onTap: _confirm,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: TH.s22, vertical: TH.s8),
                       decoration: BoxDecoration(
-                        border: Border.all(color: TH.green),
-                        borderRadius: BorderRadius.all(TH.r4),
+                        border: Border.all(color: col.green),
+                        borderRadius: const BorderRadius.all(TH.r4),
                       ),
-                      child: const Text('[ set ]',
+                      child: Text('[ set ]',
                           style: TextStyle(
-                              color: TH.green, fontSize: 13)),
+                              color: col.green, fontSize: 13)),
                     ),
                   ),
                 ],
@@ -298,28 +283,19 @@ class _ValueInputDialogState extends State<ValueInputDialog> {
   }
 
   List<int> _quickValues(int target) {
-    if (_isDuration) {
-      // Sensible duration chips: 25%, 50%, 75%, 100% of target
-      final q = (target / 4).round();
-      return {q, q * 2, q * 3, target}
-          .where((v) => v > 0)
-          .toList()
-        ..sort();
-    } else {
-      // Counter: 25%, 50%, 75%, 100% of target
-      final q = (target / 4).round();
-      return {q, q * 2, q * 3, target}
-          .where((v) => v > 0)
-          .toList()
-        ..sort();
-    }
+    final q = (target / 4).round();
+    return {q, q * 2, q * 3, target}
+        .where((v) => v > 0)
+        .toList()
+      ..sort();
   }
 }
 
 class _ArrowButton extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
-  const _ArrowButton({required this.label, required this.onTap});
+  final AppColors col;
+  const _ArrowButton({required this.label, required this.onTap, required this.col});
 
   @override
   Widget build(BuildContext context) {
@@ -329,14 +305,14 @@ class _ArrowButton extends StatelessWidget {
         width: 40,
         height: 48,
         decoration: BoxDecoration(
-          border: Border.all(color: TH.line2),
-          borderRadius: BorderRadius.all(TH.r4),
-          color: TH.bg1,
+          border: Border.all(color: col.line2),
+          borderRadius: const BorderRadius.all(TH.r4),
+          color: col.bg1,
         ),
         child: Center(
           child: Text(label,
-              style: const TextStyle(
-                  color: TH.fgDim,
+              style: TextStyle(
+                  color: col.fgDim,
                   fontSize: 20,
                   fontWeight: FontWeight.w300)),
         ),
@@ -348,7 +324,8 @@ class _ArrowButton extends StatelessWidget {
 class _QuickChip extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
-  const _QuickChip({required this.label, required this.onTap});
+  final AppColors col;
+  const _QuickChip({required this.label, required this.onTap, required this.col});
 
   @override
   Widget build(BuildContext context) {
@@ -358,11 +335,11 @@ class _QuickChip extends StatelessWidget {
         padding:
             const EdgeInsets.symmetric(horizontal: TH.s8, vertical: 3),
         decoration: BoxDecoration(
-          border: Border.all(color: TH.line2),
-          borderRadius: BorderRadius.all(TH.r4),
+          border: Border.all(color: col.line2),
+          borderRadius: const BorderRadius.all(TH.r4),
         ),
         child: Text(label,
-            style: const TextStyle(color: TH.fgDim, fontSize: 11)),
+            style: TextStyle(color: col.fgDim, fontSize: 11)),
       ),
     );
   }

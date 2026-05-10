@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/icon_library.dart';
 import '../../theme/tokens.dart';
 import '../widgets/icon_picker.dart';
@@ -50,12 +51,13 @@ class _NewGroupDialogState extends State<NewGroupDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final col = context.col;
     final iconData = lucideIconData(_icon);
 
     return Dialog(
-      backgroundColor: TH.bg2,
+      backgroundColor: col.bg2,
       shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.all(TH.r10)),
+          RoundedRectangleBorder(borderRadius: const BorderRadius.all(TH.r10)),
       child: SizedBox(
         width: 380,
         child: Padding(
@@ -66,45 +68,45 @@ class _NewGroupDialogState extends State<NewGroupDialog> {
             children: [
               Row(
                 children: [
-                  const Text('new group',
+                  Text('new group',
                       style: TextStyle(
-                          color: TH.fg,
+                          color: col.fg,
                           fontSize: 15,
                           fontWeight: FontWeight.w600)),
                   const Spacer(),
                   GestureDetector(
                     onTap: () => Navigator.of(context).pop(),
-                    child: const Text('[ cancel ]',
+                    child: Text('[ cancel ]',
                         style:
-                            TextStyle(color: TH.fgMute, fontSize: 12)),
+                            TextStyle(color: col.fgMute, fontSize: 12)),
                   ),
                 ],
               ),
               const SizedBox(height: TH.s14),
-              const Text('name',
-                  style: TextStyle(color: TH.fgDim, fontSize: 12)),
+              Text('name',
+                  style: TextStyle(color: col.fgDim, fontSize: 12)),
               const SizedBox(height: TH.s4),
               TextField(
                 controller: _nameCtrl,
                 autofocus: true,
                 maxLength: 40,
-                style: const TextStyle(color: TH.fg, fontSize: 14),
+                style: TextStyle(color: col.fg, fontSize: 14),
                 inputFormatters: [
                   FilteringTextInputFormatter.deny(RegExp(r'\n')),
                 ],
                 decoration: InputDecoration(
                   hintText: 'group name',
                   hintStyle:
-                      const TextStyle(color: TH.fgFaint, fontSize: 14),
+                      TextStyle(color: col.fgFaint, fontSize: 14),
                   enabledBorder: OutlineInputBorder(
-                    borderSide: const BorderSide(color: TH.line2),
-                    borderRadius: BorderRadius.all(TH.r4),
+                    borderSide: BorderSide(color: col.line2),
+                    borderRadius: const BorderRadius.all(TH.r4),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderSide: const BorderSide(color: TH.green),
-                    borderRadius: BorderRadius.all(TH.r4),
+                    borderSide: BorderSide(color: col.green),
+                    borderRadius: const BorderRadius.all(TH.r4),
                   ),
-                  fillColor: TH.bg1,
+                  fillColor: col.bg1,
                   filled: true,
                   isDense: true,
                   contentPadding: const EdgeInsets.symmetric(
@@ -113,8 +115,8 @@ class _NewGroupDialogState extends State<NewGroupDialog> {
                 onSubmitted: (_) => _save(),
               ),
               const SizedBox(height: TH.s14),
-              const Text('icon (optional)',
-                  style: TextStyle(color: TH.fgDim, fontSize: 12)),
+              Text('icon (optional)',
+                  style: TextStyle(color: col.fgDim, fontSize: 12)),
               const SizedBox(height: TH.s4),
               Row(
                 children: [
@@ -122,14 +124,14 @@ class _NewGroupDialogState extends State<NewGroupDialog> {
                     width: 36,
                     height: 36,
                     decoration: BoxDecoration(
-                      border: Border.all(color: TH.line2),
-                      borderRadius: BorderRadius.all(TH.r4),
+                      border: Border.all(color: col.line2),
+                      borderRadius: const BorderRadius.all(TH.r4),
                     ),
                     child: Center(
                       child: iconData != null
-                          ? Icon(iconData, size: 18, color: TH.fgDim)
-                          : const Icon(LucideIcons.minus,
-                              size: 14, color: TH.fgFaint),
+                          ? Icon(iconData, size: 18, color: col.fgDim)
+                          : Icon(LucideIcons.minus,
+                              size: 14, color: col.fgFaint),
                     ),
                   ),
                   const SizedBox(width: TH.s8),
@@ -143,50 +145,50 @@ class _NewGroupDialogState extends State<NewGroupDialog> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: TH.s8, vertical: TH.s4),
                       decoration: BoxDecoration(
-                        border: Border.all(color: TH.line2),
-                        borderRadius: BorderRadius.all(TH.r4),
+                        border: Border.all(color: col.line2),
+                        borderRadius: const BorderRadius.all(TH.r4),
                       ),
-                      child: const Text('[ pick icon ]',
+                      child: Text('[ pick icon ]',
                           style:
-                              TextStyle(color: TH.fgDim, fontSize: 12)),
+                              TextStyle(color: col.fgDim, fontSize: 12)),
                     ),
                   ),
                   if (_icon != null) ...[
                     const SizedBox(width: TH.s8),
                     GestureDetector(
                       onTap: () => setState(() => _icon = null),
-                      child: const Text('[ clear ]',
+                      child: Text('[ clear ]',
                           style: TextStyle(
-                              color: TH.fgMute, fontSize: 12)),
+                              color: col.fgMute, fontSize: 12)),
                     ),
                   ],
                 ],
               ),
               const SizedBox(height: TH.s14),
-              const Text('note (optional)',
-                  style: TextStyle(color: TH.fgDim, fontSize: 12)),
+              Text('note (optional)',
+                  style: TextStyle(color: col.fgDim, fontSize: 12)),
               const SizedBox(height: TH.s4),
               TextField(
                 controller: _noteCtrl,
                 maxLines: 1,
                 maxLength: 80,
-                style: const TextStyle(color: TH.fg, fontSize: 13),
+                style: TextStyle(color: col.fg, fontSize: 13),
                 inputFormatters: [
                   FilteringTextInputFormatter.deny(RegExp(r'\n')),
                 ],
                 decoration: InputDecoration(
                   hintText: '// optional comment under group name',
                   hintStyle:
-                      const TextStyle(color: TH.fgFaint, fontSize: 13),
+                      TextStyle(color: col.fgFaint, fontSize: 13),
                   enabledBorder: OutlineInputBorder(
-                    borderSide: const BorderSide(color: TH.line2),
-                    borderRadius: BorderRadius.all(TH.r4),
+                    borderSide: BorderSide(color: col.line2),
+                    borderRadius: const BorderRadius.all(TH.r4),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderSide: const BorderSide(color: TH.green),
-                    borderRadius: BorderRadius.all(TH.r4),
+                    borderSide: BorderSide(color: col.green),
+                    borderRadius: const BorderRadius.all(TH.r4),
                   ),
-                  fillColor: TH.bg1,
+                  fillColor: col.bg1,
                   filled: true,
                   isDense: true,
                   contentPadding: const EdgeInsets.symmetric(
@@ -199,12 +201,12 @@ class _NewGroupDialogState extends State<NewGroupDialog> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: TH.s8),
                   decoration: BoxDecoration(
-                    border: Border.all(color: TH.green),
-                    borderRadius: BorderRadius.all(TH.r4),
+                    border: Border.all(color: col.green),
+                    borderRadius: const BorderRadius.all(TH.r4),
                   ),
-                  child: const Center(
+                  child: Center(
                     child: Text('[ create ]',
-                        style: TextStyle(color: TH.green, fontSize: 13)),
+                        style: TextStyle(color: col.green, fontSize: 13)),
                   ),
                 ),
               ),

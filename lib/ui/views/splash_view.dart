@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../state/providers.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/tokens.dart';
 import '../widgets/ascii_art.dart';
 import 'app_scaffold.dart';
@@ -32,10 +33,8 @@ class _SplashViewState extends ConsumerState<SplashView>
       vsync: this,
       duration: const Duration(milliseconds: 1000),
     )..addListener(() {
-      setState(() {
-        _cursorVisible = _cursorController.value < 0.5;
+        setState(() => _cursorVisible = _cursorController.value < 0.5);
       });
-    });
     _cursorController.repeat();
   }
 
@@ -87,8 +86,9 @@ class _SplashViewState extends ConsumerState<SplashView>
 
   @override
   Widget build(BuildContext context) {
+    final col = context.col;
     return Scaffold(
-      backgroundColor: TH.bg,
+      backgroundColor: col.bg,
       body: KeyboardListener(
         focusNode: FocusNode()..requestFocus(),
         autofocus: true,
@@ -109,27 +109,28 @@ class _SplashViewState extends ConsumerState<SplashView>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (_logoText.isNotEmpty) ...[
-                    AsciiArt(_logoText, fontSize: 11, color: TH.green),
+                    AsciiArt(_logoText, fontSize: 11, color: col.green),
                     const SizedBox(height: TH.s22),
                   ],
                   _SystemInfoBox(),
                   const SizedBox(height: TH.s22),
-                  const Text(
-                    '// no nudges. no streak panic.',
-                    style: TextStyle(fontSize: 13, color: TH.fgMute),
-                  ),
+                  Text('// no nudges. no streak panic.',
+                      style: TextStyle(fontSize: 13, color: col.fgMute)),
                   const SizedBox(height: TH.s14),
                   Text.rich(
                     TextSpan(
-                      style: const TextStyle(fontSize: 13, color: TH.fgDim),
+                      style: TextStyle(fontSize: 13, color: col.fgDim),
                       children: [
                         const TextSpan(
-                          text: '> press enter, or click anywhere — yours to shape.',
+                          text:
+                              '> press enter, or click anywhere — yours to shape.',
                         ),
                         TextSpan(
                           text: '_',
                           style: TextStyle(
-                            color: _cursorVisible ? TH.green : Colors.transparent,
+                            color: _cursorVisible
+                                ? col.green
+                                : Colors.transparent,
                           ),
                         ),
                       ],
@@ -148,6 +149,7 @@ class _SplashViewState extends ConsumerState<SplashView>
 class _SystemInfoBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final col = context.col;
     final platform = Platform.isMacOS
         ? 'macOS'
         : Platform.isLinux
@@ -156,19 +158,19 @@ class _SystemInfoBox extends StatelessWidget {
                 ? 'Android'
                 : 'unknown';
 
-    const borderSide = BorderSide(color: TH.line, width: 1);
     return DecoratedBox(
-      decoration: const BoxDecoration(
-        border: Border.fromBorderSide(borderSide),
-        borderRadius: BorderRadius.all(TH.r6),
+      decoration: BoxDecoration(
+        border: Border.fromBorderSide(BorderSide(color: col.line, width: 1)),
+        borderRadius: const BorderRadius.all(TH.r6),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: TH.s14, vertical: TH.s8),
+        padding: const EdgeInsets.symmetric(
+            horizontal: TH.s14, vertical: TH.s8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _InfoRow(label: 'platform', value: platform),
-            _InfoRow(label: 'version ', value: 'v0.1.0'),
+            _InfoRow(label: 'version ', value: 'v0.3.0'),
             _InfoRow(
               label: 'build   ',
               value: const bool.fromEnvironment('dart.vm.product')
@@ -185,23 +187,19 @@ class _SystemInfoBox extends StatelessWidget {
 class _InfoRow extends StatelessWidget {
   final String label;
   final String value;
-
   const _InfoRow({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
+    final col = context.col;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Text.rich(
         TextSpan(children: [
-          TextSpan(
-            text: '$label  ',
-            style: const TextStyle(fontSize: 12, color: TH.fgMute),
-          ),
-          TextSpan(
-            text: value,
-            style: const TextStyle(fontSize: 12, color: TH.fgDim),
-          ),
+          TextSpan(text: '$label  ',
+              style: TextStyle(fontSize: 12, color: col.fgMute)),
+          TextSpan(text: value,
+              style: TextStyle(fontSize: 12, color: col.fgDim)),
         ]),
       ),
     );

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/tokens.dart';
 
 const _chromeHeight = 38.0;
@@ -9,29 +10,29 @@ class WindowChrome extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final col = context.col;
     return SizedBox(
       height: _chromeHeight,
       child: DecoratedBox(
-        decoration: const BoxDecoration(
-          color: TH.bg1,
-          border: Border(bottom: BorderSide(color: TH.line, width: 1)),
+        decoration: BoxDecoration(
+          color: col.bg1,
+          border: Border(bottom: BorderSide(color: col.line, width: 1)),
         ),
         child: DragToMoveArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: TH.s14),
             child: Row(
               children: [
-                // Native macOS traffic lights live here.
                 const SizedBox(width: 72),
-                const Expanded(
+                Expanded(
                   child: Center(
                     child: Text(
                       'TerminalHabits',
-                      style: TextStyle(fontSize: 12, color: TH.fgDim),
+                      style: TextStyle(fontSize: 12, color: col.fgDim),
                     ),
                   ),
                 ),
-                const _VersionMeta(),
+                _VersionMeta(col: col),
               ],
             ),
           ),
@@ -42,13 +43,14 @@ class WindowChrome extends StatelessWidget {
 }
 
 class _VersionMeta extends StatelessWidget {
-  const _VersionMeta();
+  final AppColors col;
+  const _VersionMeta({required this.col});
 
   @override
   Widget build(BuildContext context) {
-    return const Text(
+    return Text(
       'v0.3.0 · matrix',
-      style: TextStyle(fontSize: 11, color: TH.fgMute),
+      style: TextStyle(fontSize: 11, color: col.fgMute),
     );
   }
 }

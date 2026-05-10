@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../state/providers.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/tokens.dart';
 import '../widgets/auth_widgets.dart';
 import '../widgets/prompt_line.dart';
@@ -76,8 +77,9 @@ class _RegisterViewState extends ConsumerState<RegisterView> {
 
   @override
   Widget build(BuildContext context) {
+    final col = context.col;
     return Scaffold(
-      backgroundColor: TH.bg,
+      backgroundColor: col.bg,
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 400),
@@ -102,7 +104,7 @@ class _RegisterViewState extends ConsumerState<RegisterView> {
                 if (_error != null) ...[
                   const SizedBox(height: TH.s8),
                   Text(_error!,
-                      style: const TextStyle(color: TH.red, fontSize: 12)),
+                      style: TextStyle(color: col.red, fontSize: 12)),
                 ],
                 const SizedBox(height: TH.s22),
                 Row(
@@ -123,8 +125,8 @@ class _RegisterViewState extends ConsumerState<RegisterView> {
                       reverseTransitionDuration: Duration.zero,
                     ),
                   ),
-                  child: const Text('already have an account? [ login ]',
-                      style: TextStyle(color: TH.fgDim, fontSize: 12)),
+                  child: Text('already have an account? [ login ]',
+                      style: TextStyle(color: col.fgDim, fontSize: 12)),
                 ),
               ],
             ),

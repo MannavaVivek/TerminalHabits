@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/database.dart';
 import '../../state/providers.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/icon_library.dart';
 import '../../theme/tokens.dart';
-
-// ── Theme swatches (preview only — full apply requires restart) ───────────────
 
 const _kThemes = [
   (id: 'matrix',    label: 'matrix',    accent: Color(0xFF5CE39A), bg: Color(0xFF0B1014)),
@@ -15,8 +14,6 @@ const _kThemes = [
   (id: 'monokai',   label: 'monokai',   accent: Color(0xFFA6E22E), bg: Color(0xFF272822)),
   (id: 'gruvbox',   label: 'gruvbox',   accent: Color(0xFFB8BB26), bg: Color(0xFF282828)),
 ];
-
-// ─────────────────────────────────────────────────────────────────────────────
 
 class SettingsDialog extends ConsumerWidget {
   const SettingsDialog({super.key});
@@ -29,6 +26,7 @@ class SettingsDialog extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final col = context.col;
     final db = ref.read(dbProvider);
     final themeId = ref.watch(themeIdProvider).valueOrNull ?? 'matrix';
     final fontSize = ref.watch(fontSizeProvider).valueOrNull ?? 'md';
@@ -40,50 +38,48 @@ class SettingsDialog extends ConsumerWidget {
     final groupsAV = ref.watch(groupsProvider);
 
     return Dialog(
-      backgroundColor: TH.bg2,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(TH.r10)),
+      backgroundColor: col.bg2,
+      shape: RoundedRectangleBorder(
+          borderRadius: const BorderRadius.all(TH.r10)),
       child: SizedBox(
         width: 520,
         height: 600,
         child: Column(
           children: [
-            // ── header ──────────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(
                   TH.s22, TH.s14, TH.s14, TH.s14),
               child: Row(
                 children: [
-                  const Text('[ ⚙ settings ]',
+                  Text('[ ⚙ settings ]',
                       style: TextStyle(
-                          color: TH.fg,
+                          color: col.fg,
                           fontSize: 14,
                           fontWeight: FontWeight.w600)),
                   const Spacer(),
                   GestureDetector(
                     onTap: () => Navigator.of(context).pop(),
-                    child: const Padding(
-                      padding: EdgeInsets.all(TH.s8),
+                    child: Padding(
+                      padding: const EdgeInsets.all(TH.s8),
                       child: Text('✕',
-                          style: TextStyle(color: TH.fgMute, fontSize: 13)),
+                          style: TextStyle(color: col.fgMute, fontSize: 13)),
                     ),
                   ),
                 ],
               ),
             ),
-            Container(height: 1, color: TH.line),
-            // ── body ────────────────────────────────────────────────────
+            Container(height: 1, color: col.line),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(TH.s22),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ── Appearance ────────────────────────────────────────
-                    _sectionLabel('appearance'),
+                    _sectionLabel('appearance', col),
                     const SizedBox(height: TH.s14),
                     _SettingRow(
                       label: 'font size',
+                      col: col,
                       child: Row(
                         children: ['sm', 'md', 'lg'].map((s) {
                           final sel = fontSize == s;
@@ -95,15 +91,15 @@ class SettingsDialog extends ConsumerWidget {
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: TH.s8, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: sel ? TH.bg3 : Colors.transparent,
+                                  color: sel ? col.bg3 : Colors.transparent,
                                   border: Border.all(
-                                      color: sel ? TH.green : TH.line2),
+                                      color: sel ? col.green : col.line2),
                                   borderRadius:
                                       const BorderRadius.all(TH.r4),
                                 ),
                                 child: Text(s,
                                     style: TextStyle(
-                                        color: sel ? TH.green : TH.fgDim,
+                                        color: sel ? col.green : col.fgDim,
                                         fontSize: 12)),
                               ),
                             ),
@@ -114,6 +110,7 @@ class SettingsDialog extends ConsumerWidget {
                     const SizedBox(height: TH.s14),
                     _SettingRow(
                       label: 'theme',
+                      col: col,
                       labelAlign: CrossAxisAlignment.start,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -134,7 +131,7 @@ class SettingsDialog extends ConsumerWidget {
                                     color: t.bg,
                                     border: Border.all(
                                         color:
-                                            sel ? TH.amber : TH.line2,
+                                            sel ? col.amber : col.line2,
                                         width: sel ? 1.5 : 1),
                                     borderRadius:
                                         const BorderRadius.all(TH.r4),
@@ -165,23 +162,18 @@ class SettingsDialog extends ConsumerWidget {
                               );
                             }).toList(),
                           ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            '// color takes effect on next launch',
-                            style: TextStyle(
-                                color: TH.fgFaint, fontSize: 10),
-                          ),
                         ],
                       ),
                     ),
                     const SizedBox(height: TH.s22),
-                    // ── Behavior ──────────────────────────────────────────
-                    _sectionLabel('behavior'),
+                    _sectionLabel('behavior', col),
                     const SizedBox(height: TH.s14),
                     _SettingRow(
                       label: 'future marking',
+                      col: col,
                       child: _Toggle(
                         value: allowFuture,
+                        col: col,
                         onToggle: (v) => db.setSetting(
                             'allowFutureMarking', v.toString()),
                       ),
@@ -189,15 +181,16 @@ class SettingsDialog extends ConsumerWidget {
                     const SizedBox(height: TH.s8),
                     _SettingRow(
                       label: 'confirm delete',
+                      col: col,
                       child: _Toggle(
                         value: confirmDest,
+                        col: col,
                         onToggle: (v) => db.setSetting(
                             'confirmDestructive', v.toString()),
                       ),
                     ),
                     const SizedBox(height: TH.s22),
-                    // ── Data ──────────────────────────────────────────────
-                    _sectionLabel('data'),
+                    _sectionLabel('data', col),
                     const SizedBox(height: TH.s14),
                     _ArchiveList(
                       archivedAV: archivedAV,
@@ -205,16 +198,15 @@ class SettingsDialog extends ConsumerWidget {
                       db: db,
                     ),
                     const SizedBox(height: TH.s22),
-                    // ── About ─────────────────────────────────────────────
-                    _sectionLabel('about'),
+                    _sectionLabel('about', col),
                     const SizedBox(height: TH.s14),
-                    const _AboutRow('version', '0.3.0'),
-                    const _AboutRow('storage', 'local sqlite'),
+                    _AboutRow('version', '0.3.0', col: col),
+                    _AboutRow('storage', 'local sqlite', col: col),
                     const SizedBox(height: TH.s8),
-                    const Text(
+                    Text(
                       '// passwords are stored in plaintext — Phase 11\n'
                       '// replaces this with hashed storage + email recovery.',
-                      style: TextStyle(color: TH.fgFaint, fontSize: 10),
+                      style: TextStyle(color: col.fgFaint, fontSize: 10),
                     ),
                   ],
                 ),
@@ -227,20 +219,20 @@ class SettingsDialog extends ConsumerWidget {
   }
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-Widget _sectionLabel(String label) => Text('── $label',
-    style: const TextStyle(
-        color: TH.fgMute, fontSize: 11, fontWeight: FontWeight.w600));
+Widget _sectionLabel(String label, AppColors col) => Text('── $label',
+    style: TextStyle(
+        color: col.fgMute, fontSize: 11, fontWeight: FontWeight.w600));
 
 class _SettingRow extends StatelessWidget {
   final String label;
   final Widget child;
   final CrossAxisAlignment labelAlign;
+  final AppColors col;
 
   const _SettingRow({
     required this.label,
     required this.child,
+    required this.col,
     this.labelAlign = CrossAxisAlignment.center,
   });
 
@@ -252,7 +244,7 @@ class _SettingRow extends StatelessWidget {
         SizedBox(
           width: 110,
           child: Text('$label:',
-              style: const TextStyle(color: TH.fgDim, fontSize: 12)),
+              style: TextStyle(color: col.fgDim, fontSize: 12)),
         ),
         Expanded(child: child),
       ],
@@ -263,7 +255,8 @@ class _SettingRow extends StatelessWidget {
 class _Toggle extends StatelessWidget {
   final bool value;
   final ValueChanged<bool> onToggle;
-  const _Toggle({required this.value, required this.onToggle});
+  final AppColors col;
+  const _Toggle({required this.value, required this.onToggle, required this.col});
 
   @override
   Widget build(BuildContext context) {
@@ -273,13 +266,13 @@ class _Toggle extends StatelessWidget {
         padding: const EdgeInsets.symmetric(
             horizontal: TH.s8, vertical: 4),
         decoration: BoxDecoration(
-          border: Border.all(color: value ? TH.green : TH.line2),
+          border: Border.all(color: value ? col.green : col.line2),
           borderRadius: const BorderRadius.all(TH.r4),
         ),
         child: Text(
           value ? '[ ■ enabled ]' : '[   disabled ]',
           style: TextStyle(
-              color: value ? TH.green : TH.fgMute, fontSize: 12),
+              color: value ? col.green : col.fgMute, fontSize: 12),
         ),
       ),
     );
@@ -289,7 +282,8 @@ class _Toggle extends StatelessWidget {
 class _AboutRow extends StatelessWidget {
   final String label;
   final String value;
-  const _AboutRow(this.label, this.value);
+  final AppColors col;
+  const _AboutRow(this.label, this.value, {required this.col});
 
   @override
   Widget build(BuildContext context) {
@@ -300,18 +294,16 @@ class _AboutRow extends StatelessWidget {
           SizedBox(
             width: 80,
             child: Text('$label:',
-                style: const TextStyle(
-                    color: TH.fgDim, fontSize: 12)),
+                style: TextStyle(
+                    color: col.fgDim, fontSize: 12)),
           ),
           Text(value,
-              style: const TextStyle(color: TH.fg, fontSize: 12)),
+              style: TextStyle(color: col.fg, fontSize: 12)),
         ],
       ),
     );
   }
 }
-
-// ── Archive list ──────────────────────────────────────────────────────────────
 
 class _ArchiveList extends ConsumerWidget {
   final AsyncValue<List<Habit>> archivedAV;
@@ -326,18 +318,19 @@ class _ArchiveList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final col = context.col;
     return archivedAV.when(
-      loading: () => const Text('loading...',
-          style: TextStyle(color: TH.fgDim, fontSize: 12)),
+      loading: () => Text('loading...',
+          style: TextStyle(color: col.fgDim, fontSize: 12)),
       error: (e, _) => Text('error: $e',
-          style: const TextStyle(color: TH.red, fontSize: 12)),
+          style: TextStyle(color: col.red, fontSize: 12)),
       data: (archived) {
         final groups = groupsAV.valueOrNull ?? const <Group>[];
         final groupName = {for (final g in groups) g.id: g.name};
 
         if (archived.isEmpty) {
-          return const Text('// no archived habits.',
-              style: TextStyle(color: TH.fgMute, fontSize: 11));
+          return Text('// no archived habits.',
+              style: TextStyle(color: col.fgMute, fontSize: 11));
         }
 
         return Column(
@@ -345,7 +338,7 @@ class _ArchiveList extends ConsumerWidget {
           children: [
             Text(
               '// ${archived.length} habit${archived.length == 1 ? '' : 's'} archived.',
-              style: const TextStyle(color: TH.fgMute, fontSize: 11),
+              style: TextStyle(color: col.fgMute, fontSize: 11),
             ),
             const SizedBox(height: TH.s8),
             ...archived.map(
@@ -379,60 +372,61 @@ class _ArchivedItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final col = context.col;
     final archivedOn = habit.archivedAt;
     final iconData = lucideIconData(habit.icon);
 
     return Container(
       padding: const EdgeInsets.symmetric(
           horizontal: 0, vertical: TH.s8),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(
-            bottom: BorderSide(color: TH.line, width: 1)),
+            bottom: BorderSide(color: col.line, width: 1)),
       ),
       child: Row(
         children: [
           if (iconData != null)
-            Icon(iconData, size: 13, color: TH.fgDim)
+            Icon(iconData, size: 13, color: col.fgDim)
           else
             Text(habit.icon,
-                style: const TextStyle(
-                    color: TH.fgDim, fontSize: 12)),
+                style: TextStyle(
+                    color: col.fgDim, fontSize: 12)),
           const SizedBox(width: TH.s8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(habit.name,
-                    style: const TextStyle(
-                        color: TH.fgDim, fontSize: 13)),
+                    style: TextStyle(
+                        color: col.fgDim, fontSize: 13)),
                 Text(
                   archivedOn == null
                       ? groupLabel
                       : '$groupLabel · ${_relative(archivedOn)}',
-                  style: const TextStyle(
-                      color: TH.fgFaint, fontSize: 10),
+                  style: TextStyle(
+                      color: col.fgFaint, fontSize: 10),
                 ),
               ],
             ),
           ),
           GestureDetector(
             onTap: () => db.unarchiveHabit(habit.id),
-            child: const Padding(
-              padding: EdgeInsets.symmetric(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
                   horizontal: TH.s8, vertical: 4),
               child: Text('[ restore ]',
                   style: TextStyle(
-                      color: TH.green, fontSize: 11)),
+                      color: col.green, fontSize: 11)),
             ),
           ),
           GestureDetector(
             onTap: () => _confirmAndDelete(context),
-            child: const Padding(
-              padding: EdgeInsets.symmetric(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
                   horizontal: TH.s8, vertical: 4),
               child: Text('[ delete ]',
                   style: TextStyle(
-                      color: TH.red, fontSize: 11)),
+                      color: col.red, fontSize: 11)),
             ),
           ),
         ],
@@ -441,13 +435,14 @@ class _ArchivedItem extends StatelessWidget {
   }
 
   Future<void> _confirmAndDelete(BuildContext context) async {
+    final col = AppColors.of(context);
     final ok = await showDialog<bool>(
       context: context,
       barrierColor: Colors.black54,
       builder: (ctx) => Dialog(
-        backgroundColor: TH.bg2,
-        shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(TH.r10)),
+        backgroundColor: col.bg2,
+        shape: RoundedRectangleBorder(
+            borderRadius: const BorderRadius.all(TH.r10)),
         child: SizedBox(
           width: 400,
           child: Padding(
@@ -457,14 +452,14 @@ class _ArchivedItem extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('permanently delete "${habit.name}"?',
-                    style: const TextStyle(
-                        color: TH.fg,
+                    style: TextStyle(
+                        color: col.fg,
                         fontSize: 14,
                         fontWeight: FontWeight.w600)),
                 const SizedBox(height: TH.s8),
-                const Text(
+                Text(
                   'this removes the habit and every completion record.',
-                  style: TextStyle(color: TH.fgDim, fontSize: 12),
+                  style: TextStyle(color: col.fgDim, fontSize: 12),
                 ),
                 const SizedBox(height: TH.s22),
                 Row(
@@ -472,9 +467,9 @@ class _ArchivedItem extends StatelessWidget {
                   children: [
                     GestureDetector(
                       onTap: () => Navigator.of(ctx).pop(false),
-                      child: const Text('[ cancel ]',
+                      child: Text('[ cancel ]',
                           style: TextStyle(
-                              color: TH.fgMute, fontSize: 12)),
+                              color: col.fgMute, fontSize: 12)),
                     ),
                     const SizedBox(width: TH.s14),
                     GestureDetector(
@@ -483,13 +478,13 @@ class _ArchivedItem extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: TH.s14, vertical: TH.s8),
                         decoration: BoxDecoration(
-                          border: Border.all(color: TH.red),
+                          border: Border.all(color: col.red),
                           borderRadius:
                               const BorderRadius.all(TH.r4),
                         ),
-                        child: const Text('[ delete ]',
+                        child: Text('[ delete ]',
                             style: TextStyle(
-                                color: TH.red, fontSize: 12)),
+                                color: col.red, fontSize: 12)),
                       ),
                     ),
                   ],

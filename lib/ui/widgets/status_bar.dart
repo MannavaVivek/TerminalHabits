@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../state/providers.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/tokens.dart';
 
 class StatusBar extends ConsumerWidget {
@@ -9,6 +10,7 @@ class StatusBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final col = context.col;
     final dailyAV = ref.watch(dailyStateProvider);
     final isDesktop = Platform.isMacOS || Platform.isLinux;
 
@@ -20,20 +22,20 @@ class StatusBar extends ConsumerWidget {
 
     return Container(
       height: 26,
-      decoration: const BoxDecoration(
-        color: TH.bg1,
-        border: Border(top: BorderSide(color: TH.line, width: 1)),
+      decoration: BoxDecoration(
+        color: col.bg1,
+        border: Border(top: BorderSide(color: col.line, width: 1)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: TH.s14),
       child: Row(
         children: [
           Text(statusText,
-              style: const TextStyle(color: TH.fgMute, fontSize: 11)),
+              style: TextStyle(color: col.fgMute, fontSize: 11)),
           const Spacer(),
           if (isDesktop)
-            const Text(
+            Text(
               '⌘K palette  ·  ⌘N new habit  ·  j/k navigate',
-              style: TextStyle(color: TH.fgFaint, fontSize: 11),
+              style: TextStyle(color: col.fgFaint, fontSize: 11),
             ),
         ],
       ),

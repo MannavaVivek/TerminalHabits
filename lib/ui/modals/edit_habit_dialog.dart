@@ -7,6 +7,7 @@ import '../../data/database.dart';
 import '../../domain/schedule.dart';
 import '../../domain/streaks.dart' show localMidnightUtc;
 import '../../state/providers.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/icon_library.dart';
 import '../../theme/tokens.dart';
 import '../widgets/icon_picker.dart';
@@ -49,8 +50,6 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
     _noteCtrl = TextEditingController(text: h.note ?? '');
     _targetCtrl = TextEditingController(
         text: h.target != null ? '${h.target}' : '');
-    // If the stored icon is a lucide key, use it; otherwise keep null
-    // (the preview will show the fallback icon).
     _iconKey = lucideIconData(h.icon) != null ? h.icon : null;
     _scheduleKey = _scheduleKeyFromJson(h.schedule);
     _color = h.color;
@@ -89,21 +88,17 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
     final oldStartUtc = localMidnightUtc(widget.habit.startDate);
     final startMovedLater = newStartUtc.isAfter(oldStartUtc);
 
-    // Pre-compute schedule overlap so we can choose the right warning and action.
     final oldDays = scheduleChanged
         ? (jsonDecode(widget.habit.schedule)['days'] as List).cast<int>().toSet()
         : const <int>{};
     final newDays = scheduleChanged
         ? (jsonDecode(newScheduleJson)['days'] as List).cast<int>().toSet()
         : const <int>{};
-    final removedDays = oldDays.difference(newDays); // days leaving the schedule
+    final removedDays = oldDays.difference(newDays);
     final noOverlap = scheduleChanged && oldDays.intersection(newDays).isEmpty;
     final isExpanding = scheduleChanged && newDays.containsAll(oldDays);
     final isContracting = scheduleChanged && !isExpanding && !noOverlap;
 
-    // ── warnings ─────────────────────────────────────────────────────────────
-
-    // Type change clears everything — show first, it's the most severe.
     if (typeChanged && _hasCompletions) {
       if (!mounted) return;
       final ok = await _warnDestructive(
@@ -115,7 +110,6 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
       if (ok != true) return;
     }
 
-    // Schedule change — skip if type also changed (type warning already covers it).
     if (scheduleChanged && _hasCompletions && !typeChanged) {
       if (!mounted) return;
       final String title;
@@ -133,7 +127,6 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
             'Completions on $kept are preserved. '
             'This cannot be undone.';
       } else {
-        // Expanding (e.g. weekdays/weekends → daily).
         final added = _dayNames(newDays.difference(oldDays));
         title = 'Schedule expanded';
         body = '$added will be added to the tracked schedule. '
@@ -145,7 +138,6 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
       if (ok != true) return;
     }
 
-    // Start date moved later — only if no other change already clears data.
     if (!typeChanged && !scheduleChanged && startMovedLater) {
       final hasEarlierComps =
           _completions.any((c) => c.day.toUtc().isBefore(newStartUtc));
@@ -162,7 +154,6 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
       }
     }
 
-    // ── target validation ────────────────────────────────────────────────────
     int? target;
     String? unit;
     if (_tracking == 'counter') {
@@ -182,23 +173,18 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
 
     final db = ref.read(dbProvider);
 
-    // ── data cleanup ─────────────────────────────────────────────────────────
     if (typeChanged) {
-      // Clears all completions and resets schedule history.
       await db.clearHabitProgress(
           widget.habit.id, newStartUtc, newScheduleJson, _tracking);
     } else if (scheduleChanged) {
       if (noOverlap) {
-        // No shared days — delete everything.
         await db.clearHabitProgress(
             widget.habit.id, newStartUtc, newScheduleJson, _tracking);
       } else if (isContracting) {
-        // Remove completions only on days leaving the schedule; keep the rest.
         await db.clearCompletionsOnDays(widget.habit.id, removedDays);
         await db.replaceScheduleHistory(
             widget.habit.id, newStartUtc, newScheduleJson, _tracking);
       } else {
-        // Expanding — keep all completions, just update schedule history.
         await db.replaceScheduleHistory(
             widget.habit.id, newStartUtc, newScheduleJson, _tracking);
       }
@@ -229,6 +215,7 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
   }
 
   Future<void> _pickStartDate() async {
+    final col = context.col;
     final picked = await showDatePicker(
       context: context,
       initialDate: _startDate,
@@ -236,11 +223,11 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
       lastDate: DateTime.now().add(const Duration(days: 365)),
       builder: (ctx, child) => Theme(
         data: ThemeData.dark().copyWith(
-          colorScheme: const ColorScheme.dark(
-            primary: TH.green,
-            onPrimary: TH.bg,
-            surface: TH.bg2,
-            onSurface: TH.fg,
+          colorScheme: ColorScheme.dark(
+            primary: col.green,
+            onPrimary: col.bg,
+            surface: col.bg2,
+            onSurface: col.fg,
           ),
         ),
         child: child!,
@@ -250,6 +237,7 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
   }
 
   Future<void> _pickEndDate() async {
+    final col = context.col;
     final picked = await showDatePicker(
       context: context,
       initialDate: _endDate ?? DateTime.now(),
@@ -257,11 +245,11 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
       lastDate: DateTime.now().add(const Duration(days: 365 * 10)),
       builder: (ctx, child) => Theme(
         data: ThemeData.dark().copyWith(
-          colorScheme: const ColorScheme.dark(
-            primary: TH.green,
-            onPrimary: TH.bg,
-            surface: TH.bg2,
-            onSurface: TH.fg,
+          colorScheme: ColorScheme.dark(
+            primary: col.green,
+            onPrimary: col.bg,
+            surface: col.bg2,
+            onSurface: col.fg,
           ),
         ),
         child: child!,
@@ -281,13 +269,22 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final col = context.col;
+    final colorMap = {
+      'green': col.green,
+      'amber': col.amber,
+      'blue': col.blue,
+      'purple': col.purple,
+      'teal': col.teal,
+      'red': col.red,
+    };
     final groupsAV = ref.watch(groupsProvider);
     final groups = groupsAV.valueOrNull ?? const <Group>[];
 
     return Dialog(
-      backgroundColor: TH.bg2,
+      backgroundColor: col.bg2,
       shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.all(TH.r10)),
+          RoundedRectangleBorder(borderRadius: const BorderRadius.all(TH.r10)),
       child: SizedBox(
         width: 460,
         child: SingleChildScrollView(
@@ -298,30 +295,31 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
             children: [
               Row(
                 children: [
-                  const Text('edit habit',
+                  Text('edit habit',
                       style: TextStyle(
-                          color: TH.fg,
+                          color: col.fg,
                           fontSize: 15,
                           fontWeight: FontWeight.w600)),
                   const Spacer(),
                   GestureDetector(
                     onTap: () => Navigator.of(context).pop(),
-                    child: const Text('[ cancel ]',
+                    child: Text('[ cancel ]',
                         style:
-                            TextStyle(color: TH.fgMute, fontSize: 12)),
+                            TextStyle(color: col.fgMute, fontSize: 12)),
                   ),
                 ],
               ),
               const SizedBox(height: TH.s14),
-              _Label('name'),
+              _Label('name', col: col),
               _StyledField(
                 controller: _nameCtrl,
                 hint: 'habit name',
+                col: col,
                 maxLength: 60,
                 onSubmitted: (_) => _save(),
               ),
               const SizedBox(height: TH.s14),
-              _Label('group'),
+              _Label('group', col: col),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -330,18 +328,20 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
                     _Pill(
                       label: g.name,
                       selected: _groupId == g.id,
+                      col: col,
                       onTap: () => setState(() => _groupId = g.id),
                     ),
                   _Pill(
                     label: '+ new',
                     selected: false,
                     accent: true,
+                    col: col,
                     onTap: _newGroup,
                   ),
                 ],
               ),
               const SizedBox(height: TH.s14),
-              _Label('schedule'),
+              _Label('schedule', col: col),
               Row(
                 children: [
                   for (final s in const ['daily', 'weekdays', 'weekends'])
@@ -350,6 +350,7 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
                       child: _Pill(
                         label: s,
                         selected: _scheduleKey == s,
+                        col: col,
                         onTap: () =>
                             setState(() => _scheduleKey = s),
                       ),
@@ -357,7 +358,7 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
                 ],
               ),
               const SizedBox(height: TH.s14),
-              _Label('type'),
+              _Label('type', col: col),
               Row(
                 children: [
                   for (final t in const [
@@ -370,6 +371,7 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
                       child: _Pill(
                         label: t,
                         selected: _tracking == t,
+                        col: col,
                         onTap: () => setState(() {
                           _tracking = t;
                           _targetCtrl.clear();
@@ -387,15 +389,16 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
                       child: _StyledField(
                         controller: _targetCtrl,
                         hint: '10',
+                        col: col,
                         keyboardType: TextInputType.number,
                         digitsOnly: true,
                         maxLength: 3,
                       ),
                     ),
                     const SizedBox(width: TH.s8),
-                    const Text('min count',
+                    Text('min count',
                         style: TextStyle(
-                            color: TH.fgMute, fontSize: 12)),
+                            color: col.fgMute, fontSize: 12)),
                   ],
                 ),
               ],
@@ -408,15 +411,16 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
                       child: _StyledField(
                         controller: _targetCtrl,
                         hint: '30',
+                        col: col,
                         keyboardType: TextInputType.number,
                         digitsOnly: true,
                         maxLength: 3,
                       ),
                     ),
                     const SizedBox(width: TH.s8),
-                    const Text('target min',
+                    Text('target min',
                         style: TextStyle(
-                            color: TH.fgMute, fontSize: 12)),
+                            color: col.fgMute, fontSize: 12)),
                   ],
                 ),
               ],
@@ -428,22 +432,22 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _Label('icon'),
+                        _Label('icon', col: col),
                         Row(
                           children: [
                             Container(
                               width: 36,
                               height: 36,
                               decoration: BoxDecoration(
-                                border: Border.all(color: TH.line2),
-                                borderRadius: BorderRadius.all(TH.r4),
-                                color: TH.bg1,
+                                border: Border.all(color: col.line2),
+                                borderRadius: const BorderRadius.all(TH.r4),
+                                color: col.bg1,
                               ),
                               child: Center(
                                 child: () {
                                   final d = lucideIconData(_iconKey) ??
                                       lucideIconData(widget.habit.icon);
-                                  final c = _colorMap[_color] ?? TH.green;
+                                  final c = colorMap[_color] ?? col.green;
                                   return d != null
                                       ? Icon(d, size: 18, color: c)
                                       : Text(widget.habit.icon,
@@ -470,12 +474,12 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: TH.s8, vertical: TH.s4),
                                 decoration: BoxDecoration(
-                                  border: Border.all(color: TH.line2),
-                                  borderRadius: BorderRadius.all(TH.r4),
+                                  border: Border.all(color: col.line2),
+                                  borderRadius: const BorderRadius.all(TH.r4),
                                 ),
-                                child: const Text('[ pick icon ]',
+                                child: Text('[ pick icon ]',
                                     style: TextStyle(
-                                        color: TH.fgDim, fontSize: 12)),
+                                        color: col.fgDim, fontSize: 12)),
                               ),
                             ),
                           ],
@@ -487,14 +491,14 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _Label('color'),
+                      _Label('color', col: col),
                       Row(
                         children: [
-                          for (final c in _colorMap.keys)
+                          for (final c in colorMap.keys)
                             Padding(
                               padding: const EdgeInsets.only(right: 8),
                               child: _ColorDot(
-                                color: _colorMap[c]!,
+                                color: colorMap[c]!,
                                 selected: _color == c,
                                 onTap: () => setState(() => _color = c),
                               ),
@@ -506,24 +510,24 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
                 ],
               ),
               const SizedBox(height: TH.s14),
-              _Label('start date'),
+              _Label('start date', col: col),
               GestureDetector(
                 onTap: _pickStartDate,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                       horizontal: TH.s8, vertical: TH.s8),
                   decoration: BoxDecoration(
-                    border: Border.all(color: TH.line2),
-                    borderRadius: BorderRadius.all(TH.r4),
+                    border: Border.all(color: col.line2),
+                    borderRadius: const BorderRadius.all(TH.r4),
                   ),
                   child: Text(
                     _formatDate(_startDate),
-                    style: const TextStyle(color: TH.fg, fontSize: 13),
+                    style: TextStyle(color: col.fg, fontSize: 13),
                   ),
                 ),
               ),
               const SizedBox(height: TH.s14),
-              _Label('end date (optional)'),
+              _Label('end date (optional)', col: col),
               Row(
                 children: [
                   GestureDetector(
@@ -532,8 +536,8 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: TH.s8, vertical: TH.s8),
                       decoration: BoxDecoration(
-                        border: Border.all(color: TH.line2),
-                        borderRadius: BorderRadius.all(TH.r4),
+                        border: Border.all(color: col.line2),
+                        borderRadius: const BorderRadius.all(TH.r4),
                       ),
                       child: Text(
                         _endDate != null
@@ -541,7 +545,7 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
                             : '— no end date —',
                         style: TextStyle(
                             color:
-                                _endDate != null ? TH.fg : TH.fgFaint,
+                                _endDate != null ? col.fg : col.fgFaint,
                             fontSize: 13),
                       ),
                     ),
@@ -550,18 +554,19 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
                     const SizedBox(width: TH.s8),
                     GestureDetector(
                       onTap: () => setState(() => _endDate = null),
-                      child: const Text('[ clear ]',
+                      child: Text('[ clear ]',
                           style: TextStyle(
-                              color: TH.fgMute, fontSize: 12)),
+                              color: col.fgMute, fontSize: 12)),
                     ),
                   ],
                 ],
               ),
               const SizedBox(height: TH.s14),
-              _Label('note (optional)'),
+              _Label('note (optional)', col: col),
               _StyledField(
                 controller: _noteCtrl,
                 hint: '// shown under the row',
+                col: col,
                 maxLines: 1,
                 maxLength: 100,
                 denyNewlines: true,
@@ -572,14 +577,14 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: TH.s8),
                   decoration: BoxDecoration(
-                    border: Border.all(color: TH.green),
-                    borderRadius: BorderRadius.all(TH.r4),
+                    border: Border.all(color: col.green),
+                    borderRadius: const BorderRadius.all(TH.r4),
                   ),
                   child: Center(
                     child: Text(
                       _saving ? 'saving...' : '[ save ]',
-                      style: const TextStyle(
-                          color: TH.green, fontSize: 13),
+                      style: TextStyle(
+                          color: col.green, fontSize: 13),
                     ),
                   ),
                 ),
@@ -590,15 +595,6 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
       ),
     );
   }
-
-  static const _colorMap = {
-    'green': TH.green,
-    'amber': TH.amber,
-    'blue': TH.blue,
-    'purple': TH.purple,
-    'teal': TH.teal,
-    'red': TH.red,
-  };
 }
 
 String _scheduleKeyFromJson(String json) {
@@ -621,7 +617,6 @@ String _scheduleJsonFromKey(String key) {
   }
 }
 
-// Formats a set of weekday indices (0=Mon..6=Sun) as a human-readable list.
 String _dayNames(Set<int> days) {
   const names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   return (days.toList()..sort()).map((d) => names[d]).join(', ');
@@ -635,129 +630,135 @@ String _formatDate(DateTime d) {
   return '${months[d.month - 1]} ${d.day} ${d.year}';
 }
 
-// Destructive-action confirmation: returns true (proceed) or false/null (cancel).
 Future<bool?> _warnDestructive(
-        BuildContext context, String title, String body) =>
-    showDialog<bool>(
-      context: context,
-      barrierColor: Colors.black54,
-      builder: (ctx) => Dialog(
-        backgroundColor: TH.bg2,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(TH.r10)),
-        child: SizedBox(
-          width: 420,
-          child: Padding(
-            padding: const EdgeInsets.all(TH.s22),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: const TextStyle(
-                        color: TH.fg,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600)),
-                const SizedBox(height: TH.s8),
-                Text(body,
-                    style: const TextStyle(
-                        color: TH.fgDim, fontSize: 12)),
-                const SizedBox(height: TH.s22),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    GestureDetector(
-                      onTap: () => Navigator.of(ctx).pop(false),
-                      child: const Text('[ cancel ]',
-                          style: TextStyle(
-                              color: TH.fgMute, fontSize: 12)),
-                    ),
-                    const SizedBox(width: TH.s14),
-                    GestureDetector(
-                      onTap: () => Navigator.of(ctx).pop(true),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: TH.s14, vertical: TH.s8),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: TH.red),
-                          borderRadius: BorderRadius.all(TH.r4),
-                        ),
-                        child: const Text('[ proceed ]',
-                            style: TextStyle(
-                                color: TH.red, fontSize: 12)),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-
-Future<void> _showTargetTooLarge(BuildContext context) => showDialog<void>(
-      context: context,
-      barrierColor: Colors.black54,
-      builder: (ctx) => Dialog(
-        backgroundColor: TH.bg2,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(TH.r10)),
-        child: SizedBox(
-          width: 300,
-          child: Padding(
-            padding: const EdgeInsets.all(TH.s22),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Target too large',
-                    style: TextStyle(
-                        color: TH.fg,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600)),
-                const SizedBox(height: TH.s8),
-                const Text('Target must be 999 or less.',
-                    style: TextStyle(
-                        color: TH.fgDim, fontSize: 12)),
-                const SizedBox(height: TH.s22),
-                Center(
-                  child: GestureDetector(
-                    onTap: () => Navigator.of(ctx).pop(),
+        BuildContext context, String title, String body) {
+  final col = AppColors.of(context);
+  return showDialog<bool>(
+    context: context,
+    barrierColor: Colors.black54,
+    builder: (ctx) => Dialog(
+      backgroundColor: col.bg2,
+      shape: RoundedRectangleBorder(
+          borderRadius: const BorderRadius.all(TH.r10)),
+      child: SizedBox(
+        width: 420,
+        child: Padding(
+          padding: const EdgeInsets.all(TH.s22),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title,
+                  style: TextStyle(
+                      color: col.fg,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600)),
+              const SizedBox(height: TH.s8),
+              Text(body,
+                  style: TextStyle(
+                      color: col.fgDim, fontSize: 12)),
+              const SizedBox(height: TH.s22),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.of(ctx).pop(false),
+                    child: Text('[ cancel ]',
+                        style: TextStyle(
+                            color: col.fgMute, fontSize: 12)),
+                  ),
+                  const SizedBox(width: TH.s14),
+                  GestureDetector(
+                    onTap: () => Navigator.of(ctx).pop(true),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: TH.s22, vertical: TH.s8),
+                          horizontal: TH.s14, vertical: TH.s8),
                       decoration: BoxDecoration(
-                        border: Border.all(color: TH.green),
-                        borderRadius: BorderRadius.all(TH.r4),
+                        border: Border.all(color: col.red),
+                        borderRadius: const BorderRadius.all(TH.r4),
                       ),
-                      child: const Text('[ understood ]',
+                      child: Text('[ proceed ]',
                           style: TextStyle(
-                              color: TH.green, fontSize: 13)),
+                              color: col.red, fontSize: 12)),
                     ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
+            ],
           ),
         ),
       ),
-    );
+    ),
+  );
+}
+
+Future<void> _showTargetTooLarge(BuildContext context) {
+  final col = AppColors.of(context);
+  return showDialog<void>(
+    context: context,
+    barrierColor: Colors.black54,
+    builder: (ctx) => Dialog(
+      backgroundColor: col.bg2,
+      shape: RoundedRectangleBorder(
+          borderRadius: const BorderRadius.all(TH.r10)),
+      child: SizedBox(
+        width: 300,
+        child: Padding(
+          padding: const EdgeInsets.all(TH.s22),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Target too large',
+                  style: TextStyle(
+                      color: col.fg,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600)),
+              const SizedBox(height: TH.s8),
+              Text('Target must be 999 or less.',
+                  style: TextStyle(
+                      color: col.fgDim, fontSize: 12)),
+              const SizedBox(height: TH.s22),
+              Center(
+                child: GestureDetector(
+                  onTap: () => Navigator.of(ctx).pop(),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: TH.s22, vertical: TH.s8),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: col.green),
+                      borderRadius: const BorderRadius.all(TH.r4),
+                    ),
+                    child: Text('[ understood ]',
+                        style: TextStyle(
+                            color: col.green, fontSize: 13)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
 
 class _Label extends StatelessWidget {
   final String text;
-  const _Label(this.text);
+  final AppColors col;
+  const _Label(this.text, {required this.col});
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(bottom: TH.s4),
         child: Text(text,
-            style: const TextStyle(color: TH.fgDim, fontSize: 12)),
+            style: TextStyle(color: col.fgDim, fontSize: 12)),
       );
 }
 
 class _StyledField extends StatelessWidget {
   final TextEditingController controller;
   final String hint;
+  final AppColors col;
   final int maxLines;
   final int? maxLength;
   final TextInputType? keyboardType;
@@ -768,6 +769,7 @@ class _StyledField extends StatelessWidget {
   const _StyledField({
     required this.controller,
     required this.hint,
+    required this.col,
     this.maxLines = 1,
     this.maxLength,
     this.keyboardType,
@@ -790,20 +792,20 @@ class _StyledField extends StatelessWidget {
       maxLength: maxLength,
       keyboardType: keyboardType,
       inputFormatters: formatters.isEmpty ? null : formatters,
-      style: const TextStyle(color: TH.fg, fontSize: 14),
+      style: TextStyle(color: col.fg, fontSize: 14),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: TH.fgFaint, fontSize: 14),
+        hintStyle: TextStyle(color: col.fgFaint, fontSize: 14),
         counterText: '',
         enabledBorder: OutlineInputBorder(
-          borderSide: const BorderSide(color: TH.line2),
-          borderRadius: BorderRadius.all(TH.r4),
+          borderSide: BorderSide(color: col.line2),
+          borderRadius: const BorderRadius.all(TH.r4),
         ),
         focusedBorder: OutlineInputBorder(
-          borderSide: const BorderSide(color: TH.green),
-          borderRadius: BorderRadius.all(TH.r4),
+          borderSide: BorderSide(color: col.green),
+          borderRadius: const BorderRadius.all(TH.r4),
         ),
-        fillColor: TH.bg1,
+        fillColor: col.bg1,
         filled: true,
         isDense: true,
         contentPadding:
@@ -819,25 +821,27 @@ class _Pill extends StatelessWidget {
   final bool selected;
   final bool accent;
   final VoidCallback onTap;
+  final AppColors col;
   const _Pill({
     required this.label,
     required this.selected,
     required this.onTap,
+    required this.col,
     this.accent = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final borderColor = selected
-        ? TH.green
+        ? col.green
         : accent
-            ? TH.amber
-            : TH.line2;
+            ? col.amber
+            : col.line2;
     final textColor = selected
-        ? TH.green
+        ? col.green
         : accent
-            ? TH.amber
-            : TH.fgDim;
+            ? col.amber
+            : col.fgDim;
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -845,8 +849,8 @@ class _Pill extends StatelessWidget {
             const EdgeInsets.symmetric(horizontal: TH.s8, vertical: 4),
         decoration: BoxDecoration(
           border: Border.all(color: borderColor),
-          borderRadius: BorderRadius.all(TH.r4),
-          color: selected ? TH.bg3 : Colors.transparent,
+          borderRadius: const BorderRadius.all(TH.r4),
+          color: selected ? col.bg3 : Colors.transparent,
         ),
         child: Text(label,
             style: TextStyle(color: textColor, fontSize: 12)),

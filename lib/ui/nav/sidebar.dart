@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../state/providers.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/tokens.dart';
 import '../modals/user_window.dart';
 
@@ -9,6 +10,7 @@ class Sidebar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final col = context.col;
     final view = ref.watch(currentViewProvider);
     final user = ref.watch(currentUserProvider).valueOrNull;
     final initial = (user?.displayName.isNotEmpty == true)
@@ -22,20 +24,11 @@ class Sidebar extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SizedBox(height: TH.s14),
-          _NavItem(
-            label: 'daily',
-            selected: view == 'daily',
-            onTap: () =>
-                ref.read(currentViewProvider.notifier).state = 'daily',
-          ),
-          _NavItem(
-            label: 'stats',
-            selected: view == 'stats',
-            onTap: () =>
-                ref.read(currentViewProvider.notifier).state = 'stats',
-          ),
+          _NavItem(label: 'daily', selected: view == 'daily',
+              onTap: () => ref.read(currentViewProvider.notifier).state = 'daily'),
+          _NavItem(label: 'stats', selected: view == 'stats',
+              onTap: () => ref.read(currentViewProvider.notifier).state = 'stats'),
           const Spacer(),
-          // ── user button ────────────────────────────────────────────
           GestureDetector(
             onTap: () => showUserWindow(context),
             child: Container(
@@ -48,25 +41,22 @@ class Sidebar extends ConsumerWidget {
                     width: 22,
                     height: 22,
                     decoration: BoxDecoration(
-                      border: Border.all(color: TH.fgMute),
-                      borderRadius: BorderRadius.all(TH.r4),
+                      border: Border.all(color: col.fgMute),
+                      borderRadius: const BorderRadius.all(TH.r4),
                     ),
                     child: Center(
                       child: Text(initial,
-                          style: const TextStyle(
-                              color: TH.fgDim,
+                          style: TextStyle(
+                              color: col.fgDim,
                               fontSize: 11,
                               fontWeight: FontWeight.w600)),
                     ),
                   ),
                   const SizedBox(width: TH.s8),
                   Expanded(
-                    child: Text(
-                      displayName,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          color: TH.fgDim, fontSize: 12),
-                    ),
+                    child: Text(displayName,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: col.fgDim, fontSize: 12)),
                   ),
                 ],
               ),
@@ -92,11 +82,12 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fg = selected ? TH.green : TH.fgDim;
+    final col = context.col;
+    final fg = selected ? col.green : col.fgDim;
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        color: selected ? TH.bg2 : Colors.transparent,
+        color: selected ? col.bg2 : Colors.transparent,
         padding: const EdgeInsets.symmetric(
             horizontal: TH.s14, vertical: TH.s8),
         child: Row(
@@ -104,9 +95,9 @@ class _NavItem extends StatelessWidget {
             SizedBox(
               width: 16,
               child: selected
-                  ? const Text('▸',
+                  ? Text('▸',
                       style: TextStyle(
-                          color: TH.amber,
+                          color: col.amber,
                           fontSize: 17,
                           fontWeight: FontWeight.w600))
                   : null,
@@ -115,9 +106,8 @@ class _NavItem extends StatelessWidget {
                 style: TextStyle(
                     color: fg,
                     fontSize: 13,
-                    fontWeight: selected
-                        ? FontWeight.w600
-                        : FontWeight.normal)),
+                    fontWeight:
+                        selected ? FontWeight.w600 : FontWeight.normal)),
           ],
         ),
       ),

@@ -4,6 +4,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../data/database.dart';
 import '../../domain/streaks.dart';
 import '../../state/providers.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/icon_library.dart';
 import '../../theme/tokens.dart';
 import '../modals/future_warn_dialog.dart';
@@ -16,6 +17,7 @@ class HabitRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final col = context.col;
     final h = dailyHabit.habit;
     final done = dailyHabit.isDoneToday;
     final focused = ref.watch(focusedHabitIdProvider) == h.id;
@@ -23,7 +25,7 @@ class HabitRow extends ConsumerWidget {
     final streakAtRisk = dailyHabit.streaks.todayAtRisk;
     final selectedDay = ref.watch(selectedDayProvider);
     final isToday = _isToday(selectedDay);
-    final iconColor = _colorFor(h.color);
+    final iconColor = _colorFor(h.color, col);
     final iconData = lucideIconData(h.icon);
 
     void focus() =>
@@ -36,7 +38,7 @@ class HabitRow extends ConsumerWidget {
       onSecondaryTapDown: (details) =>
           showHabitMenu(context, ref, h, at: details.globalPosition),
       child: Container(
-        color: focused ? TH.bg2 : Colors.transparent,
+        color: focused ? col.bg2 : Colors.transparent,
         padding: const EdgeInsets.symmetric(
             horizontal: TH.s22, vertical: TH.s8),
         child: Column(
@@ -44,7 +46,6 @@ class HabitRow extends ConsumerWidget {
           children: [
             Row(
               children: [
-                // ── checkbox / counter / duration tap area ────────
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () async {
@@ -55,12 +56,11 @@ class HabitRow extends ConsumerWidget {
                     padding: const EdgeInsets.only(right: TH.s8),
                     child: SizedBox(
                       width: 36,
-                      child: _CheckWidget(done: done),
+                      child: _CheckWidget(done: done, col: col),
                     ),
                   ),
                 ),
 
-                // ── icon ──────────────────────────────────────────
                 if (iconData != null)
                   Icon(iconData, size: 14, color: iconColor)
                 else
@@ -69,20 +69,17 @@ class HabitRow extends ConsumerWidget {
                           color: iconColor, fontSize: 13)),
                 const SizedBox(width: TH.s8),
 
-                // ── name ──────────────────────────────────────────
                 Expanded(
                   child: Text(h.name,
                       style: TextStyle(
-                          color: done ? TH.fgDim : TH.fg,
+                          color: done ? col.fgDim : col.fg,
                           fontSize: 14,
                           decoration: done
                               ? TextDecoration.lineThrough
                               : null,
-                          decorationColor: TH.fgMute)),
+                          decorationColor: col.fgMute)),
                 ),
 
-                // ── fixed right section: flame (44) + progress (56) ──
-                // Both slots always present so flames align across all rows.
                 const SizedBox(width: TH.s8),
                 SizedBox(
                   width: 44,
@@ -94,15 +91,15 @@ class HabitRow extends ConsumerWidget {
                         size: 13,
                         color: isToday
                             ? (streak > 0
-                                ? (streakAtRisk ? TH.fgDim : TH.amber)
-                                : TH.fgFaint)
-                            : (done ? TH.fgDim : TH.fgFaint),
+                                ? (streakAtRisk ? col.fgDim : col.amber)
+                                : col.fgFaint)
+                            : (done ? col.fgDim : col.fgFaint),
                       ),
                       const SizedBox(width: 3),
                       if (isToday && streak > 0)
                         Text('$streak',
                             style: TextStyle(
-                                color: streakAtRisk ? TH.fgDim : TH.amber,
+                                color: streakAtRisk ? col.fgDim : col.amber,
                                 fontSize: 12)),
                     ],
                   ),
@@ -114,20 +111,19 @@ class HabitRow extends ConsumerWidget {
                           _progressLabel(h, dailyHabit.todayValue),
                           textAlign: TextAlign.right,
                           style: TextStyle(
-                              color: done ? TH.green : TH.fgMute,
+                              color: done ? col.green : col.fgMute,
                               fontSize: 11),
                         )
                       : null,
                 ),
               ],
             ),
-            // ── sub-line: note ─────────────────────────────────────
             if (h.note != null && h.note!.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(left: 44, top: 2),
                 child: Text('// ${h.note}',
-                    style: const TextStyle(
-                        color: TH.fgFaint, fontSize: 11)),
+                    style: TextStyle(
+                        color: col.fgFaint, fontSize: 11)),
               ),
           ],
         ),
@@ -190,34 +186,35 @@ class HabitRow extends ConsumerWidget {
     return day.year == now.year && day.month == now.month && day.day == now.day;
   }
 
-  static Color _colorFor(String color) {
+  static Color _colorFor(String color, AppColors col) {
     switch (color) {
       case 'amber':
-        return TH.amber;
+        return col.amber;
       case 'blue':
-        return TH.blue;
+        return col.blue;
       case 'purple':
-        return TH.purple;
+        return col.purple;
       case 'teal':
-        return TH.teal;
+        return col.teal;
       case 'red':
-        return TH.red;
+        return col.red;
       default:
-        return TH.green;
+        return col.green;
     }
   }
 }
 
 class _CheckWidget extends StatelessWidget {
   final bool done;
-  const _CheckWidget({required this.done});
+  final AppColors col;
+  const _CheckWidget({required this.done, required this.col});
 
   @override
   Widget build(BuildContext context) {
     return Text(
       done ? '[✓]' : '[ ]',
       style: TextStyle(
-          color: done ? TH.green : TH.fgMute, fontSize: 13),
+          color: done ? col.green : col.fgMute, fontSize: 13),
     );
   }
 }
