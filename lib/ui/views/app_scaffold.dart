@@ -10,6 +10,7 @@ import '../inspector/inspector_pane.dart';
 import '../modals/command_palette.dart';
 import '../modals/future_warn_dialog.dart';
 import '../modals/new_habit_dialog.dart';
+import '../modals/settings_dialog.dart';
 import '../nav/sidebar.dart';
 import '../widgets/status_bar.dart';
 import '../window/window_chrome.dart';
@@ -71,6 +72,9 @@ class AppScaffold extends ConsumerWidget {
         SingleActivator(LogicalKeyboardKey.keyK,
                 meta: isMeta, control: !isMeta):
             const OpenPaletteIntent(),
+        SingleActivator(LogicalKeyboardKey.comma,
+                meta: isMeta, control: !isMeta):
+            const OpenSettingsIntent(),
         const SingleActivator(LogicalKeyboardKey.keyJ):
             const FocusNextHabitIntent(),
         const SingleActivator(LogicalKeyboardKey.keyK):
@@ -96,6 +100,12 @@ class AppScaffold extends ConsumerWidget {
           OpenPaletteIntent: CallbackAction<OpenPaletteIntent>(
             onInvoke: (_) {
               CommandPalette.show(context);
+              return null;
+            },
+          ),
+          OpenSettingsIntent: CallbackAction<OpenSettingsIntent>(
+            onInvoke: (_) {
+              SettingsDialog.show(context);
               return null;
             },
           ),
@@ -148,8 +158,12 @@ class AppScaffold extends ConsumerWidget {
     final today = DateTime(now.year, now.month, now.day);
 
     if (selDate.isAfter(today)) {
-      await confirmFutureToggle(context);
-      return;
+      final allowFuture =
+          ref.read(allowFutureMarkingProvider).valueOrNull ?? false;
+      if (!allowFuture) {
+        await confirmFutureToggle(context);
+        return;
+      }
     }
 
     final db = ref.read(dbProvider);

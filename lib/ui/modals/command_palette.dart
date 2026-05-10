@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
 import 'new_habit_dialog.dart';
+import 'settings_dialog.dart';
 
 class _Command {
   final String key;
@@ -38,10 +39,10 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
   int _selected = 0;
 
   static const _allCommands = [
-    _Command(key: 'daily', label: 'go to daily view', hint: '⌘1'),
-    _Command(key: 'stats', label: 'go to stats view', hint: '⌘2'),
-    _Command(key: 'profile', label: 'go to profile view', hint: '⌘3'),
-    _Command(key: 'new', label: 'new habit', hint: '⌘N'),
+    _Command(key: 'daily',    label: 'go to daily view', hint: '⌘1'),
+    _Command(key: 'stats',    label: 'go to stats view', hint: '⌘2'),
+    _Command(key: 'new',      label: 'new habit',        hint: '⌘N'),
+    _Command(key: 'settings', label: 'open settings',    hint: '⌘,'),
   ];
 
   @override
@@ -108,10 +109,10 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
         ref.read(currentViewProvider.notifier).state = 'daily';
       case 'stats':
         ref.read(currentViewProvider.notifier).state = 'stats';
-      case 'profile':
-        ref.read(currentViewProvider.notifier).state = 'profile';
       case 'new':
         if (invoker.mounted) NewHabitDialog.show(invoker);
+      case 'settings':
+        if (invoker.mounted) SettingsDialog.show(invoker);
     }
   }
 

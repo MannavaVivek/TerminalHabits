@@ -5,6 +5,7 @@ import '../../data/database.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
 import '../views/login_view.dart';
+import 'settings_dialog.dart';
 
 Future<void> showUserWindow(BuildContext context) => showDialog<void>(
       context: context,
@@ -129,9 +130,8 @@ class _UserWindowDialogState extends ConsumerState<_UserWindowDialog> {
                           ],
                         ),
                       ),
-                      // settings stub — wired in Phase 6b
                       GestureDetector(
-                        onTap: () {}, // Phase 6b wires SettingsDialog here
+                        onTap: () => SettingsDialog.show(context),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: TH.s8, vertical: 4),

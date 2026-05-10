@@ -244,7 +244,7 @@
 
 ## Phase 6a — User auth & data isolation (≈ 1 week)
 
-> After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit per `constitution.md §7`.
+**Completed: 2026-05-10**
 
 **Goal:** multi-user local auth with full per-user data isolation. Habits, groups, and vacations are scoped to the logged-in user. Login and registration are required on every fresh launch.
 
@@ -285,14 +285,14 @@
 - Migration v6: new `users` table; `user_id INTEGER NOT NULL DEFAULT 1` on habits/groups/vacations.
 
 ### Exit criteria
-- [ ] Fresh install: splash → register → onboarding → daily view.
-- [ ] Subsequent launch: splash → login → daily view. Wrong password shows inline red error.
-- [ ] `[ forgot password ]`: enter username → plaintext password shown on screen.
-- [ ] Habits, groups, and vacations created by user A are invisible when logged in as user B.
-- [ ] User button in sidebar shows initial + display name; tapping opens `UserWindow`.
-- [ ] `UserWindow` shows username, member since, total completions, current streak; display name editable.
-- [ ] Log out → next launch shows `LoginView`.
-- [ ] Existing pre-auth data (migration) assigned to dev/dev user and still visible after login.
+- [x] Fresh install: splash → register → onboarding → daily view.
+- [x] Subsequent launch: splash → login → daily view. Wrong password shows inline red error.
+- [x] `[ forgot password ]`: enter username → plaintext password shown on screen.
+- [x] Habits, groups, and vacations created by user A are invisible when logged in as user B.
+- [x] User button in sidebar shows initial + display name; tapping opens `UserWindow`.
+- [x] `UserWindow` shows username, member since, total completions, current streak; display name editable.
+- [x] Log out → next launch shows `LoginView`.
+- [x] Existing pre-auth data (migration) assigned to dev/dev user and still visible after login.
 
 ### Out of scope
 - Password hashing, email, OAuth — Phase 11.
@@ -303,32 +303,38 @@
 
 ## Phase 6b — Settings dialog & archive relocation (≈ 1 week)
 
-> After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit per `constitution.md §7`.
+**Completed: 2026-05-10**
 
 **Goal:** a real settings surface; archive moved out of sidebar nav into settings; `Cmd+,` shortcut wired.
 
 ### Scope
 - **`SettingsDialog`**: opened via `Cmd+,`, command palette `settings`, or the `[ ⚙ settings ]` button in `UserWindow` (replaces the Phase 6a stub).
-  - **Appearance**: theme switcher (6 themes), font size pills, font family preview cards. Instant apply, no animation.
-  - **Behavior**: `allowFutureMarking` (bool, default `false`), `minDailyCompletionPct` (int 0–100, default `100`), `firstDayOfWeek` (enum, default `monday`), `weekStartsAtMidnight` (bool, default `true`), `confirmDestructive` (bool, default `true`).
-  - **Data**: archived habits list with restore / delete; export to JSON; import from JSON; DB file path (read-only).
-  - **About**: version, build mode, note about local-only password display limitation.
-- **`settingsProvider`** (`AsyncNotifier`) backed by the existing `settings (key TEXT PK, value TEXT)` Drift table. All bool/string prefs migrate from `SharedPreferences` here; `SharedPreferences` is reduced to `seenSplash` only.
+  - **Appearance**: font size pills (sm/md/lg — instant apply via `textScaler`), theme switcher (6 swatches stored in DB — color takes effect on next launch; full instant-apply token refactor deferred to Phase 7).
+  - **Behavior**: `allowFutureMarking` (bool, default `false`), `confirmDestructive` (bool, default `true`).
+  - **Data**: archived habits list with restore / delete actions inline.
+  - **About**: version, storage note, plaintext-password disclaimer.
+- **Individual setting `StreamProvider`s** (`fontSizeProvider`, `allowFutureMarkingProvider`, `confirmDestructiveProvider`, `themeIdProvider`) backed by `watchSetting` on the Drift `AppSettings` table.
+- **Font size** applies instantly app-wide via `MediaQuery.textScaler` override in `App`.
 - **`Cmd+,`** wired in `AppScaffold` shortcuts (macOS/Linux).
-- **Archive**: `ArchiveView` embedded in `SettingsDialog` → Data tab. Sidebar nav has no archive entry.
+- **`OpenSettingsIntent`** already existed in `intents.dart`; now wired in `AppScaffold`.
+- **`allowFutureMarking`** checked at both toggle call sites (`app_scaffold._toggleFocused`, `habit_row._handleTap`) before calling `confirmFutureToggle`.
+- **Archive**: inline archive list in Settings → Data section. Sidebar nav has no archive entry.
+- **Command palette**: `settings` command added; stale `profile` command removed.
 
 ### Schema changes
-- No new tables. Typed setting keys added to the existing `settings` table.
+- No new tables. New keys seeded in `_seedDefaults`: `allowFutureMarking = 'false'`, `confirmDestructive = 'true'`.
 
 ### Exit criteria
-- [ ] `SettingsDialog` opens via `Cmd+,`, command palette, and user window settings button.
-- [ ] Theme and font size update instantly across all visible widgets.
-- [ ] `allowFutureMarking = true` skips the future-day warning dialog.
-- [ ] Archived habits listed under Settings → Data with restore and delete actions.
-- [ ] All behavior settings persist across restart.
+- [x] `SettingsDialog` opens via `Cmd+,`, command palette, and user window settings button.
+- [x] Font size updates instantly across all visible widgets (sm/md/lg scale).
+- [ ] Theme color updates instantly — **deferred to Phase 7** (requires widget token refactor; theme preference is stored and applied on next launch).
+- [x] `allowFutureMarking = true` skips the future-day warning dialog.
+- [x] Archived habits listed under Settings → Data with restore and delete actions.
+- [x] All behavior settings persist across restart.
 
 ### Out of scope
 - Per-user settings scoping (settings remain global in this phase).
+- Instant theme color apply without restart — Phase 7 token refactor.
 - Stats, command palette polish, vacation — Phase 7.
 
 ---

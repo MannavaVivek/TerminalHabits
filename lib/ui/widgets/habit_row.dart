@@ -144,8 +144,12 @@ class HabitRow extends ConsumerWidget {
     final today = DateTime(now.year, now.month, now.day);
 
     if (selDate.isAfter(today)) {
-      await confirmFutureToggle(context);
-      return;
+      final allowFuture =
+          ref.read(allowFutureMarkingProvider).valueOrNull ?? false;
+      if (!allowFuture) {
+        await confirmFutureToggle(context);
+        return;
+      }
     }
 
     final db = ref.read(dbProvider);

@@ -205,6 +205,30 @@ final dailyStateProvider = Provider<AsyncValue<DailyState>>((ref) {
   ));
 });
 
+// ── Settings ──────────────────────────────────────────────────────────────────
+
+// Global (not per-user) settings backed by the AppSettings Drift table.
+
+final themeIdProvider = StreamProvider<String>((ref) => ref
+    .watch(dbProvider)
+    .watchSetting('themeId')
+    .map((v) => v ?? 'matrix'));
+
+final fontSizeProvider = StreamProvider<String>((ref) => ref
+    .watch(dbProvider)
+    .watchSetting('fontSize')
+    .map((v) => v ?? 'md'));
+
+final allowFutureMarkingProvider = StreamProvider<bool>((ref) => ref
+    .watch(dbProvider)
+    .watchSetting('allowFutureMarking')
+    .map((v) => v == 'true'));
+
+final confirmDestructiveProvider = StreamProvider<bool>((ref) => ref
+    .watch(dbProvider)
+    .watchSetting('confirmDestructive')
+    .map((v) => v != 'false')); // default true
+
 // ── Current user ─────────────────────────────────────────────────────────────
 
 final currentUserProvider = FutureProvider<User?>((ref) {

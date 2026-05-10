@@ -81,6 +81,8 @@ class AppDatabase extends _$AppDatabase {
     await _upsertSetting('fontFamily', 'JetBrains Mono');
     await _upsertSetting('lastView', 'daily');
     await _upsertSetting('seenOnboarding', 'false');
+    await _upsertSetting('allowFutureMarking', 'false');
+    await _upsertSetting('confirmDestructive', 'true');
   }
 
   Future<void> _upsertSetting(String key, String value) async {
