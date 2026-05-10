@@ -309,7 +309,7 @@
 
 ### Scope
 - **`SettingsDialog`**: opened via `Cmd+,`, command palette `settings`, or the `[ ⚙ settings ]` button in `UserWindow` (replaces the Phase 6a stub).
-  - **Appearance**: font size pills (sm/md/lg — instant apply via `textScaler`), theme switcher (6 swatches stored in DB — color takes effect on next launch; full instant-apply token refactor deferred to Phase 7).
+  - **Appearance**: font size pills (sm/md/lg — instant apply via `textScaler`), theme switcher (6 swatches — instant apply via `AppColors extends ThemeExtension<AppColors>`; all widget color tokens refactored from static `TH` constants to `context.col` lookups).
   - **Behavior**: `allowFutureMarking` (bool, default `false`), `confirmDestructive` (bool, default `true`).
   - **Data**: archived habits list with restore / delete actions inline.
   - **About**: version, storage note, plaintext-password disclaimer.
@@ -327,14 +327,13 @@
 ### Exit criteria
 - [x] `SettingsDialog` opens via `Cmd+,`, command palette, and user window settings button.
 - [x] Font size updates instantly across all visible widgets (sm/md/lg scale).
-- [ ] Theme color updates instantly — **deferred to Phase 7** (requires widget token refactor; theme preference is stored and applied on next launch).
+- [x] Theme color updates instantly — implemented via `AppColors extends ThemeExtension<AppColors>`; all 33 widget files refactored from static `TH.colorXxx` to `context.col.xxx`.
 - [x] `allowFutureMarking = true` skips the future-day warning dialog.
 - [x] Archived habits listed under Settings → Data with restore and delete actions.
 - [x] All behavior settings persist across restart.
 
 ### Out of scope
 - Per-user settings scoping (settings remain global in this phase).
-- Instant theme color apply without restart — Phase 7 token refactor.
 - Stats, command palette polish, vacation — Phase 7.
 
 ---
