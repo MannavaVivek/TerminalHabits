@@ -8,12 +8,12 @@ import 'tables.dart';
 part 'database.g.dart';
 
 @DriftDatabase(
-    tables: [Groups, Habits, Completions, Vacations, AppSettings, HabitScheduleHistory])
+    tables: [Users, Groups, Habits, Completions, Vacations, AppSettings, HabitScheduleHistory])
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -54,6 +54,18 @@ class AppDatabase extends _$AppDatabase {
                 'INSERT INTO habit_schedule_history (habit_id, effective_from, schedule, tracking, created_at) '
                 'SELECT id, start_date, schedule, tracking, $nowMs FROM habits');
           }
+          if (from < 6) {
+            await m.createTable(users);
+            await m.addColumn(groups, groups.userId);
+            await m.addColumn(habits, habits.userId);
+            await m.addColumn(vacations, vacations.userId);
+            // Seed placeholder user so existing data (DEFAULT 1) has a valid owner.
+            final existingName = await getSetting('userName') ?? 'user';
+            final nowMs = DateTime.now().millisecondsSinceEpoch;
+            await customStatement(
+                "INSERT INTO users (id, username, display_name, password, created_at) "
+                "VALUES (1, 'dev', '$existingName', 'dev', $nowMs)");
+          }
         },
       );
 
@@ -77,17 +89,49 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
+  // ── Users ──────────────────────────────────────────────────────────────────
+
+  Future<int> createUser(
+      String username, String displayName, String password) async {
+    return into(users).insert(UsersCompanion.insert(
+      username: username,
+      displayName: displayName,
+      password: password,
+      createdAt: Value(DateTime.now()),
+    ));
+  }
+
+  Future<User?> getUserByUsername(String username) =>
+      (select(users)..where((u) => u.username.equals(username)))
+          .getSingleOrNull();
+
+  Future<User?> getUserById(int id) =>
+      (select(users)..where((u) => u.id.equals(id))).getSingleOrNull();
+
+  Future<int> getUserCount() => users.count().getSingle();
+
+  Future<void> updateDisplayName(int userId, String displayName) =>
+      (update(users)..where((u) => u.id.equals(userId)))
+          .write(UsersCompanion(displayName: Value(displayName)));
+
   // ── Groups ─────────────────────────────────────────────────────────────────
 
-  Stream<List<Group>> watchGroups() =>
-      (select(groups)..orderBy([(g) => OrderingTerm.asc(g.sortIndex)])).watch();
+  Stream<List<Group>> watchGroups(int userId) =>
+      (select(groups)
+            ..where((g) => g.userId.equals(userId))
+            ..orderBy([(g) => OrderingTerm.asc(g.sortIndex)]))
+          .watch();
 
-  Future<List<Group>> getGroups() =>
-      (select(groups)..orderBy([(g) => OrderingTerm.asc(g.sortIndex)])).get();
+  Future<List<Group>> getGroups(int userId) =>
+      (select(groups)
+            ..where((g) => g.userId.equals(userId))
+            ..orderBy([(g) => OrderingTerm.asc(g.sortIndex)]))
+          .get();
 
-  Future<Group> createGroup(String name,
+  Future<Group> createGroup(int userId, String name,
       {String? icon, String? note}) async {
     final existing = await (select(groups)
+          ..where((g) => g.userId.equals(userId))
           ..orderBy([(g) => OrderingTerm.desc(g.sortIndex)])
           ..limit(1))
         .getSingleOrNull();
@@ -95,6 +139,7 @@ class AppDatabase extends _$AppDatabase {
     final newId = newUuid();
     await into(groups).insert(GroupsCompanion.insert(
       id: Value(newId),
+      userId: Value(userId),
       name: name,
       sortIndex: nextSort,
       icon: Value(icon),
@@ -141,16 +186,16 @@ class AppDatabase extends _$AppDatabase {
 
   // ── Habits ─────────────────────────────────────────────────────────────────
 
-  Stream<List<Habit>> watchActiveHabits() => (select(habits)
-        ..where((h) => h.archivedAt.isNull())
+  Stream<List<Habit>> watchActiveHabits(int userId) => (select(habits)
+        ..where((h) => h.userId.equals(userId) & h.archivedAt.isNull())
         ..orderBy([
           (h) => OrderingTerm.asc(h.groupId),
           (h) => OrderingTerm.asc(h.sortIndex),
         ]))
       .watch();
 
-  Future<List<Habit>> getActiveHabits() => (select(habits)
-        ..where((h) => h.archivedAt.isNull())
+  Future<List<Habit>> getActiveHabits(int userId) => (select(habits)
+        ..where((h) => h.userId.equals(userId) & h.archivedAt.isNull())
         ..orderBy([
           (h) => OrderingTerm.asc(h.groupId),
           (h) => OrderingTerm.asc(h.sortIndex),
@@ -166,9 +211,9 @@ class AppDatabase extends _$AppDatabase {
     // which Drift's integer-mode DateTime reader then fails to parse.
     final id = await into(habits)
         .insert(companion.copyWith(createdAt: Value(DateTime.now())));
-    final startDate = companion.startDate.value ?? DateTime.now();
+    final startDate = companion.startDate.value;
     await _insertHistoryRow(
-        id, startDate.toUtc(), companion.schedule.value!, companion.tracking.value!);
+        id, startDate.toUtc(), companion.schedule.value, companion.tracking.value);
     return id;
   }
 
@@ -191,8 +236,8 @@ class AppDatabase extends _$AppDatabase {
         .write(const HabitsCompanion(archivedAt: Value(null)));
   }
 
-  Stream<List<Habit>> watchArchivedHabits() => (select(habits)
-        ..where((h) => h.archivedAt.isNotNull())
+  Stream<List<Habit>> watchArchivedHabits(int userId) => (select(habits)
+        ..where((h) => h.userId.equals(userId) & h.archivedAt.isNotNull())
         ..orderBy([(h) => OrderingTerm.desc(h.archivedAt)]))
       .watch();
 
@@ -391,12 +436,17 @@ class AppDatabase extends _$AppDatabase {
 
   // ── Vacations ──────────────────────────────────────────────────────────────
 
-  Stream<List<Vacation>> watchVacations() =>
-      (select(vacations)..orderBy([(v) => OrderingTerm.desc(v.start)]))
+  Stream<List<Vacation>> watchVacations(int userId) =>
+      (select(vacations)
+            ..where((v) => v.userId.equals(userId))
+            ..orderBy([(v) => OrderingTerm.desc(v.start)]))
           .watch();
 
-  Future<List<Vacation>> getVacations() =>
-      (select(vacations)..orderBy([(v) => OrderingTerm.asc(v.start)])).get();
+  Future<List<Vacation>> getVacations(int userId) =>
+      (select(vacations)
+            ..where((v) => v.userId.equals(userId))
+            ..orderBy([(v) => OrderingTerm.asc(v.start)]))
+          .get();
 
   // ── Settings ───────────────────────────────────────────────────────────────
 

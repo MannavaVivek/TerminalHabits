@@ -53,11 +53,13 @@ class _OnboardingViewState extends ConsumerState<OnboardingView> {
 
     if (_selectedHabits.isNotEmpty) {
       final db = ref.read(dbProvider);
-      final existing = await db.getActiveHabits();
+      final userId = ref.read(currentUserIdProvider);
+      final existing = await db.getActiveHabits(userId);
       var sortIndex = existing.length;
       for (final key in _selectedHabits) {
         final h = _starterDefs[key]!;
         await db.createHabit(HabitsCompanion.insert(
+          userId: Value(userId),
           groupId: 'general',
           name: h.$1,
           icon: Value(h.$2),

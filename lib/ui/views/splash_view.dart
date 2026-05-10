@@ -3,10 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../state/providers.dart';
 import '../../theme/tokens.dart';
 import '../widgets/ascii_art.dart';
 import 'app_scaffold.dart';
+import 'login_view.dart';
 import 'onboarding_view.dart';
+import 'register_view.dart';
 
 class SplashView extends ConsumerStatefulWidget {
   const SplashView({super.key});
@@ -51,16 +54,35 @@ class _SplashViewState extends ConsumerState<SplashView>
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('seenSplash', true);
     if (!mounted) return;
-    final seenOnboarding = prefs.getBool('seenOnboarding') ?? false;
-    Navigator.of(context).pushReplacement(
-      PageRouteBuilder<void>(
-        pageBuilder: (_, __, ___) => seenOnboarding
-            ? const AppScaffold()
-            : const OnboardingView(),
-        transitionDuration: Duration.zero,
-        reverseTransitionDuration: Duration.zero,
-      ),
-    );
+
+    final db = ref.read(dbProvider);
+    final savedId = prefs.getInt('loggedInUserId');
+
+    if (savedId != null) {
+      final user = await db.getUserById(savedId);
+      if (user != null) {
+        ref.read(currentUserIdProvider.notifier).state = savedId;
+        if (!mounted) return;
+        final seenOnboarding = prefs.getBool('seenOnboarding') ?? false;
+        Navigator.of(context).pushReplacement(PageRouteBuilder<void>(
+          pageBuilder: (_, __, ___) =>
+              seenOnboarding ? const AppScaffold() : const OnboardingView(),
+          transitionDuration: Duration.zero,
+          reverseTransitionDuration: Duration.zero,
+        ));
+        return;
+      }
+      await prefs.remove('loggedInUserId');
+    }
+
+    final userCount = await db.getUserCount();
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(PageRouteBuilder<void>(
+      pageBuilder: (_, __, ___) =>
+          userCount == 0 ? const RegisterView() : const LoginView(),
+      transitionDuration: Duration.zero,
+      reverseTransitionDuration: Duration.zero,
+    ));
   }
 
   @override

@@ -84,8 +84,10 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
     };
 
     final db = ref.read(dbProvider);
-    final habits = await db.getActiveHabits();
+    final userId = ref.read(currentUserIdProvider);
+    final habits = await db.getActiveHabits(userId);
     await db.createHabit(HabitsCompanion.insert(
+      userId: Value(userId),
       groupId: _groupId ?? 'general',
       name: name,
       icon: Value(_iconKey ?? 'circle'),
@@ -151,7 +153,8 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
     final result = await NewGroupDialog.show(context);
     if (result == null) return;
     final db = ref.read(dbProvider);
-    final created = await db.createGroup(result.name,
+    final created = await db.createGroup(
+        ref.read(currentUserIdProvider), result.name,
         icon: result.icon, note: result.note);
     if (mounted) setState(() => _groupId = created.id);
   }

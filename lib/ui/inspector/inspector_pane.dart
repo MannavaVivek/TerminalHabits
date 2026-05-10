@@ -54,6 +54,7 @@ class InspectorPane extends ConsumerWidget {
 // Sentinel — never displayed; only used by orElse so the closure compiles.
 final _stubHabit = Habit(
   id: -1,
+  userId: 0,
   groupId: '',
   name: '',
   icon: '',

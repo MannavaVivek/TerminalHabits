@@ -104,7 +104,7 @@ class _DailyHeader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final userName =
-        ref.watch(userNameProvider).valueOrNull ?? 'you';
+        ref.watch(userNameProvider);
     final day = state.today;
     final dateLine =
         '${_days[day.weekday - 1]}, ${_months[day.month - 1]} ${day.day} ${day.year}';

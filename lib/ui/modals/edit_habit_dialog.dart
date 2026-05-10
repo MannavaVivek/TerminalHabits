@@ -273,9 +273,9 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
   Future<void> _newGroup() async {
     final result = await NewGroupDialog.show(context);
     if (result == null) return;
-    final created = await ref
-        .read(dbProvider)
-        .createGroup(result.name, icon: result.icon, note: result.note);
+    final created = await ref.read(dbProvider).createGroup(
+        ref.read(currentUserIdProvider), result.name,
+        icon: result.icon, note: result.note);
     if (mounted) setState(() => _groupId = created.id);
   }
 

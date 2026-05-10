@@ -4,6 +4,7 @@ import 'package:terminal_habits/data/database.dart';
 
 Habit _habit(String schedule) => Habit(
       id: 1,
+      userId: 1,
       groupId: 'g1',
       name: 'test',
       icon: '●',

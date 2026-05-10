@@ -9,6 +9,7 @@ final _epoch = DateTime(2026, 1, 1); // created date for all test habits
 Habit _habit({String? schedule, DateTime? createdAt, DateTime? startDate}) =>
     Habit(
       id: 1,
+      userId: 1,
       groupId: 'g1',
       name: 'test',
       icon: '●',
@@ -167,6 +168,7 @@ void main() {
       final vacEnd = today.subtract(const Duration(days: 3));
       final vacation = Vacation(
         id: 1,
+        userId: 1,
         start: vacStart,
         end: vacEnd,
         note: null,

@@ -242,40 +242,94 @@
 
 ---
 
-## Phase 6 — Settings & preferences (≈ 1 week)
+## Phase 6a — User auth & data isolation (≈ 1 week)
 
 > After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit per `constitution.md §7`.
 
-**Goal:** a real settings surface where the user can change appearance and tweak app behavior. Replaces ad-hoc `SharedPreferences` keys scattered across the codebase with a single typed settings layer.
+**Goal:** multi-user local auth with full per-user data isolation. Habits, groups, and vacations are scoped to the logged-in user. Login and registration are required on every fresh launch.
 
 ### Scope
-- **`SettingsDialog`** (opened via `Cmd+,` or command-palette `settings`):
-  - **Appearance** group: theme switcher (6 themes), font size pills, font family preview cards. Theme switching is instant, no animation.
-  - **Behavior** group:
-    - `allowFutureMarking` (bool, default `false`) — overrides the hard-disable from Phase 1. When `false`, tapping the checkbox on a future day shows the "[ understood ]" notice. When `true`, marking is permitted with no warning.
-    - `minDailyCompletionPct` (int 0–100, default `60`) — the minimum percentage of due habits completed for a day to count as a "successful day" in stats and in the per-day shield system (see Backlog). Surfaces in the week-strip intensity bar and in stats grouping.
-    - `firstDayOfWeek` (enum, default `monday`) — controls week strip layout and stats grouping.
-    - `weekStartsAtMidnight` (bool, default `true`) — if false, "today" rolls over at a user-chosen hour (e.g. 4 AM for night-owls). Affects `localMidnightUtc` semantics.
-    - `confirmDestructive` (bool, default `true`) — show confirms for archive/delete (delete is always confirmed; archive becomes silent if false).
-  - **About** group: version, build mode, data location, "view memory" link to the data file.
-- **Settings persistence**: introduce a `SettingsRepository` backed by the existing `app_settings` Drift table (already in schema). All bool/string prefs migrate from `SharedPreferences` to this table over the course of the phase. `SharedPreferences` is then reserved for first-run flags only (`seenSplash`, `seenOnboarding`).
-- `settingsProvider` (Riverpod `AsyncNotifier`) exposes the settings record; UI watches it and writes back through the notifier.
-- `Cmd+,` keyboard shortcut wired on macOS / Linux. The command palette's "settings" command opens the same dialog.
-- Inspector pane shows nothing about settings (settings are global, not selection-scoped).
+
+#### Users table & data isolation
+- **New `users` table**: `id INTEGER PK autoincrement`, `username TEXT UNIQUE`, `display_name TEXT`, `password TEXT` (plaintext — Phase 11 replaces with hashed + Supabase), `created_at DATETIME`.
+- **`user_id` column** added to `habits`, `groups`, and `vacations`. All read/write queries filter by the logged-in user's id. Completions and `habit_schedule_history` are implicitly isolated through their `habit_id` FK.
+- **Migration v6**: create `users` table; add `user_id INTEGER NOT NULL DEFAULT 1` to habits/groups/vacations; seed a placeholder user `(id=1, username='dev', password='dev', display_name=existing userName setting)` so existing data is assigned to user 1 and remains accessible.
+- Fresh install: no placeholder user; registration creates the first user and the default 'general' group.
+
+#### Auth flow
+- **`RegisterView`**: fields — display name, username, password, confirm password. No validation rules in this phase (any length, any characters). On submit: insert user row, create default 'general' group for that user, set `SharedPreferences.loggedInUserId`, update `currentUserIdProvider`, push `OnboardingView`.
+- **`LoginView`**: fields — username, password. On match: set SharedPreferences + provider, push `AppScaffold`. On mismatch: inline red error, no lockout. Two footer links: `[ register ]` → `RegisterView`, `[ forgot password ]` → `ForgotPasswordView`.
+- **`ForgotPasswordView`**: enter username → if found, display the plaintext password from the DB directly on screen. Prominent note: "this is a temporary local dev feature — Phase 11 will replace it with email recovery." Link back to `[ login ]`.
+- **`SplashView._proceed()`** routing:
+  1. Check `SharedPreferences.loggedInUserId`; verify user still exists in DB.
+  2. If valid session → update `currentUserIdProvider` → `AppScaffold` (or `OnboardingView` if `seenOnboarding=false`).
+  3. If no session, user count > 0 → `LoginView`.
+  4. If no session, user count == 0 → `RegisterView`.
+- **Log out**: available from `UserWindow` (Phase 6b). Clears `SharedPreferences.loggedInUserId`, resets `currentUserIdProvider` to 0, pushes `LoginView`.
+
+#### Sidebar & nav restructure
+- **User button** at the bottom of the left sidebar (replaces the `profile` nav item). Displays: `[${initial}] ${displayName}` in dim style. Tapping opens `UserWindow` as a dialog.
+- **Archive** removed from sidebar nav. Temporarily accessible at Settings → Data (Phase 6b). For Phase 6a: archive nav item is just hidden; `ArchiveView` stays in the codebase but is unreachable from the UI until Phase 6b wires it into settings.
+- Sidebar nav: Daily / Stats only. User button at bottom.
+
+#### User window (`UserWindow`)
+- Dialog opened from the user button.
+- **Header**: `[ ⚙ settings ]` button top-right (stub — opens placeholder until Phase 6b).
+- **Body**: `username:`, `display name:` (editable inline, saves on blur), `member since:`, `total completions:`, `current streak:`.
+- **Footer**: `[ log out ]` button.
+
+#### `currentUserIdProvider`
+- `StateProvider<int>((ref) => 0)`. Set to the logged-in user's id after login/register. All stream providers (`habitsProvider`, `groupsProvider`, `vacationsProvider`) guard on `userId == 0` by returning `Stream.empty()`.
 
 ### Schema changes
-- No table changes. The existing `settings (key TEXT PK, value TEXT)` table is reused; the repository typecasts on read.
+- Migration v6: new `users` table; `user_id INTEGER NOT NULL DEFAULT 1` on habits/groups/vacations.
 
 ### Exit criteria
-- [ ] Settings dialog opens via `Cmd+,` and via the command palette.
-- [ ] Switching theme updates colors instantly across all visible widgets without restart.
-- [ ] Setting `allowFutureMarking = true` permits checkbox toggles on future days; `false` (default) keeps the "[ understood ]" notice.
-- [ ] All settings persist across app restart.
-- [ ] Old `SharedPreferences`-backed settings (e.g. `warnFutureToggle`) are migrated to the `settings` table on first launch after the upgrade.
+- [ ] Fresh install: splash → register → onboarding → daily view.
+- [ ] Subsequent launch: splash → login → daily view. Wrong password shows inline red error.
+- [ ] `[ forgot password ]`: enter username → plaintext password shown on screen.
+- [ ] Habits, groups, and vacations created by user A are invisible when logged in as user B.
+- [ ] User button in sidebar shows initial + display name; tapping opens `UserWindow`.
+- [ ] `UserWindow` shows username, member since, total completions, current streak; display name editable.
+- [ ] Log out → next launch shows `LoginView`.
+- [ ] Existing pre-auth data (migration) assigned to dev/dev user and still visible after login.
 
 ### Out of scope
-- Per-habit settings (those live in the edit dialog from Phase 3).
-- Stats view, command palette polish, vacation mode, count/number tracking — all in Phase 7.
+- Password hashing, email, OAuth — Phase 11.
+- Settings dialog, archive in settings — Phase 6b.
+- Stats view, vacation mode — Phase 7.
+
+---
+
+## Phase 6b — Settings dialog & archive relocation (≈ 1 week)
+
+> After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit per `constitution.md §7`.
+
+**Goal:** a real settings surface; archive moved out of sidebar nav into settings; `Cmd+,` shortcut wired.
+
+### Scope
+- **`SettingsDialog`**: opened via `Cmd+,`, command palette `settings`, or the `[ ⚙ settings ]` button in `UserWindow` (replaces the Phase 6a stub).
+  - **Appearance**: theme switcher (6 themes), font size pills, font family preview cards. Instant apply, no animation.
+  - **Behavior**: `allowFutureMarking` (bool, default `false`), `minDailyCompletionPct` (int 0–100, default `100`), `firstDayOfWeek` (enum, default `monday`), `weekStartsAtMidnight` (bool, default `true`), `confirmDestructive` (bool, default `true`).
+  - **Data**: archived habits list with restore / delete; export to JSON; import from JSON; DB file path (read-only).
+  - **About**: version, build mode, note about local-only password display limitation.
+- **`settingsProvider`** (`AsyncNotifier`) backed by the existing `settings (key TEXT PK, value TEXT)` Drift table. All bool/string prefs migrate from `SharedPreferences` here; `SharedPreferences` is reduced to `seenSplash` only.
+- **`Cmd+,`** wired in `AppScaffold` shortcuts (macOS/Linux).
+- **Archive**: `ArchiveView` embedded in `SettingsDialog` → Data tab. Sidebar nav has no archive entry.
+
+### Schema changes
+- No new tables. Typed setting keys added to the existing `settings` table.
+
+### Exit criteria
+- [ ] `SettingsDialog` opens via `Cmd+,`, command palette, and user window settings button.
+- [ ] Theme and font size update instantly across all visible widgets.
+- [ ] `allowFutureMarking = true` skips the future-day warning dialog.
+- [ ] Archived habits listed under Settings → Data with restore and delete actions.
+- [ ] All behavior settings persist across restart.
+
+### Out of scope
+- Per-user settings scoping (settings remain global in this phase).
+- Stats, command palette polish, vacation — Phase 7.
 
 ---
 
@@ -432,6 +486,7 @@ This phase is the largest UX shift. See [input_spec.md](input_spec.md) §3 for t
 
 ### Scope (tentative)
 - Supabase project: `auth.users`, mirror tables for `habits`, `completions`, `groups`, `vacations`, `settings`, `habit_schedule_history`.
+- Replace Phase 6 local auth check with Supabase email/password auth. Reuse the existing `LoginView` and `CreateAccountView` screens — only the check logic swaps. Password reset and email verification added here.
 - `SyncRepository` layer between `state/` and `data/`. Local writes are authoritative; sync is async.
 - Conflict resolution: last-write-wins per row, with a "last edited" timestamp column.
 - Sign-in UI in Settings; sign-out clears remote credentials but preserves local DB.

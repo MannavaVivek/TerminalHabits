@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
+import '../modals/user_window.dart';
 
 class Sidebar extends ConsumerWidget {
   const Sidebar({super.key});
@@ -9,6 +10,11 @@ class Sidebar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final view = ref.watch(currentViewProvider);
+    final user = ref.watch(currentUserProvider).valueOrNull;
+    final initial = (user?.displayName.isNotEmpty == true)
+        ? user!.displayName[0].toUpperCase()
+        : '?';
+    final displayName = user?.displayName ?? '';
 
     return SizedBox(
       width: 200,
@@ -28,20 +34,45 @@ class Sidebar extends ConsumerWidget {
             onTap: () =>
                 ref.read(currentViewProvider.notifier).state = 'stats',
           ),
-          _NavItem(
-            label: 'profile',
-            selected: view == 'profile',
-            onTap: () =>
-                ref.read(currentViewProvider.notifier).state = 'profile',
-          ),
           const Spacer(),
-          _NavItem(
-            label: 'archive',
-            selected: view == 'archive',
-            onTap: () =>
-                ref.read(currentViewProvider.notifier).state = 'archive',
+          // ── user button ────────────────────────────────────────────
+          GestureDetector(
+            onTap: () => showUserWindow(context),
+            child: Container(
+              color: Colors.transparent,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: TH.s14, vertical: TH.s8),
+              child: Row(
+                children: [
+                  Container(
+                    width: 22,
+                    height: 22,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: TH.fgMute),
+                      borderRadius: BorderRadius.all(TH.r4),
+                    ),
+                    child: Center(
+                      child: Text(initial,
+                          style: const TextStyle(
+                              color: TH.fgDim,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                  const SizedBox(width: TH.s8),
+                  Expanded(
+                    child: Text(
+                      displayName,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          color: TH.fgDim, fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-          const SizedBox(height: TH.s14),
+          const SizedBox(height: TH.s8),
         ],
       ),
     );
@@ -93,5 +124,3 @@ class _NavItem extends StatelessWidget {
     );
   }
 }
-
-

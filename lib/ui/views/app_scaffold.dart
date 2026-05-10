@@ -13,9 +13,7 @@ import '../modals/new_habit_dialog.dart';
 import '../nav/sidebar.dart';
 import '../widgets/status_bar.dart';
 import '../window/window_chrome.dart';
-import 'archive_view.dart';
 import 'daily_view.dart';
-import 'profile_view.dart';
 import 'stats_view.dart';
 
 class AppScaffold extends ConsumerWidget {
@@ -29,8 +27,6 @@ class AppScaffold extends ConsumerWidget {
 
     Widget mainPane = switch (view) {
       'stats' => const StatsView(),
-      'profile' => const ProfileView(),
-      'archive' => const ArchiveView(),
       _ => const DailyView(),
     };
 
@@ -68,9 +64,7 @@ class AppScaffold extends ConsumerWidget {
         SingleActivator(LogicalKeyboardKey.digit2,
                 meta: isMeta, control: !isMeta):
             const GoToIntent(ViewName.stats),
-        SingleActivator(LogicalKeyboardKey.digit3,
-                meta: isMeta, control: !isMeta):
-            const GoToIntent(ViewName.profile),
+
         SingleActivator(LogicalKeyboardKey.keyN,
                 meta: isMeta, control: !isMeta):
             const NewHabitIntent(),

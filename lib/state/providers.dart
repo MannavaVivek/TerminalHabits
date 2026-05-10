@@ -10,22 +10,35 @@ final dbProvider = Provider<AppDatabase>(
   (ref) => throw UnimplementedError('dbProvider must be overridden in main.dart'),
 );
 
+// ── Auth ──────────────────────────────────────────────────────────────────────
+
+// 0 = not logged in. Set after login/register; guards all user-scoped providers.
+final currentUserIdProvider = StateProvider<int>((ref) => 0);
+
 // ── Streams ───────────────────────────────────────────────────────────────────
 
-final groupsProvider = StreamProvider<List<Group>>(
-  (ref) => ref.watch(dbProvider).watchGroups(),
-);
+final groupsProvider = StreamProvider<List<Group>>((ref) {
+  final userId = ref.watch(currentUserIdProvider);
+  if (userId == 0) return const Stream.empty();
+  return ref.watch(dbProvider).watchGroups(userId);
+});
 
-final habitsProvider = StreamProvider<List<Habit>>(
-  (ref) => ref.watch(dbProvider).watchActiveHabits(),
-);
+final habitsProvider = StreamProvider<List<Habit>>((ref) {
+  final userId = ref.watch(currentUserIdProvider);
+  if (userId == 0) return const Stream.empty();
+  return ref.watch(dbProvider).watchActiveHabits(userId);
+});
 
-final archivedHabitsProvider = StreamProvider<List<Habit>>(
-  (ref) => ref.watch(dbProvider).watchArchivedHabits(),
-);
+final archivedHabitsProvider = StreamProvider<List<Habit>>((ref) {
+  final userId = ref.watch(currentUserIdProvider);
+  if (userId == 0) return const Stream.empty();
+  return ref.watch(dbProvider).watchArchivedHabits(userId);
+});
 
 final recentCompletionsProvider =
     StreamProvider<Map<int, List<Completion>>>((ref) {
+  final userId = ref.watch(currentUserIdProvider);
+  if (userId == 0) return const Stream.empty();
   final sinceUtc = localMidnightUtc(
     DateTime.now().subtract(const Duration(days: 90)),
   );
@@ -36,9 +49,11 @@ final recentCompletionsProvider =
   });
 });
 
-final vacationsProvider = StreamProvider<List<Vacation>>(
-  (ref) => ref.watch(dbProvider).watchVacations(),
-);
+final vacationsProvider = StreamProvider<List<Vacation>>((ref) {
+  final userId = ref.watch(currentUserIdProvider);
+  if (userId == 0) return const Stream.empty();
+  return ref.watch(dbProvider).watchVacations(userId);
+});
 
 final scheduleHistoryProvider =
     StreamProvider<Map<int, List<HabitScheduleHistoryData>>>(
@@ -190,11 +205,19 @@ final dailyStateProvider = Provider<AsyncValue<DailyState>>((ref) {
   ));
 });
 
-// ── User name (from settings table) ───────────────────────────────────────────
+// ── Current user ─────────────────────────────────────────────────────────────
 
-final userNameProvider = StreamProvider<String>(
-  (ref) => ref.watch(dbProvider).watchSetting('userName').map((v) => v ?? 'you'),
-);
+final currentUserProvider = FutureProvider<User?>((ref) {
+  final userId = ref.watch(currentUserIdProvider);
+  if (userId == 0) return Future.value(null);
+  return ref.watch(dbProvider).getUserById(userId);
+});
+
+// ── User name (display name of logged-in user) ────────────────────────────────
+
+final userNameProvider = Provider<String>((ref) {
+  return ref.watch(currentUserProvider).valueOrNull?.displayName ?? 'you';
+});
 
 // ── Per-day completion ratios for the week strip ──────────────────────────────
 

@@ -93,10 +93,11 @@ Future<void> showGroupMenu(
 Future<void> _confirmDelete(
     BuildContext context, WidgetRef ref, Group group) async {
   final db = ref.read(dbProvider);
-  final allGroups = await db.getGroups();
+  final userId = ref.read(currentUserIdProvider);
+  final allGroups = await db.getGroups(userId);
   final reassignTargets =
       allGroups.where((g) => g.id != group.id).toList();
-  final habitsInGroup = await db.getActiveHabits();
+  final habitsInGroup = await db.getActiveHabits(userId);
   final affected =
       habitsInGroup.where((h) => h.groupId == group.id).length;
 

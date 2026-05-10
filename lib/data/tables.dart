@@ -3,8 +3,20 @@ import 'package:uuid/uuid.dart';
 
 String newUuid() => const Uuid().v4();
 
+class Users extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get username => text().unique()();
+  TextColumn get displayName => text()();
+  // Plaintext until Phase 11 replaces with Supabase auth.
+  TextColumn get password => text()();
+  DateTimeColumn get createdAt =>
+      dateTime().withDefault(currentDateAndTime)();
+}
+
 class Groups extends Table {
   TextColumn get id => text().clientDefault(newUuid)();
+  IntColumn get userId =>
+      integer().withDefault(const Constant(1))();
   TextColumn get name => text()();
   IntColumn get sortIndex => integer()();
   BoolColumn get collapsed =>
@@ -18,6 +30,8 @@ class Groups extends Table {
 
 class Habits extends Table {
   IntColumn get id => integer().autoIncrement()();
+  IntColumn get userId =>
+      integer().withDefault(const Constant(1))();
   TextColumn get groupId =>
       text().references(Groups, #id)();
   TextColumn get name => text()();
@@ -73,6 +87,8 @@ class Completions extends Table {
 
 class Vacations extends Table {
   IntColumn get id => integer().autoIncrement()();
+  IntColumn get userId =>
+      integer().withDefault(const Constant(1))();
   DateTimeColumn get start => dateTime()();
   DateTimeColumn get end => dateTime()();
   TextColumn get note => text().nullable()();
