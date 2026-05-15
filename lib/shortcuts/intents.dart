@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 // View names used by navigation intents.
-enum ViewName { daily, stats }
+enum ViewName { daily, stats, vacation }
 
 // One Intent per logical user action. Both keyboard shortcuts (desktop) and
 // touch widgets (mobile) dispatch these same intents.

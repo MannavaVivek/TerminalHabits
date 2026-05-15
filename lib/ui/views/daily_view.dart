@@ -16,6 +16,7 @@ class DailyView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final col = context.col;
     final dailyAV = ref.watch(dailyStateProvider);
+    final vacsAV = ref.watch(vacationsProvider);
 
     return dailyAV.when(
       loading: () => Center(
@@ -24,39 +25,99 @@ class DailyView extends ConsumerWidget {
       error: (e, _) => Center(
           child: Text('error: $e',
               style: TextStyle(color: col.red, fontSize: 13))),
-      data: (state) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      data: (state) {
+        // Check if the selected day is in an active vacation.
+        final selDay = state.today;
+        final selMidnight =
+            DateTime(selDay.year, selDay.month, selDay.day);
+        final vacs = vacsAV.valueOrNull ?? const [];
+        final activeVac = vacs.where((v) {
+          if (!v.active) return false;
+          final start = DateTime(v.start.toLocal().year,
+              v.start.toLocal().month, v.start.toLocal().day);
+          final end = DateTime(v.end.toLocal().year,
+              v.end.toLocal().month, v.end.toLocal().day);
+          return !selMidnight.isBefore(start) &&
+              !selMidnight.isAfter(end);
+        }).firstOrNull;
+
+        Widget body;
+        if (activeVac != null) {
+          body = _VacationActiveMessage(vacation: activeVac);
+        } else {
+          body = state.groups.isEmpty
+              ? _EmptyDay(selectedDay: state.today)
+              : ListView.builder(
+                  padding: const EdgeInsets.only(bottom: TH.s22),
+                  itemCount: state.groups.length + 1,
+                  itemBuilder: (context, i) {
+                    if (i == state.groups.length) {
+                      return Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                            TH.s14, TH.s14, TH.s14, TH.s8),
+                        child: _AddHabitButton(
+                            defaultStartDate: state.today),
+                      );
+                    }
+                    return HabitGroupWidget(
+                        dailyGroup: state.groups[i]);
+                  },
+                );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  TH.s14, TH.s14, TH.s14, 0),
+              child: _DailyHeader(state: state),
+            ),
+            const SizedBox(height: TH.s14),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: TH.s14),
+              child: WeekStrip(),
+            ),
+            const SizedBox(height: TH.s14),
+            Expanded(child: body),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _VacationActiveMessage extends StatelessWidget {
+  final dynamic vacation; // Vacation type
+  const _VacationActiveMessage({required this.vacation});
+
+  String _fmt(DateTime d) {
+    final local = d.toLocal();
+    return '${local.year}-${local.month.toString().padLeft(2, '0')}-${local.day.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final col = context.col;
+    final start = _fmt(vacation.start as DateTime);
+    final end = _fmt(vacation.end as DateTime);
+    return Padding(
+      padding: const EdgeInsets.all(TH.s22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-                TH.s14, TH.s14, TH.s14, 0),
-            child: _DailyHeader(state: state),
-          ),
+          Text('vacation active.',
+              style: TextStyle(
+                  color: col.amber,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600)),
+          const SizedBox(height: TH.s8),
+          Text('$start → $end',
+              style: TextStyle(color: col.fgDim, fontSize: 13)),
           const SizedBox(height: TH.s14),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: TH.s14),
-            child: WeekStrip(),
-          ),
-          const SizedBox(height: TH.s14),
-          Expanded(
-            child: state.groups.isEmpty
-                ? _EmptyDay(selectedDay: state.today)
-                : ListView.builder(
-                    padding: const EdgeInsets.only(bottom: TH.s22),
-                    itemCount: state.groups.length + 1,
-                    itemBuilder: (context, i) {
-                      if (i == state.groups.length) {
-                        return Padding(
-                          padding: const EdgeInsets.fromLTRB(
-                              TH.s14, TH.s14, TH.s14, TH.s8),
-                          child: _AddHabitButton(
-                              defaultStartDate: state.today),
-                        );
-                      }
-                      return HabitGroupWidget(
-                          dailyGroup: state.groups[i]);
-                    },
-                  ),
+          Text(
+            '// tracking resumes when you\'re back.',
+            style: TextStyle(color: col.fgMute, fontSize: 12),
           ),
         ],
       ),

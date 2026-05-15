@@ -8,6 +8,7 @@ import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
 import '../inspector/inspector_pane.dart';
 import '../modals/command_palette.dart';
+import '../modals/edit_habit_dialog.dart';
 import '../modals/future_warn_dialog.dart';
 import '../modals/new_habit_dialog.dart';
 import '../modals/settings_dialog.dart';
@@ -81,6 +82,10 @@ class AppScaffold extends ConsumerWidget {
             const FocusPrevHabitIntent(),
         const SingleActivator(LogicalKeyboardKey.space):
             const ToggleFocusedHabitIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyE):
+            const EditFocusedHabitIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyA):
+            const ArchiveFocusedHabitIntent(),
       },
       child: Actions(
         actions: {
@@ -128,6 +133,19 @@ class AppScaffold extends ConsumerWidget {
               return null;
             },
           ),
+          EditFocusedHabitIntent: CallbackAction<EditFocusedHabitIntent>(
+            onInvoke: (_) {
+              _editFocused(context, ref);
+              return null;
+            },
+          ),
+          ArchiveFocusedHabitIntent:
+              CallbackAction<ArchiveFocusedHabitIntent>(
+            onInvoke: (_) {
+              _archiveFocused(ref);
+              return null;
+            },
+          ),
         },
         child: Focus(autofocus: true, child: content),
       ),
@@ -144,6 +162,24 @@ class AppScaffold extends ConsumerWidget {
       ref.read(focusedHabitIdProvider.notifier).state =
           flat[nextIdx].habit.id;
     });
+  }
+
+  void _editFocused(BuildContext context, WidgetRef ref) {
+    final focusedId = ref.read(focusedHabitIdProvider);
+    if (focusedId == null) return;
+    ref.read(habitsProvider).whenData((habits) {
+      final habit = habits.where((h) => h.id == focusedId).firstOrNull;
+      if (habit != null && context.mounted) {
+        EditHabitDialog.show(context, habit);
+      }
+    });
+  }
+
+  Future<void> _archiveFocused(WidgetRef ref) async {
+    final focusedId = ref.read(focusedHabitIdProvider);
+    if (focusedId == null) return;
+    await ref.read(dbProvider).archiveHabit(focusedId);
+    ref.read(focusedHabitIdProvider.notifier).state = null;
   }
 
   Future<void> _toggleFocused(

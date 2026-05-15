@@ -180,7 +180,7 @@ void main() {
           return !d.isBefore(vacStart) && !d.isAfter(vacEnd);
         });
       final r = computeStreaks(_habit(), completions, today, [vacation], const []);
-      expect(r.current, 10);
+      expect(r.current, 7);
     });
   });
 }

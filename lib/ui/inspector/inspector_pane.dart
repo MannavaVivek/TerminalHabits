@@ -5,6 +5,7 @@ import '../../domain/schedule.dart';
 import '../../domain/streaks.dart';
 import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/icon_library.dart';
 import '../../theme/tokens.dart';
 
 const _months = [
@@ -20,14 +21,40 @@ class InspectorPane extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final currentView = ref.watch(currentViewProvider);
     final focusedId = ref.watch(focusedHabitIdProvider);
     final habitsAV = ref.watch(habitsProvider);
     final recentAV = ref.watch(recentCompletionsProvider);
     final vacAV = ref.watch(vacationsProvider);
-
-    Widget body = const _EmptyInspector();
-
     final historyAV = ref.watch(scheduleHistoryProvider);
+    final selectedDay = ref.watch(selectedDayProvider);
+
+    // Stats view → show glossary
+    if (currentView == 'stats') {
+      return const SizedBox(width: 280, child: _StatsGlossary());
+    }
+
+    // Vacation view → show vacation info
+    if (currentView == 'vacation') {
+      return const SizedBox(width: 280, child: _VacationInspector());
+    }
+
+    // Daily view on a vacation day → show nothing
+    if (currentView == 'daily' && vacAV.hasValue) {
+      final selMidnight = DateTime(
+          selectedDay.year, selectedDay.month, selectedDay.day);
+      final inVacation = vacAV.requireValue.any((v) {
+        if (!v.active) return false;
+        final s = DateTime(v.start.toLocal().year, v.start.toLocal().month,
+            v.start.toLocal().day);
+        final e = DateTime(v.end.toLocal().year, v.end.toLocal().month,
+            v.end.toLocal().day);
+        return !selMidnight.isBefore(s) && !selMidnight.isAfter(e);
+      });
+      if (inVacation) return const SizedBox(width: 280);
+    }
+
+    Widget body;
 
     if (focusedId != null &&
         habitsAV.hasValue &&
@@ -45,7 +72,22 @@ class InspectorPane extends ConsumerWidget {
         final streaks = computeStreaks(
             habit, comps, DateTime.now(), vacAV.requireValue, history);
         body = _HabitInspector(habit: habit, streaks: streaks, history: history);
+      } else {
+        body = _TodaySummary(
+          habitsAV: habitsAV,
+          recentAV: recentAV,
+          vacAV: vacAV,
+          historyAV: historyAV,
+        );
       }
+    } else {
+      // Daily view, no habit focused → Today summary
+      body = _TodaySummary(
+        habitsAV: habitsAV,
+        recentAV: recentAV,
+        vacAV: vacAV,
+        historyAV: historyAV,
+      );
     }
 
     return SizedBox(width: 280, child: body);
@@ -73,16 +115,184 @@ final _stubHabit = Habit(
   archivedAt: null,
 );
 
-class _EmptyInspector extends StatelessWidget {
-  const _EmptyInspector();
+class _TodaySummary extends StatelessWidget {
+  final AsyncValue<List<Habit>> habitsAV;
+  final AsyncValue<Map<int, List<Completion>>> recentAV;
+  final AsyncValue<List<Vacation>> vacAV;
+  final AsyncValue<Map<int, List<HabitScheduleHistoryData>>> historyAV;
+
+  const _TodaySummary({
+    required this.habitsAV,
+    required this.recentAV,
+    required this.vacAV,
+    required this.historyAV,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Text(
-        'select a habit\nto inspect',
-        textAlign: TextAlign.center,
-        style: TextStyle(color: context.col.fgFaint, fontSize: 12),
+    final col = context.col;
+
+    if (!habitsAV.hasValue || !recentAV.hasValue) {
+      return Center(
+        child: Text('loading…',
+            style: TextStyle(color: col.fgFaint, fontSize: 12)),
+      );
+    }
+
+    final habits = habitsAV.requireValue;
+    final recentMap = recentAV.requireValue;
+    final vacList = vacAV.valueOrNull ?? const [];
+    final historyMap = historyAV.valueOrNull ?? const {};
+    final now = DateTime.now();
+    final todayUtc = DateTime(now.year, now.month, now.day).toUtc();
+
+    var dueToday = 0;
+    var doneToday = 0;
+    var activeStreaks = 0;
+
+    for (final h in habits) {
+      final startUtc =
+          DateTime(h.startDate.toLocal().year, h.startDate.toLocal().month,
+              h.startDate.toLocal().day).toUtc();
+      if (todayUtc.isBefore(startUtc)) continue;
+      if (h.endDate != null) {
+        final endUtc = DateTime(h.endDate!.toLocal().year,
+            h.endDate!.toLocal().month, h.endDate!.toLocal().day).toUtc();
+        if (todayUtc.isAfter(endUtc)) continue;
+      }
+      final entry = effectiveScheduleAt(
+          historyMap[h.id] ?? const [], todayUtc);
+      if (!isDueOnSchedule(entry?.schedule ?? h.schedule, now)) continue;
+      dueToday++;
+      final comps = recentMap[h.id] ?? const [];
+      if (comps.any((c) => c.day.toUtc() == todayUtc)) doneToday++;
+    }
+
+    for (final h in habits) {
+      final comps = recentMap[h.id] ?? const [];
+      final history = historyMap[h.id] ?? const [];
+      final s = computeStreaks(h, comps, now, vacList, history);
+      if (s.current > 0) activeStreaks++;
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(TH.s14),
+      children: [
+        Text('── today',
+            style: TextStyle(color: col.fgMute, fontSize: 11)),
+        const SizedBox(height: TH.s4),
+        _Row('due', '$dueToday', col: col),
+        _Row('done', '$doneToday', col: col),
+        _Row('remaining', '${(dueToday - doneToday).clamp(0, 999)}', col: col),
+        const SizedBox(height: TH.s8),
+        Text('── streaks',
+            style: TextStyle(color: col.fgMute, fontSize: 11)),
+        const SizedBox(height: TH.s4),
+        _Row('active', '$activeStreaks', col: col),
+        const SizedBox(height: TH.s14),
+        Text(
+          'j/k to focus a habit\nspace to toggle\ne to edit\na to archive',
+          style: TextStyle(color: col.fgFaint, fontSize: 11, height: 1.6),
+        ),
+      ],
+    );
+  }
+}
+
+class _StatsGlossary extends StatelessWidget {
+  const _StatsGlossary();
+
+  @override
+  Widget build(BuildContext context) {
+    final col = context.col;
+    return ListView(
+      padding: const EdgeInsets.all(TH.s14),
+      children: [
+        Text('── glossary',
+            style: TextStyle(color: col.fgMute, fontSize: 11)),
+        const SizedBox(height: TH.s8),
+        _GlossaryItem(
+          term: 'overview',
+          def: 'Total habits, completions in the last 365 days, active streaks, and 30-day compliance rate.',
+          col: col,
+        ),
+        _GlossaryItem(
+          term: 'streaks',
+          def: 'Top 5 habits by current streak and by longest streak (up to 365-day window).',
+          col: col,
+        ),
+        _GlossaryItem(
+          term: 'rates',
+          def: 'Per-habit completion rate over the last 30 days: done ÷ due.',
+          col: col,
+        ),
+        _GlossaryItem(
+          term: 'contributions',
+          def: '365-day grid. Color intensity = number of completions that day (5 levels).',
+          col: col,
+        ),
+        _GlossaryItem(
+          term: 'day of week',
+          def: 'Average completion rate per weekday over the last 90 days.',
+          col: col,
+        ),
+      ],
+    );
+  }
+}
+
+class _GlossaryItem extends StatelessWidget {
+  final String term;
+  final String def;
+  final AppColors col;
+  const _GlossaryItem({required this.term, required this.def, required this.col});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: TH.s8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(term, style: TextStyle(color: col.amber, fontSize: 11)),
+          const SizedBox(height: 2),
+          Text(def,
+              style: TextStyle(color: col.fgDim, fontSize: 11, height: 1.5)),
+        ],
+      ),
+    );
+  }
+}
+
+class _VacationInspector extends StatelessWidget {
+  const _VacationInspector();
+
+  @override
+  Widget build(BuildContext context) {
+    final col = context.col;
+    return Padding(
+      padding: const EdgeInsets.all(TH.s14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('── vacation',
+              style: TextStyle(color: col.fgMute, fontSize: 11)),
+          const SizedBox(height: TH.s8),
+          Text(
+            'During a vacation, streak decay is paused.',
+            style: TextStyle(color: col.fgDim, fontSize: 11, height: 1.5),
+          ),
+          const SizedBox(height: TH.s8),
+          Text(
+            'Habit completions still count toward stats but not toward streaks.',
+            style: TextStyle(color: col.fgDim, fontSize: 11, height: 1.5),
+          ),
+          const SizedBox(height: TH.s8),
+          Text(
+            'Vacation days are treated as neutral in the overall day-wise streak.',
+            style: TextStyle(color: col.fgDim, fontSize: 11, height: 1.5),
+          ),
+        ],
       ),
     );
   }
@@ -106,9 +316,26 @@ class _HabitInspector extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(TH.s14),
       children: [
-        Text('${h.icon} ${h.name}',
-            style: TextStyle(
-                color: col.fg, fontSize: 14, fontWeight: FontWeight.w600)),
+        Row(
+          children: [
+            () {
+              final iconData = lucideIconData(h.icon);
+              if (iconData != null) {
+                return Icon(iconData, size: 14, color: col.fg);
+              }
+              return Text(h.icon,
+                  style: TextStyle(color: col.fg, fontSize: 14));
+            }(),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(h.name,
+                  style: TextStyle(
+                      color: col.fg,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600)),
+            ),
+          ],
+        ),
         const SizedBox(height: TH.s14),
         _Block(label: 'streak', col: col, children: [
           _Row('current', '${s.displayStreak}', col: col),

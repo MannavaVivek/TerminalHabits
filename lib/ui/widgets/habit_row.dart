@@ -25,6 +25,10 @@ class HabitRow extends ConsumerWidget {
     final streakAtRisk = dailyHabit.streaks.todayAtRisk;
     final selectedDay = ref.watch(selectedDayProvider);
     final isToday = _isToday(selectedDay);
+    final streakStart = dailyHabit.streaks.streakStartUtc;
+    final selectedDayUtc = localMidnightUtc(selectedDay);
+    final inCurrentStreak =
+        streakStart != null && !selectedDayUtc.isBefore(streakStart);
     final iconColor = _colorFor(h.color, col);
     final iconData = lucideIconData(h.icon);
 
@@ -93,7 +97,7 @@ class HabitRow extends ConsumerWidget {
                             ? (streak > 0
                                 ? (streakAtRisk ? col.fgDim : col.amber)
                                 : col.fgFaint)
-                            : (done ? col.fgDim : col.fgFaint),
+                            : (inCurrentStreak && done ? col.amber : col.fgFaint),
                       ),
                       const SizedBox(width: 3),
                       if (isToday && streak > 0)

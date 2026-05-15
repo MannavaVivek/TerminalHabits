@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/tokens.dart';
+import 'edit_habit_dialog.dart';
 import 'new_habit_dialog.dart';
 import 'settings_dialog.dart';
 
@@ -37,10 +38,12 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
   int _selected = 0;
 
   static const _allCommands = [
-    _Command(key: 'daily',    label: 'go to daily view', hint: '⌘1'),
-    _Command(key: 'stats',    label: 'go to stats view', hint: '⌘2'),
-    _Command(key: 'new',      label: 'new habit',        hint: '⌘N'),
-    _Command(key: 'settings', label: 'open settings',    hint: '⌘,'),
+    _Command(key: 'daily',    label: 'go to daily view',   hint: '⌘1'),
+    _Command(key: 'stats',    label: 'go to stats view',   hint: '⌘2'),
+    _Command(key: 'new',      label: 'new habit',          hint: '⌘N'),
+    _Command(key: 'settings', label: 'open settings',      hint: '⌘,'),
+    _Command(key: 'edit',     label: 'edit focused habit', hint: 'e'),
+    _Command(key: 'archive',  label: 'archive focused habit', hint: 'a'),
   ];
 
   @override
@@ -109,7 +112,29 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
         if (invoker.mounted) NewHabitDialog.show(invoker);
       case 'settings':
         if (invoker.mounted) SettingsDialog.show(invoker);
+      case 'edit':
+        _editFocused(invoker);
+      case 'archive':
+        _archiveFocused();
     }
+  }
+
+  void _editFocused(BuildContext invoker) {
+    final focusedId = ref.read(focusedHabitIdProvider);
+    if (focusedId == null) return;
+    ref.read(habitsProvider).whenData((habits) {
+      final habit = habits.where((h) => h.id == focusedId).firstOrNull;
+      if (habit != null && invoker.mounted) {
+        EditHabitDialog.show(invoker, habit);
+      }
+    });
+  }
+
+  Future<void> _archiveFocused() async {
+    final focusedId = ref.read(focusedHabitIdProvider);
+    if (focusedId == null) return;
+    await ref.read(dbProvider).archiveHabit(focusedId);
+    ref.read(focusedHabitIdProvider.notifier).state = null;
   }
 
   @override

@@ -24,18 +24,22 @@ HabitScheduleHistoryData? effectiveScheduleAt(
 
 /// Result of the streak computation for one habit or the overall day streak.
 ///
-/// [current]     Actual streak through today (0 if today is due and missed).
-/// [pending]     Streak through yesterday — shown in a gray style while today
-///               is still at risk (due but not yet completed).
-/// [todayAtRisk] True when today is a due day that has no completion yet.
-/// [longest]     Longest consecutive streak ever.
-/// [shields]     Placeholder — always 0 until Phase 8 ships the shield pool.
+/// [current]        Actual streak through today (0 if today is due and missed).
+/// [pending]        Streak through yesterday — shown in a gray style while today
+///                  is still at risk (due but not yet completed).
+/// [todayAtRisk]    True when today is a due day that has no completion yet.
+/// [longest]        Longest consecutive streak ever.
+/// [shields]        Placeholder — always 0 until Phase 8 ships the shield pool.
+/// [streakStartUtc] UTC midnight of the first day in the currently displayed
+///                  streak chain. Null when the displayed streak is 0.
+///                  Used by HabitRow to color only in-chain days amber.
 class StreakResult {
   final int current;
   final int pending;
   final int longest;
   final int shields;
   final bool todayAtRisk;
+  final DateTime? streakStartUtc;
 
   const StreakResult({
     required this.current,
@@ -43,9 +47,9 @@ class StreakResult {
     required this.longest,
     required this.shields,
     required this.todayAtRisk,
+    this.streakStartUtc,
   });
 
-  // What the UI should display: pending (gray) while at risk, current otherwise.
   int get displayStreak => todayAtRisk ? pending : current;
 }
 
@@ -82,7 +86,7 @@ StreakResult computeStreaks(
   List<HabitScheduleHistoryData> history,
 ) {
   final completedDays = _buildCompletedDaySet(habit, completions);
-  final vacationDays = _buildVacationDaySet(vacations);
+  final vacationDays = buildVacationDaySet(vacations);
 
   final todayLocal = today.toLocal();
   final todayUtc = localMidnightUtc(todayLocal);
@@ -104,23 +108,20 @@ StreakResult computeStreaks(
 
   var current = 0;
   var longest = 0;
+  DateTime? currentStart; // UTC midnight of first day in the active streak chain
 
   void advance(DateTime d) {
-    if (vacationDays.contains(d)) {
-      if (current > 0) {
-        current++;
-        if (current > longest) longest = current;
-      }
-      return;
-    }
+    if (vacationDays.contains(d)) return; // neutral — neither advance nor reset
     final entry = effectiveScheduleAt(history, d);
     final schedule = entry?.schedule ?? habit.schedule;
     if (!isDueOnSchedule(schedule, d.toLocal())) return;
     if (completedDays.contains(d)) {
+      if (current == 0) currentStart = d;
       current++;
       if (current > longest) longest = current;
     } else {
       current = 0;
+      currentStart = null;
     }
   }
 
@@ -132,6 +133,7 @@ StreakResult computeStreaks(
     d = _nextDayUtc(d);
   }
   final pendingCurrent = current;
+  final pendingStart = currentStart;
 
   // Phase 2: walk today if it's within the habit's active window.
   if (!walkTo.isBefore(todayUtc)) {
@@ -153,6 +155,7 @@ StreakResult computeStreaks(
     longest: longest,
     shields: 0, // Phase 8 replaces this with the available-shield pool
     todayAtRisk: todayAtRisk,
+    streakStartUtc: todayAtRisk ? pendingStart : currentStart,
   );
 }
 
@@ -197,7 +200,7 @@ StreakResult computeOverallStreak(
     for (final h in habits)
       h.id: _buildCompletedDaySet(h, completionMap[h.id] ?? const []),
   };
-  final vacationDays = _buildVacationDaySet(vacations);
+  final vacationDays = buildVacationDaySet(vacations);
 
   // Returns: 1 = all done, 0 = none due (neutral), -1 = at least one missed.
   int dayOutcome(DateTime d) {
@@ -269,7 +272,7 @@ Set<DateTime> _buildCompletedDaySet(
   };
 }
 
-Set<DateTime> _buildVacationDaySet(List<Vacation> vacations) {
+Set<DateTime> buildVacationDaySet(List<Vacation> vacations) {
   final days = <DateTime>{};
   for (final v in vacations) {
     var d = localMidnightUtc(v.start.toLocal());

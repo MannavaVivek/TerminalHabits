@@ -60,6 +60,20 @@ final scheduleHistoryProvider =
   (ref) => ref.watch(dbProvider).watchAllScheduleHistory(),
 );
 
+final yearlyCompletionsProvider =
+    StreamProvider<Map<int, List<Completion>>>((ref) {
+  final userId = ref.watch(currentUserIdProvider);
+  if (userId == 0) return const Stream.empty();
+  final sinceUtc = localMidnightUtc(
+    DateTime.now().subtract(const Duration(days: 365)),
+  );
+  return ref.watch(dbProvider).watchRecentCompletions(sinceUtc).map((list) {
+    final map = <int, List<Completion>>{};
+    for (final c in list) (map[c.habitId] ??= []).add(c);
+    return map;
+  });
+});
+
 // ── View state ────────────────────────────────────────────────────────────────
 
 final currentViewProvider = StateProvider<String>((ref) => 'daily');
@@ -151,9 +165,12 @@ final dailyStateProvider = Provider<AsyncValue<DailyState>>((ref) {
         historyMap[h.id] ?? const [],
       ),
   };
+  final vacDays = buildVacationDaySet(vacList);
   var totalCompletions = 0;
   for (final h in habits) {
-    totalCompletions += (recentMap[h.id] ?? const []).length;
+    for (final c in recentMap[h.id] ?? const <Completion>[]) {
+      if (!vacDays.contains(c.day.toUtc())) totalCompletions++;
+    }
   }
   final overallStreak =
       computeOverallStreak(habits, recentMap, vacList, historyMap, today);
@@ -261,7 +278,9 @@ List<DayRatio> weeklyRatios(
   List<Habit> habits,
   Map<int, List<Completion>> recentMap,
   Map<int, List<HabitScheduleHistoryData>> historyMap,
+  List<Vacation> vacations,
 ) {
+  final vacDays = buildVacationDaySet(vacations);
   final monday = DateTime(
     selectedDay.year,
     selectedDay.month,
@@ -271,6 +290,10 @@ List<DayRatio> weeklyRatios(
   for (var i = 0; i < 7; i++) {
     final day = DateTime(monday.year, monday.month, monday.day + i);
     final dayUtc = localMidnightUtc(day);
+    if (vacDays.contains(dayUtc)) {
+      out.add(DayRatio(day: day, done: 0, due: 0));
+      continue;
+    }
     var due = 0;
     var done = 0;
     for (final h in habits) {
@@ -293,6 +316,7 @@ final weeklyRatiosProvider = Provider<List<DayRatio>>((ref) {
   final habitsAV = ref.watch(habitsProvider);
   final recentAV = ref.watch(recentCompletionsProvider);
   final historyAV = ref.watch(scheduleHistoryProvider);
+  final vacAV = ref.watch(vacationsProvider);
   final selectedDay = ref.watch(selectedDayProvider);
   if (habitsAV.isLoading || recentAV.isLoading || historyAV.isLoading) {
     return const [];
@@ -301,6 +325,7 @@ final weeklyRatiosProvider = Provider<List<DayRatio>>((ref) {
     return const [];
   }
   return weeklyRatios(selectedDay, habitsAV.requireValue,
-      recentAV.requireValue, historyAV.requireValue);
+      recentAV.requireValue, historyAV.requireValue,
+      vacAV.valueOrNull ?? const []);
 });
 

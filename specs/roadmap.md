@@ -1,6 +1,6 @@
 # Roadmap — TerminalHabits
 
-> Phased delivery plan. Each phase ships a runnable, dogfoodable build before the next begins. Phase order is fixed: macOS → Linux → Android. Cloud sync is a deferred post-1.0 phase.
+> Phased delivery plan. Each phase ships a runnable, dogfoodable build before the next begins. Phase order is fixed: macOS → Android. Cloud sync is a deferred post-1.0 phase.
 
 ---
 
@@ -11,7 +11,7 @@
 **Goal:** an empty-but-themed Flutter desktop app that boots on macOS into the splash screen and accepts no input besides "click to onboard."
 
 ### Scope
-- Initialize Flutter project: `flutter create --platforms=macos,linux,android terminal_habits`.
+- Initialize Flutter project: `flutter create --platforms=macos,android terminal_habits`.
 - Create folder structure per [tech_stack.md](tech_stack.md) §2.
 - Add core dependencies (`flutter_riverpod`, `google_fonts`, `window_manager`, `shared_preferences`).
 - Wire root `MaterialApp` with `ThemeData.dark()` + JetBrains Mono + `splashFactory: NoSplash.splashFactory`.
@@ -33,7 +33,7 @@
 - [x] `flutter analyze` clean, `flutter test` passes (even with one trivial test).
 
 ### Out of scope
-- Linux build, Android build, any habit features.
+- Android build, any habit features.
 
 ---
 
@@ -186,7 +186,7 @@
 ### Out of scope
 - Color palette expansion beyond the current 6 (Phase 6 settings dialog).
 - Schedule history / progress preservation (Phase 5).
-- Full touch-friendly counter/duration input (Phase 10).
+- Full touch-friendly counter/duration input (Phase 9).
 
 ---
 
@@ -251,7 +251,7 @@
 ### Scope
 
 #### Users table & data isolation
-- **New `users` table**: `id INTEGER PK autoincrement`, `username TEXT UNIQUE`, `display_name TEXT`, `password TEXT` (plaintext — Phase 11 replaces with hashed + Supabase), `created_at DATETIME`.
+- **New `users` table**: `id INTEGER PK autoincrement`, `username TEXT UNIQUE`, `display_name TEXT`, `password TEXT` (plaintext — Phase 10 replaces with hashed + Supabase), `created_at DATETIME`.
 - **`user_id` column** added to `habits`, `groups`, and `vacations`. All read/write queries filter by the logged-in user's id. Completions and `habit_schedule_history` are implicitly isolated through their `habit_id` FK.
 - **Migration v6**: create `users` table; add `user_id INTEGER NOT NULL DEFAULT 1` to habits/groups/vacations; seed a placeholder user `(id=1, username='dev', password='dev', display_name=existing userName setting)` so existing data is assigned to user 1 and remains accessible.
 - Fresh install: no placeholder user; registration creates the first user and the default 'general' group.
@@ -259,7 +259,7 @@
 #### Auth flow
 - **`RegisterView`**: fields — display name, username, password, confirm password. No validation rules in this phase (any length, any characters). On submit: insert user row, create default 'general' group for that user, set `SharedPreferences.loggedInUserId`, update `currentUserIdProvider`, push `OnboardingView`.
 - **`LoginView`**: fields — username, password. On match: set SharedPreferences + provider, push `AppScaffold`. On mismatch: inline red error, no lockout. Two footer links: `[ register ]` → `RegisterView`, `[ forgot password ]` → `ForgotPasswordView`.
-- **`ForgotPasswordView`**: enter username → if found, display the plaintext password from the DB directly on screen. Prominent note: "this is a temporary local dev feature — Phase 11 will replace it with email recovery." Link back to `[ login ]`.
+- **`ForgotPasswordView`**: enter username → if found, display the plaintext password from the DB directly on screen. Prominent note: "this is a temporary local dev feature — Phase 10 will replace it with email recovery." Link back to `[ login ]`.
 - **`SplashView._proceed()`** routing:
   1. Check `SharedPreferences.loggedInUserId`; verify user still exists in DB.
   2. If valid session → update `currentUserIdProvider` → `AppScaffold` (or `OnboardingView` if `seenOnboarding=false`).
@@ -295,7 +295,7 @@
 - [x] Existing pre-auth data (migration) assigned to dev/dev user and still visible after login.
 
 ### Out of scope
-- Password hashing, email, OAuth — Phase 11.
+- Password hashing, email, OAuth — Phase 10.
 - Settings dialog, archive in settings — Phase 6b.
 - Stats view, vacation mode — Phase 7.
 
@@ -315,7 +315,7 @@
   - **About**: version, storage note, plaintext-password disclaimer.
 - **Individual setting `StreamProvider`s** (`fontSizeProvider`, `allowFutureMarkingProvider`, `confirmDestructiveProvider`, `themeIdProvider`) backed by `watchSetting` on the Drift `AppSettings` table.
 - **Font size** applies instantly app-wide via `MediaQuery.textScaler` override in `App`.
-- **`Cmd+,`** wired in `AppScaffold` shortcuts (macOS/Linux).
+- **`Cmd+,`** wired in `AppScaffold` shortcuts (macOS).
 - **`OpenSettingsIntent`** already existed in `intents.dart`; now wired in `AppScaffold`.
 - **`allowFutureMarking`** checked at both toggle call sites (`app_scaffold._toggleFocused`, `habit_row._handleTap`) before calling `confirmFutureToggle`.
 - **Archive**: inline archive list in Settings → Data section. Sidebar nav has no archive entry.
@@ -340,7 +340,8 @@
 
 ## Phase 7 — macOS Polish: stats, command palette, vacation, tracking types (≈ 2.5 weeks)
 
-> After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit per `constitution.md §7`.
+**Started:** 2026-05-10  
+**Completed:** 2026-05-14
 
 **Goal:** the Mac app feels complete. All remaining features in `feature_spec.md` work on macOS.
 
@@ -357,14 +358,14 @@
 - Inspector pane content per current view.
 
 ### Exit criteria
-- [ ] Command palette opens in <50 ms, filters live, Enter dispatches.
-- [ ] All keyboard shortcuts in `input_spec.md` table work.
-- [ ] Stats view contributions grid renders 365 days correctly across DST boundaries and across schedule-history changes.
-- [ ] Vacation mode pauses streak decay (verified by test).
-- [ ] No regressions from Phases 1–5.
+- [x] Command palette opens in <50 ms, filters live, Enter dispatches.
+- [x] All keyboard shortcuts in `input_spec.md` table work.
+- [x] Stats view contributions grid renders 365 days correctly across DST boundaries and across schedule-history changes.
+- [x] Vacation mode pauses streak decay (verified by test).
+- [x] No regressions from Phases 1–5.
 
 ### Out of scope
-- Linux build, Android build, sync.
+- Android build, sync.
 
 ---
 
@@ -418,33 +419,7 @@
 
 ---
 
-## Phase 9 — Linux parity (≈ 1.5 weeks)
-
-> After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit per `constitution.md §7`.
-
-**Goal:** a `.deb` (and a tarball) that runs on Ubuntu 22.04+ with feature parity to macOS Phase 7.
-
-### Scope
-- Linux build setup (clang, ninja, GTK 3, libsqlite3-dev).
-- Verify frameless window works under both X11 and Wayland.
-- Adapt keyboard shortcut modifier: `Cmd` on macOS → `Ctrl` on Linux. Use `defaultTargetPlatform`.
-- Linux system tray icon (`tray_manager`): show/hide window from tray, quick-add menu.
-- Packaging: `flutter_distributor` to produce `.deb` and `.tar.gz`.
-- Verify clipboard, file picker, and font rendering on Linux.
-
-### Exit criteria
-- [ ] `flutter build linux --release` produces a working binary.
-- [ ] `.deb` installs cleanly on Ubuntu 22.04 LTS (tested in VM).
-- [ ] Same feature set as Phase 7 works on Linux (run the same manual test script).
-- [ ] System tray icon present and functional.
-- [ ] App launches under both Wayland and X11 sessions.
-
-### Out of scope
-- Snap/Flatpak distribution (deferred). RPM (deferred).
-
----
-
-## Phase 10 — Android adaptation (≈ 4 weeks)
+## Phase 9 — Android adaptation (≈ 4 weeks)
 
 > After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit per `constitution.md §7`.
 
@@ -474,7 +449,7 @@ This phase is the largest UX shift. See [input_spec.md](input_spec.md) §3 for t
 - [ ] One full week of dogfooding on a personal Android device with no critical bugs.
 - [ ] Health Connect wires `[health]` habits to step count.
 - [ ] `.apk` size under 30 MB.
-- [ ] No regressions on macOS or Linux from the touch refactor.
+- [ ] No regressions on macOS from the touch refactor.
 
 ### Out of scope
 - iOS, Android tablets (deferred).
@@ -483,7 +458,7 @@ This phase is the largest UX shift. See [input_spec.md](input_spec.md) §3 for t
 
 ---
 
-## Phase 11 — Optional cloud sync (post-1.0, deferred)
+## Phase 10 — Optional cloud sync (post-1.0, deferred)
 
 > After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit and tag `v1.0.0` per `constitution.md §7`.
 
@@ -503,9 +478,9 @@ This phase is the largest UX shift. See [input_spec.md](input_spec.md) §3 for t
 - [ ] Coming back online reconciles divergent edits without duplication.
 - [ ] Sign-out leaves the device fully usable in local-only mode.
 
-### Triggers to start Phase 11
+### Triggers to start Phase 10
 - Real user request for multi-device.
-- Phases 1–7 stable for at least 1 month.
+- Phases 1–9 stable for at least 1 month.
 
 ---
 

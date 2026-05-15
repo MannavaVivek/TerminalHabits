@@ -450,6 +450,64 @@ class AppDatabase extends _$AppDatabase {
             ..orderBy([(v) => OrderingTerm.asc(v.start)]))
           .get();
 
+  Future<Vacation?> getActiveVacation(int userId) =>
+      (select(vacations)
+            ..where((v) => v.userId.equals(userId) & v.active.equals(true))
+            ..limit(1))
+          .getSingleOrNull();
+
+  Future<void> startVacation(
+      int userId, DateTime start, DateTime end, {String? note}) async {
+    await into(vacations).insert(VacationsCompanion.insert(
+      userId: Value(userId),
+      start: start,
+      end: end,
+      note: Value(note),
+      active: const Value(true),
+    ));
+  }
+
+  Future<void> extendVacation(int id, DateTime newEnd) =>
+      (update(vacations)..where((v) => v.id.equals(id)))
+          .write(VacationsCompanion(end: Value(newEnd)));
+
+  Future<bool> hasCompletionsInRange(
+      List<int> habitIds, DateTime startUtc, DateTime endUtc) async {
+    if (habitIds.isEmpty) return false;
+    final result = await (select(completions)
+          ..where((c) =>
+              c.habitId.isIn(habitIds) &
+              c.day.isBiggerOrEqualValue(startUtc) &
+              c.day.isSmallerOrEqualValue(endUtc))
+          ..limit(1))
+        .getSingleOrNull();
+    return result != null;
+  }
+
+  Future<void> endVacationNow(int id) async {
+    final vac = await (select(vacations)
+          ..where((v) => v.id.equals(id)))
+        .getSingleOrNull();
+    if (vac == null) return;
+    final now = DateTime.now();
+    final yesterday = DateTime(now.year, now.month, now.day - 1).toUtc();
+    final origLocal = vac.end.toLocal();
+    final origEnd =
+        DateTime(origLocal.year, origLocal.month, origLocal.day).toUtc();
+    // Only cap end to yesterday if the vacation extends past yesterday.
+    // Past-only vacations keep their original end so historical streak days
+    // are not accidentally included in the vacation window.
+    await (update(vacations)..where((v) => v.id.equals(id))).write(
+      VacationsCompanion(
+        active: const Value(false),
+        end: origEnd.isAfter(yesterday) ? Value(yesterday) : const Value.absent(),
+      ),
+    );
+  }
+
+  Future<void> deleteVacation(int id) =>
+      (delete(vacations)..where((v) => v.id.equals(id))).go();
+
   // ── Settings ───────────────────────────────────────────────────────────────
 
   Future<String?> getSetting(String key) async {

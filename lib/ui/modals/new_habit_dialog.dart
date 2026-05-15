@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:syncfusion_flutter_datepicker/datepicker.dart';
 import '../../data/database.dart';
 import '../../domain/schedule.dart';
 import '../../state/providers.dart';
@@ -46,6 +47,13 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
   bool _saving = false;
 
   @override
+  void initState() {
+    super.initState();
+    _nameCtrl.addListener(() => setState(() {}));
+    _noteCtrl.addListener(() => setState(() {}));
+  }
+
+  @override
   void dispose() {
     _nameCtrl.dispose();
     _noteCtrl.dispose();
@@ -61,7 +69,6 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
     String? unit;
     if (_tracking == 'counter') {
       target = int.tryParse(_targetCtrl.text.trim());
-      unit = null;
     } else if (_tracking == 'duration') {
       target = int.tryParse(_targetCtrl.text.trim());
       unit = 'min';
@@ -105,48 +112,108 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
     if (mounted) Navigator.of(context).pop();
   }
 
-  Future<void> _pickStartDate() async {
-    final col = context.col;
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _startDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
-      builder: (ctx, child) => Theme(
-        data: ThemeData.dark().copyWith(
-          colorScheme: ColorScheme.dark(
-            primary: col.green,
-            onPrimary: col.bg,
-            surface: col.bg2,
-            onSurface: col.fg,
-          ),
-        ),
-        child: child!,
-      ),
-    );
-    if (picked != null) setState(() => _startDate = picked);
-  }
+  Future<void> _pickDateRange() async {
+    DateTime tempStart = _startDate;
+    DateTime? tempEnd = _endDate;
 
-  Future<void> _pickEndDate() async {
-    final col = context.col;
-    final picked = await showDatePicker(
+    await showDialog<void>(
       context: context,
-      initialDate: _endDate ?? _startDate,
-      firstDate: _startDate,
-      lastDate: DateTime.now().add(const Duration(days: 365 * 10)),
-      builder: (ctx, child) => Theme(
-        data: ThemeData.dark().copyWith(
-          colorScheme: ColorScheme.dark(
-            primary: col.green,
-            onPrimary: col.bg,
-            surface: col.bg2,
-            onSurface: col.fg,
+      barrierColor: Colors.black54,
+      builder: (ctx) {
+        final col = AppColors.of(ctx);
+        return Dialog(
+          backgroundColor: col.bg2,
+          shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.all(TH.r10)),
+          child: SizedBox(
+            width: 360,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: TH.s14, vertical: TH.s8),
+                  child: Row(
+                    children: [
+                      Text(r'$ date --range',
+                          style:
+                              TextStyle(color: col.fg, fontSize: 13)),
+                      const Spacer(),
+                      GestureDetector(
+                        onTap: () => Navigator.of(ctx).pop(),
+                        child: Text('[done]',
+                            style: TextStyle(
+                                color: col.green, fontSize: 12)),
+                      ),
+                    ],
+                  ),
+                ),
+                Divider(color: col.line, height: 1),
+                Padding(
+                  padding: const EdgeInsets.all(TH.s14),
+                  child: SfDateRangePicker(
+                    selectionMode:
+                        DateRangePickerSelectionMode.range,
+                    initialSelectedRange:
+                        PickerDateRange(tempStart, tempEnd),
+                    backgroundColor: col.bg2,
+                    selectionColor: col.green,
+                    startRangeSelectionColor: col.green,
+                    endRangeSelectionColor: col.green,
+                    rangeSelectionColor:
+                        col.green.withValues(alpha: 0.2),
+                    todayHighlightColor: col.green,
+                    headerStyle: DateRangePickerHeaderStyle(
+                      backgroundColor: col.bg2,
+                      textStyle:
+                          TextStyle(color: col.fg, fontSize: 13),
+                    ),
+                    monthCellStyle: DateRangePickerMonthCellStyle(
+                      textStyle: TextStyle(
+                          color: col.fg, fontSize: 12),
+                      todayTextStyle: TextStyle(
+                          color: col.green, fontSize: 12),
+                      leadingDatesTextStyle: TextStyle(
+                          color: col.fgFaint, fontSize: 12),
+                      trailingDatesTextStyle: TextStyle(
+                          color: col.fgFaint, fontSize: 12),
+                    ),
+                    yearCellStyle: DateRangePickerYearCellStyle(
+                      textStyle: TextStyle(
+                          color: col.fg, fontSize: 12),
+                      todayTextStyle: TextStyle(
+                          color: col.green, fontSize: 12),
+                      leadingDatesTextStyle: TextStyle(
+                          color: col.fgFaint, fontSize: 12),
+                    ),
+                    onSelectionChanged:
+                        (DateRangePickerSelectionChangedArgs args) {
+                      if (args.value is PickerDateRange) {
+                        final range =
+                            args.value as PickerDateRange;
+                        tempStart = range.startDate ?? tempStart;
+                        tempEnd = range.endDate;
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        child: child!,
-      ),
+        );
+      },
     );
-    if (picked != null) setState(() => _endDate = picked);
+
+    setState(() {
+      _startDate = tempStart;
+      // Same-day range = no end date (infinite habit).
+      final end = tempEnd;
+      final sameDay = end != null &&
+          end.year == tempStart.year &&
+          end.month == tempStart.month &&
+          end.day == tempStart.day;
+      _endDate = (end == null || sameDay) ? null : end;
+    });
   }
 
   Future<void> _newGroup() async {
@@ -187,333 +254,273 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
           borderRadius: const BorderRadius.all(TH.r10)),
       child: SizedBox(
         width: 440,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(TH.s22),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // ── Header bar ─────────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: TH.s14, vertical: TH.s8),
+              child: Row(
                 children: [
-                  Text('new habit',
-                      style: TextStyle(
-                          color: col.fg,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600)),
-                  const Spacer(),
                   GestureDetector(
                     onTap: () => Navigator.of(context).pop(),
-                    child: Text('[ cancel ]',
-                        style: TextStyle(
-                            color: col.fgMute, fontSize: 12)),
+                    child: Text('[cancel]',
+                        style:
+                            TextStyle(color: col.fgMute, fontSize: 12)),
+                  ),
+                  const Spacer(),
+                  Text(r'$ habit --new',
+                      style: TextStyle(color: col.fg, fontSize: 12)),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: _saving ? null : _save,
+                    child: Text(
+                      _saving ? 'saving...' : '[save]',
+                      style: TextStyle(
+                          color: _saving ? col.fgMute : col.green,
+                          fontSize: 12),
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: TH.s22),
+            ),
+            Divider(color: col.line, height: 1),
 
-              _Label('name', col: col),
-              TextField(
-                controller: _nameCtrl,
-                autofocus: true,
-                maxLength: 60,
-                style: TextStyle(color: col.fg, fontSize: 14),
-                decoration: _fieldDeco('e.g. meditate, read, journal', col),
-                inputFormatters: [
-                  FilteringTextInputFormatter.deny(RegExp(r'\n')),
-                ],
-                onSubmitted: (_) => _save(),
-              ),
-
-              const SizedBox(height: TH.s14),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Expanded(
-                    child: Column(
+            // ── Body ────────────────────────────────────────────────────────
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(
+                    TH.s14, TH.s4, TH.s14, TH.s14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // / name ─────────────────────────────────────────────────
+                    _SecHeader(LucideIcons.pencil, 'name', col: col),
+                    Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _Label('icon', col: col),
-                        Row(
-                          children: [
-                            Container(
-                              width: 36,
-                              height: 36,
-                              decoration: BoxDecoration(
-                                border: Border.all(color: col.line2),
-                                borderRadius:
-                                    const BorderRadius.all(TH.r4),
-                                color: col.bg1,
-                              ),
-                              child: Center(
-                                child: iconData != null
-                                    ? Icon(iconData,
-                                        size: 18, color: iconColor)
-                                    : Icon(LucideIcons.circle,
-                                        size: 18, color: iconColor),
+                        GestureDetector(
+                          onTap: () async {
+                            final key = await IconPickerDialog.show(
+                                context,
+                                initial: _iconKey);
+                            if (key != null) {
+                              setState(() => _iconKey = key);
+                            }
+                          },
+                          child: Container(
+                            width: 34,
+                            height: 34,
+                            margin: const EdgeInsets.only(
+                                right: TH.s8, top: 1),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: col.line2),
+                              borderRadius:
+                                  const BorderRadius.all(TH.r4),
+                              color: col.bg1,
+                            ),
+                            child: Center(
+                              child: Icon(
+                                iconData ?? LucideIcons.circle,
+                                size: 14,
+                                color: iconColor,
                               ),
                             ),
-                            const SizedBox(width: TH.s8),
-                            GestureDetector(
-                              onTap: () async {
-                                final key =
-                                    await IconPickerDialog.show(
-                                        context,
-                                        initial: _iconKey);
-                                if (key != null) {
-                                  setState(() => _iconKey = key);
-                                }
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: TH.s8,
-                                    vertical: TH.s4),
-                                decoration: BoxDecoration(
-                                  border:
-                                      Border.all(color: col.line2),
-                                  borderRadius:
-                                      const BorderRadius.all(TH.r4),
-                                ),
-                                child: Text('[ pick ]',
-                                    style: TextStyle(
-                                        color: col.fgDim,
-                                        fontSize: 12)),
-                              ),
-                            ),
-                          ],
+                          ),
+                        ),
+                        Expanded(
+                          child: _CountedField(
+                            controller: _nameCtrl,
+                            hint: 'e.g. meditate, journal',
+                            maxChars: 50,
+                            col: col,
+                            autofocus: true,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.deny(
+                                  RegExp(r'\n')),
+                              LengthLimitingTextInputFormatter(50),
+                            ],
+                            onSubmitted: (_) => _save(),
+                          ),
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(width: TH.s14),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _Label('color', col: col),
+                    const SizedBox(height: TH.s8),
+                    _CountedField(
+                      controller: _noteCtrl,
+                      hint: 'comment (optional)',
+                      maxChars: 30,
+                      col: col,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.deny(RegExp(r'\n')),
+                        LengthLimitingTextInputFormatter(30),
+                      ],
+                    ),
+
+                    // 📅 dates ────────────────────────────────────────────
+                    _SecHeader(LucideIcons.calendar, 'dates', col: col),
+                    _DateRow(
+                      label: 'start',
+                      value: _formatDate(_startDate),
+                      col: col,
+                      onTap: _pickDateRange,
+                    ),
+                    const SizedBox(height: TH.s8),
+                    Row(
+                      children: [
+                        SizedBox(
+                          width: 72,
+                          child: Text('end',
+                              style: TextStyle(
+                                  color: col.fgDim, fontSize: 12)),
+                        ),
+                        GestureDetector(
+                          onTap: _pickDateRange,
+                          child: Text(
+                            _endDate != null
+                                ? _formatDate(_endDate!)
+                                : 'no end date',
+                            style: TextStyle(
+                                color: _endDate != null
+                                    ? col.fg
+                                    : col.fgFaint,
+                                fontSize: 12),
+                          ),
+                        ),
+                        if (_endDate != null) ...[
+                          const SizedBox(width: TH.s8),
+                          GestureDetector(
+                            onTap: () =>
+                                setState(() => _endDate = null),
+                            child: Text('[clear]',
+                                style: TextStyle(
+                                    color: col.fgMute,
+                                    fontSize: 11)),
+                          ),
+                        ],
+                      ],
+                    ),
+
+                    // ○ schedule ───────────────────────────────────────────
+                    _SecHeader(LucideIcons.clock, 'schedule', col: col),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: [
+                        for (final s in ['daily', 'weekdays', 'weekends'])
+                          _Pill(
+                            label: s,
+                            selected: _schedule == s,
+                            col: col,
+                            onTap: () =>
+                                setState(() => _schedule = s),
+                          ),
+                      ],
+                    ),
+
+                    // ≡ tracking ─────────────────────────────────────────
+                    _SecHeader(LucideIcons.settings, 'tracking', col: col),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: [
+                        for (final t in [
+                          'checkbox',
+                          'counter',
+                          'duration'
+                        ])
+                          _Pill(
+                            label: t,
+                            selected: _tracking == t,
+                            col: col,
+                            onTap: () => setState(() {
+                              _tracking = t;
+                              _targetCtrl.clear();
+                            }),
+                          ),
+                      ],
+                    ),
+                    if (_tracking == 'counter' ||
+                        _tracking == 'duration') ...[
+                      const SizedBox(height: TH.s8),
                       Row(
                         children: [
-                          for (final c in colorMap.keys)
-                            Padding(
-                              padding:
-                                  const EdgeInsets.only(right: 8),
-                              child: _ColorDot(
-                                color: colorMap[c]!,
-                                selected: _color == c,
-                                onTap: () =>
-                                    setState(() => _color = c),
+                          SizedBox(
+                            width: 72,
+                            child: TextField(
+                              controller: _targetCtrl,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                                LengthLimitingTextInputFormatter(3),
+                              ],
+                              style: TextStyle(
+                                  color: col.fg, fontSize: 13),
+                              decoration: _fieldDeco(
+                                _tracking == 'duration' ? '30' : '10',
+                                col,
                               ),
+                              onSubmitted: (_) => _save(),
                             ),
+                          ),
+                          const SizedBox(width: TH.s8),
+                          Text(
+                            _tracking == 'duration'
+                                ? 'target min'
+                                : 'min count',
+                            style: TextStyle(
+                                color: col.fgMute, fontSize: 12),
+                          ),
                         ],
                       ),
                     ],
-                  ),
-                ],
-              ),
 
-              const SizedBox(height: TH.s14),
-              _Label('group', col: col),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final g in groups)
-                    _Pill(
-                      label: g.name,
-                      selected: _groupId == g.id,
-                      col: col,
-                      onTap: () => setState(() => _groupId = g.id),
+                    // ◎ color ────────────────────────────────────────────
+                    _SecHeader(LucideIcons.palette, 'color', col: col),
+                    Row(
+                      children: [
+                        for (final c in colorMap.keys)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: _ColorDot(
+                              color: colorMap[c]!,
+                              selected: _color == c,
+                              onTap: () =>
+                                  setState(() => _color = c),
+                            ),
+                          ),
+                      ],
                     ),
-                  _Pill(
-                    label: '+ new',
-                    selected: false,
-                    accent: true,
-                    col: col,
-                    onTap: _newGroup,
-                  ),
-                ],
-              ),
 
-              const SizedBox(height: TH.s14),
-              _Label('schedule', col: col),
-              Row(
-                children: [
-                  for (final s in ['daily', 'weekdays', 'weekends'])
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: _Pill(
-                        label: s,
-                        selected: _schedule == s,
-                        col: col,
-                        onTap: () =>
-                            setState(() => _schedule = s),
-                      ),
+                    // # group ─────────────────────────────────────────────
+                    _SecHeader(LucideIcons.tag, 'group', col: col),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: [
+                        for (final g in groups)
+                          _Pill(
+                            label: g.name,
+                            selected: _groupId == g.id,
+                            col: col,
+                            onTap: () =>
+                                setState(() => _groupId = g.id),
+                          ),
+                        _Pill(
+                          label: '+ new',
+                          selected: false,
+                          accent: true,
+                          col: col,
+                          onTap: _newGroup,
+                        ),
+                      ],
                     ),
-                ],
-              ),
-
-              const SizedBox(height: TH.s14),
-              _Label('type', col: col),
-              Row(
-                children: [
-                  for (final t in ['checkbox', 'counter', 'duration'])
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: _Pill(
-                        label: t,
-                        selected: _tracking == t,
-                        col: col,
-                        onTap: () {
-                          setState(() {
-                            _tracking = t;
-                            _targetCtrl.clear();
-                          });
-                        },
-                      ),
-                    ),
-                ],
-              ),
-              if (_tracking == 'counter') ...[
-                const SizedBox(height: TH.s8),
-                Row(
-                  children: [
-                    SizedBox(
-                      width: 80,
-                      child: TextField(
-                        controller: _targetCtrl,
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                          LengthLimitingTextInputFormatter(3),
-                        ],
-                        style: TextStyle(
-                            color: col.fg, fontSize: 13),
-                        decoration: _fieldDeco('10', col),
-                        onSubmitted: (_) => _save(),
-                      ),
-                    ),
-                    const SizedBox(width: TH.s8),
-                    Text('min count',
-                        style: TextStyle(
-                            color: col.fgMute, fontSize: 12)),
                   ],
                 ),
-              ],
-              if (_tracking == 'duration') ...[
-                const SizedBox(height: TH.s8),
-                Row(
-                  children: [
-                    SizedBox(
-                      width: 80,
-                      child: TextField(
-                        controller: _targetCtrl,
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                          LengthLimitingTextInputFormatter(3),
-                        ],
-                        style: TextStyle(
-                            color: col.fg, fontSize: 13),
-                        decoration: _fieldDeco('30', col),
-                        onSubmitted: (_) => _save(),
-                      ),
-                    ),
-                    const SizedBox(width: TH.s8),
-                    Text('target min',
-                        style: TextStyle(
-                            color: col.fgMute, fontSize: 12)),
-                  ],
-                ),
-              ],
-
-              const SizedBox(height: TH.s14),
-              _Label('start date', col: col),
-              GestureDetector(
-                onTap: _pickStartDate,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: TH.s8, vertical: TH.s8),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: col.line2),
-                    borderRadius: const BorderRadius.all(TH.r4),
-                  ),
-                  child: Text(
-                    _formatDate(_startDate),
-                    style: TextStyle(
-                        color: col.fg, fontSize: 13),
-                  ),
-                ),
               ),
-
-              const SizedBox(height: TH.s14),
-              _Label('end date (optional)', col: col),
-              Row(
-                children: [
-                  GestureDetector(
-                    onTap: _pickEndDate,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: TH.s8, vertical: TH.s8),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: col.line2),
-                        borderRadius: const BorderRadius.all(TH.r4),
-                      ),
-                      child: Text(
-                        _endDate != null
-                            ? _formatDate(_endDate!)
-                            : '— no end date —',
-                        style: TextStyle(
-                            color: _endDate != null
-                                ? col.fg
-                                : col.fgFaint,
-                            fontSize: 13),
-                      ),
-                    ),
-                  ),
-                  if (_endDate != null) ...[
-                    const SizedBox(width: TH.s8),
-                    GestureDetector(
-                      onTap: () => setState(() => _endDate = null),
-                      child: Text('[ clear ]',
-                          style: TextStyle(
-                              color: col.fgMute, fontSize: 12)),
-                    ),
-                  ],
-                ],
-              ),
-
-              const SizedBox(height: TH.s14),
-              _Label('note (optional)', col: col),
-              TextField(
-                controller: _noteCtrl,
-                maxLines: 1,
-                maxLength: 100,
-                style: TextStyle(color: col.fg, fontSize: 13),
-                decoration:
-                    _fieldDeco('// shown under the row in daily view', col),
-                inputFormatters: [
-                  FilteringTextInputFormatter.deny(RegExp(r'\n')),
-                ],
-              ),
-
-              const SizedBox(height: TH.s22),
-              GestureDetector(
-                onTap: _saving ? null : _save,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: TH.s8),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: col.green),
-                    borderRadius: const BorderRadius.all(TH.r4),
-                  ),
-                  child: Center(
-                    child: Text(
-                      _saving ? 'saving...' : '[ save ]',
-                      style: TextStyle(
-                          color: col.green, fontSize: 13),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -544,7 +551,8 @@ Future<void> _showTargetOverflowDialog(BuildContext context) {
                       fontWeight: FontWeight.w600)),
               const SizedBox(height: TH.s8),
               Text('target must be 999 or less.',
-                  style: TextStyle(color: col.fgDim, fontSize: 12)),
+                  style:
+                      TextStyle(color: col.fgDim, fontSize: 12)),
               const SizedBox(height: TH.s22),
               Center(
                 child: GestureDetector(
@@ -554,7 +562,8 @@ Future<void> _showTargetOverflowDialog(BuildContext context) {
                         horizontal: TH.s22, vertical: TH.s8),
                     decoration: BoxDecoration(
                       border: Border.all(color: col.green),
-                      borderRadius: const BorderRadius.all(TH.r4),
+                      borderRadius:
+                          const BorderRadius.all(TH.r4),
                     ),
                     child: Text('[ understood ]',
                         style: TextStyle(
@@ -570,7 +579,8 @@ Future<void> _showTargetOverflowDialog(BuildContext context) {
   );
 }
 
-InputDecoration _fieldDeco(String hint, AppColors col) => InputDecoration(
+InputDecoration _fieldDeco(String hint, AppColors col) =>
+    InputDecoration(
       hintText: hint,
       hintStyle: TextStyle(color: col.fgFaint, fontSize: 13),
       enabledBorder: OutlineInputBorder(
@@ -584,8 +594,8 @@ InputDecoration _fieldDeco(String hint, AppColors col) => InputDecoration(
       fillColor: col.bg1,
       filled: true,
       isDense: true,
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: TH.s8, vertical: TH.s8),
+      contentPadding: const EdgeInsets.symmetric(
+          horizontal: TH.s8, vertical: TH.s8),
     );
 
 String _formatDate(DateTime d) {
@@ -596,17 +606,111 @@ String _formatDate(DateTime d) {
   return '${months[d.month - 1]} ${d.day} ${d.year}';
 }
 
-class _Label extends StatelessWidget {
-  final String text;
+// ── Section header ─────────────────────────────────────────────────────────
+
+class _SecHeader extends StatelessWidget {
+  final IconData icon;
+  final String label;
   final AppColors col;
-  const _Label(this.text, {required this.col});
+  const _SecHeader(this.icon, this.label, {required this.col});
+
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: TH.s4),
-        child: Text(text,
-            style: TextStyle(color: col.fgDim, fontSize: 12)),
-      );
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: TH.s22, bottom: TH.s8),
+      child: Row(
+        children: [
+          Icon(icon, size: 11, color: col.fgMute),
+          const SizedBox(width: 5),
+          Text(label,
+              style: TextStyle(
+                  color: col.fgDim,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
 }
+
+// ── Counted text field (label + N/max counter above field) ─────────────────
+
+class _CountedField extends StatelessWidget {
+  final TextEditingController controller;
+  final String hint;
+  final int maxChars;
+  final AppColors col;
+  final bool autofocus;
+  final List<TextInputFormatter> inputFormatters;
+  final ValueChanged<String>? onSubmitted;
+
+  const _CountedField({
+    required this.controller,
+    required this.hint,
+    required this.maxChars,
+    required this.col,
+    this.autofocus = false,
+    this.inputFormatters = const [],
+    this.onSubmitted,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        TextField(
+          controller: controller,
+          autofocus: autofocus,
+          style: TextStyle(color: col.fg, fontSize: 13),
+          decoration: _fieldDeco(hint, col),
+          inputFormatters: inputFormatters,
+          onSubmitted: onSubmitted,
+        ),
+        const SizedBox(height: 2),
+        Text(
+          '${controller.text.length}/$maxChars',
+          style: TextStyle(color: col.fgMute, fontSize: 10),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Date row ───────────────────────────────────────────────────────────────
+
+class _DateRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final AppColors col;
+  final VoidCallback onTap;
+  const _DateRow({
+    required this.label,
+    required this.value,
+    required this.col,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 72,
+          child: Text(label,
+              style: TextStyle(color: col.fgDim, fontSize: 12)),
+        ),
+        GestureDetector(
+          onTap: onTap,
+          child: Text(value,
+              style: TextStyle(color: col.fg, fontSize: 12)),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Pill ───────────────────────────────────────────────────────────────────
 
 class _Pill extends StatelessWidget {
   final String label;
@@ -637,8 +741,8 @@ class _Pill extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: TH.s8, vertical: 4),
+        padding: const EdgeInsets.symmetric(
+            horizontal: TH.s8, vertical: 4),
         decoration: BoxDecoration(
           border: Border.all(color: borderColor),
           borderRadius: const BorderRadius.all(TH.r4),
@@ -651,12 +755,16 @@ class _Pill extends StatelessWidget {
   }
 }
 
+// ── Color dot ──────────────────────────────────────────────────────────────
+
 class _ColorDot extends StatelessWidget {
   final Color color;
   final bool selected;
   final VoidCallback onTap;
   const _ColorDot(
-      {required this.color, required this.selected, required this.onTap});
+      {required this.color,
+      required this.selected,
+      required this.onTap});
 
   @override
   Widget build(BuildContext context) {
