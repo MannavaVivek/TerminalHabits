@@ -32,7 +32,7 @@
 | Health tracking | Phase 10 | Auto-fill from Health Connect (Android). Manual entry on desktop. |
 | Mobile command grid | Phase 10 | Touch replacement for command palette. |
 | Tray icon | Phase 9 (Linux) | Show/hide window. |
-| Cloud sync | Phase 11 | Opt-in Supabase sync. |
+| Cloud sync | Phase 10 | Opt-in Supabase sync. |
 
 ---
 
@@ -264,7 +264,7 @@ Two-pane modal. Left: section list. Right: section body.
    - Version, build number, Flutter version.
    - Link to repo (URL — opens via `url_launcher`).
 
-No "sign in" section until Phase 11.
+No "sign in" section until Phase 10.
 
 ---
 

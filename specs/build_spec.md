@@ -56,7 +56,7 @@ flutter build macos --release
 | File | Setting |
 |---|---|
 | `macos/Runner/Info.plist` | `LSApplicationCategoryType = public.app-category.productivity`. `CFBundleName = TerminalHabits`. |
-| `macos/Runner/DebugProfile.entitlements` | `com.apple.security.app-sandbox = true`, `com.apple.security.network.client = true` (Phase 11 sync only — leave off until then). |
+| `macos/Runner/DebugProfile.entitlements` | `com.apple.security.app-sandbox = true`, `com.apple.security.network.client = true` (Phase 10 sync only — leave off until then). |
 | `macos/Runner/Release.entitlements` | Same as Debug, plus `com.apple.security.files.user-selected.read-write = true` for export/import. |
 | `macos/Runner/Base.lproj/MainMenu.xib` | Default Flutter — no edits. |
 | `macos/Podfile` | Set `platform :osx, '10.14'`. |
@@ -237,7 +237,7 @@ version: 0.1.0+1     # semver+build_number
 - Phase 8 → `0.3.1`
 - Phase 9 → `0.4.0`
 - Phase 10 → `0.5.0` (first cross-platform build)
-- Phase 11 → `1.0.0` (first sync-capable build)
+- Phase 10 → `1.0.0` (first sync-capable build)
 
 Build number increments on every release artifact, even pre-release. macOS reads it as `CFBundleVersion`; Android reads it as `versionCode`.
 

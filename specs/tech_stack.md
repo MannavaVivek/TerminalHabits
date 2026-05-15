@@ -90,7 +90,7 @@ Most charts (sparkline, contribution grid, day-of-week bars) are **custom-painte
 | `flutter_local_notifications` | No notifications in v1 (D-006). |
 | `firebase_*` | Use drift; Supabase is the eventual sync option, not Firebase. |
 | `provider`, `bloc`, `get`, `mobx` | Pick one state lib (Riverpod). |
-| `flutter_secure_storage` | No secrets to store in v1. Reintroduce with sync (Phase 11). |
+| `flutter_secure_storage` | No secrets to store in v1. Reintroduce with sync (Phase 10). |
 
 ---
 

@@ -248,7 +248,7 @@ The accent color of the active theme is what we mean when widgets reference `TH.
 
 - macOS: `windowManager.setAsFrameless()`. Traffic lights in our chrome, real ones hidden.
 - Linux: same. On Wayland with mutter, frameless works; on i3/sway, it works but maximize might behave oddly — known limitation, document at Phase 9 exit.
-- Windows: out of scope for v1 (D-002 makes it Phase 11+).
+- Windows: out of scope for v1 (D-002 makes it Phase 10+).
 
 ### 6.2 Android system bars
 
