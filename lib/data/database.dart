@@ -8,12 +8,12 @@ import 'tables.dart';
 part 'database.g.dart';
 
 @DriftDatabase(
-    tables: [Users, Groups, Habits, Completions, Vacations, AppSettings, HabitScheduleHistory])
+    tables: [Users, Groups, Habits, Completions, Vacations, AppSettings, HabitScheduleHistory, DayShields])
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -66,6 +66,14 @@ class AppDatabase extends _$AppDatabase {
                 "INSERT INTO users (id, username, display_name, password, created_at) "
                 "VALUES (1, 'dev', '$existingName', 'dev', $nowMs)");
           }
+          if (from < 7) {
+            await m.createTable(dayShields);
+            await customStatement(
+                'CREATE INDEX idx_day_shields_day ON day_shields(day)');
+            await _upsertSetting('available_shields', '0');
+            await _upsertSetting('shieldEarnInterval', '7');
+            await _upsertSetting('last_seen_date', '');
+          }
         },
       );
 
@@ -83,6 +91,9 @@ class AppDatabase extends _$AppDatabase {
     await _upsertSetting('seenOnboarding', 'false');
     await _upsertSetting('allowFutureMarking', 'false');
     await _upsertSetting('confirmDestructive', 'true');
+    await _upsertSetting('available_shields', '0');
+    await _upsertSetting('shieldEarnInterval', '7');
+    await _upsertSetting('last_seen_date', '');
   }
 
   Future<void> _upsertSetting(String key, String value) async {
@@ -507,6 +518,35 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> deleteVacation(int id) =>
       (delete(vacations)..where((v) => v.id.equals(id))).go();
+
+  // ── Day shields ────────────────────────────────────────────────────────────
+
+  Stream<List<DayShield>> watchDayShields(DateTime sinceUtc) =>
+      (select(dayShields)
+            ..where((s) => s.day.isBiggerOrEqualValue(sinceUtc))
+            ..orderBy([(s) => OrderingTerm.asc(s.day)]))
+          .watch();
+
+  Future<List<DayShield>> getAllDayShields() =>
+      (select(dayShields)..orderBy([(s) => OrderingTerm.asc(s.day)])).get();
+
+  Future<void> insertDayShield(DateTime dayUtc) async {
+    await into(dayShields).insertOnConflictUpdate(
+      DayShieldsCompanion.insert(
+        day: dayUtc,
+        appliedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  Future<void> deleteDayShield(DateTime dayUtc) =>
+      (delete(dayShields)..where((s) => s.day.equals(dayUtc))).go();
+
+  Future<int> getAvailableShields() async =>
+      int.tryParse(await getSetting('available_shields') ?? '0') ?? 0;
+
+  Future<void> setAvailableShields(int n) =>
+      setSetting('available_shields', n.toString());
 
   // ── Settings ───────────────────────────────────────────────────────────────
 

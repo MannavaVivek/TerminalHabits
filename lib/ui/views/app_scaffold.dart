@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../domain/shield_service.dart';
 import '../../domain/streaks.dart';
 import '../../shortcuts/intents.dart';
 import '../../state/providers.dart';
@@ -18,11 +19,39 @@ import '../window/window_chrome.dart';
 import 'daily_view.dart';
 import 'stats_view.dart';
 
-class AppScaffold extends ConsumerWidget {
+class AppScaffold extends ConsumerStatefulWidget {
   const AppScaffold({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AppScaffold> createState() => _AppScaffoldState();
+}
+
+class _AppScaffoldState extends ConsumerState<AppScaffold> {
+  bool _scanDone = false;
+
+  void _maybeRunScan() {
+    if (_scanDone) return;
+    final daily = ref.read(dailyStateProvider);
+    if (!daily.hasValue) return;
+    _scanDone = true;
+    final db = ref.read(dbProvider);
+    final habits = ref.read(habitsProvider).valueOrNull ?? [];
+    final completionMap = ref.read(recentCompletionsProvider).valueOrNull ?? {};
+    final vacations = ref.read(vacationsProvider).valueOrNull ?? [];
+    final historyMap = ref.read(scheduleHistoryProvider).valueOrNull ?? {};
+    runLaunchScan(
+      db: db,
+      habits: habits,
+      completionMap: completionMap,
+      vacations: vacations,
+      historyMap: historyMap,
+    ).ignore();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen(dailyStateProvider, (_, __) => _maybeRunScan());
+    _maybeRunScan();
     final col = context.col;
     final view = ref.watch(currentViewProvider);
     final isDesktop = Platform.isMacOS || Platform.isLinux;

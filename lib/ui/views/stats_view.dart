@@ -32,7 +32,12 @@ class _StatsViewState extends ConsumerState<StatsView> {
     final historyAV = ref.watch(scheduleHistoryProvider);
     final dailyAV = ref.watch(dailyStateProvider);
 
+    final shieldsAV = ref.watch(dayShieldsProvider);
     final loading = habitsAV.isLoading || yearlyAV.isLoading || vacAV.isLoading;
+
+    final sinceUtc = localMidnightUtc(DateTime.now().subtract(const Duration(days: 365)).toLocal());
+    final shieldSet = shieldsAV.valueOrNull ?? const {};
+    final shieldedDaysCount = shieldSet.where((d) => !d.isBefore(sinceUtc)).length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -54,6 +59,7 @@ class _StatsViewState extends ConsumerState<StatsView> {
               col: col,
               periodIdx: _periodIdx,
               onPeriodChanged: (i) => setState(() => _periodIdx = i),
+              shieldedDaysCount: shieldedDaysCount,
             ),
           ),
       ],
@@ -70,6 +76,7 @@ class _StatsBody extends StatelessWidget {
   final AppColors col;
   final int periodIdx;
   final ValueChanged<int> onPeriodChanged;
+  final int shieldedDaysCount;
 
   const _StatsBody({
     required this.habits,
@@ -80,6 +87,7 @@ class _StatsBody extends StatelessWidget {
     required this.col,
     required this.periodIdx,
     required this.onPeriodChanged,
+    required this.shieldedDaysCount,
   });
 
   @override
@@ -98,7 +106,7 @@ class _StatsBody extends StatelessWidget {
     };
 
     // ── Lifetime overview ────────────────────────────────────────────────────
-    final glance = _computeQuickGlance(now);
+    final glance = _computeQuickGlance(now, shieldedDaysCount);
 
     // ── Streaks ──────────────────────────────────────────────────────────────
     final currentStreak = overallStreak?.displayStreak ?? 0;
@@ -218,6 +226,7 @@ class _StatsBody extends StatelessWidget {
               _KV('perfect days',
                   '${ratesData.greenDays}/${days < 0 ? ratesData.trackedDays : days}',
                   col: col),
+              _KV('shielded days', '${glance.shieldedDays}', col: col),
             ],
           ),
         ),
@@ -285,7 +294,7 @@ class _StatsBody extends StatelessWidget {
 
   // ── Computation helpers ───────────────────────────────────────────────────
 
-  _QuickGlance _computeQuickGlance(DateTime now) {
+  _QuickGlance _computeQuickGlance(DateTime now, int shieldedDays) {
     var daysTracked = 0;
     var totalDue = 0;
     var totalDone = 0;
@@ -330,6 +339,7 @@ class _StatsBody extends StatelessWidget {
       avgCompletion: totalDue == 0 ? 0 : totalDone / totalDue,
       perfectDays: perfectDays,
       totalCompletions: totalCompletions,
+      shieldedDays: shieldedDays,
     );
   }
 
@@ -436,11 +446,13 @@ class _QuickGlance {
   final double avgCompletion;
   final int perfectDays;
   final int totalCompletions;
+  final int shieldedDays;
   const _QuickGlance({
     required this.daysTracked,
     required this.avgCompletion,
     required this.perfectDays,
     required this.totalCompletions,
+    required this.shieldedDays,
   });
 }
 

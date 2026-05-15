@@ -49,6 +49,7 @@ class WeekStrip extends ConsumerWidget {
                 isSelected: _sameDay(days[i], selected),
                 isToday: _sameDay(days[i], today),
                 ratio: i < ratios.length ? ratios[i].ratio : 0,
+                shielded: i < ratios.length ? ratios[i].shielded : false,
               ),
             ),
           ),
@@ -99,6 +100,7 @@ class _DayCell extends StatelessWidget {
   final bool isToday;
   final double ratio;
   final AppColors col;
+  final bool shielded;
 
   const _DayCell({
     required this.label,
@@ -107,6 +109,7 @@ class _DayCell extends StatelessWidget {
     required this.isToday,
     required this.ratio,
     required this.col,
+    this.shielded = false,
   });
 
   @override
@@ -122,23 +125,33 @@ class _DayCell extends StatelessWidget {
         Text(label,
             style: TextStyle(color: col.fgMute, fontSize: 10)),
         const SizedBox(height: 2),
-        Container(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          decoration: BoxDecoration(
-            color: isSelected ? col.bg3 : Colors.transparent,
-            borderRadius: const BorderRadius.all(TH.r4),
-          ),
-          child: Center(
-            child: Text(
-              isSelected ? '*${date.day}' : '${date.day}',
-              style: TextStyle(
-                color: color,
-                fontSize: 13,
-                fontWeight:
-                    isSelected ? FontWeight.w600 : FontWeight.normal,
+        Stack(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              decoration: BoxDecoration(
+                color: isSelected ? col.bg3 : Colors.transparent,
+                borderRadius: const BorderRadius.all(TH.r4),
+              ),
+              child: Center(
+                child: Text(
+                  isSelected ? '*${date.day}' : '${date.day}',
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 13,
+                    fontWeight:
+                        isSelected ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                ),
               ),
             ),
-          ),
+            if (shielded)
+              const Positioned(
+                top: 0,
+                right: 0,
+                child: Text('🛡', style: TextStyle(fontSize: 8)),
+              ),
+          ],
         ),
         const SizedBox(height: 4),
         _IntensityBar(ratio: ratio, col: col),

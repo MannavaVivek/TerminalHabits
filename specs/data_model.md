@@ -55,6 +55,16 @@ class Vacations extends Table {
   BoolColumn     get active  => boolean().withDefault(const Constant(false))();
 }
 
+// Day shields — one row per calendar day where the overall streak was preserved
+// by consuming a shield instead of recording a miss.
+class DayShields extends Table {
+  IntColumn      get id        => integer().autoIncrement()();
+  DateTimeColumn get day       => dateTime()();   // UTC midnight of local day (same convention as completions.day)
+  DateTimeColumn get appliedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override List<Set<Column>> get uniqueKeys => [{day}];
+}
+
 // Settings — single-row "key/value" sidecar
 class Settings extends Table {
   TextColumn get key   => text()();
@@ -75,12 +85,32 @@ class Settings extends Table {
 | `defaultGroupId` | string | first-created group id |
 | `seenSplash` | bool | `false` |
 | `lastView` | enum daily/stats/profile | `"daily"` |
+| `available_shields` | int string | `"0"` |
+| `shieldEarnInterval` | int string | `"7"` |
+| `last_seen_date` | ISO date string `"YYYY-MM-DD"` | `""` (triggers first-run scan) |
 
 `shared_preferences` is used **only** for `seenSplash` (because it must be readable before the DB opens). Everything else lives in `Settings`.
 
 ---
 
-## 2. Indexes
+## 2. Long-term durability guarantees
+
+This app is designed for multi-year continuous use. The following constraints are enforced throughout the data and domain layers:
+
+| Concern | Guarantee |
+|---|---|
+| Row IDs | All `autoIncrement()` columns use SQLite's 64-bit INTEGER. At 1 million completions/year, overflow occurs in ~9 trillion years. |
+| Timestamps | Drift stores `DateTime` as 64-bit epoch milliseconds. Safe past year 292 million. |
+| Streak / completion counts | Dart native `int` is 64-bit on all target platforms (macOS, Android). No 32-bit cast anywhere in the domain layer. |
+| Shield pool counter | Plain integer in `settings`. Capped at `999` in the UI to prevent display overflow; no arithmetic overflow risk. |
+| Timezone shifts | All day values are UTC midnight of local day at write time. A timezone change does not corrupt existing rows; it only shifts the boundary of "today." |
+| DST transitions | Days computed with `DateTime(y, m, d).toUtc()`, never as `epoch / 86400`. |
+
+**Local-first sync resilience:** The local SQLite file is always the source of truth. All primary keys are assigned locally (no server-generated IDs). A complete re-push of every local row to a clean remote is always possible without key collisions. If a remote loses data, the local DB is the full recovery source. This guarantee must be preserved in Phase 10 (sync): the sync layer must support a full local → remote push on demand.
+
+---
+
+## 3. Indexes
 
 ```dart
 // In drift @DriftDatabase migration:
@@ -88,13 +118,14 @@ await m.createIndex(Index('idx_completions_day', 'CREATE INDEX idx_completions_d
 await m.createIndex(Index('idx_completions_habit_day', 'CREATE INDEX idx_completions_habit_day ON completions(habit_id, day)'));
 await m.createIndex(Index('idx_habits_group_sort', 'CREATE INDEX idx_habits_group_sort ON habits(group_id, sort_index)'));
 await m.createIndex(Index('idx_habits_archived', 'CREATE INDEX idx_habits_archived ON habits(archived_at)'));
+await m.createIndex(Index('idx_day_shields_day', 'CREATE INDEX idx_day_shields_day ON day_shields(day)'));
 ```
 
 Stats queries scan completions by date range; the `(habit_id, day)` composite handles streak recomputation efficiently.
 
 ---
 
-## 3. Day boundary & timezone handling
+## 4. Day boundary & timezone handling
 
 - Every `Completion.day` is the UTC instant of **local midnight on the day the user checked the habit.**
 - Computation: `final day = DateTime(now.year, now.month, now.day).toUtc();`
@@ -104,7 +135,7 @@ Stats queries scan completions by date range; the `(habit_id, day)` composite ha
 
 ---
 
-## 4. Schedule encoding
+## 5. Schedule encoding
 
 `habits.schedule` is JSON:
 
@@ -129,7 +160,7 @@ bool isHabitDueOn(Habit h, DateTime localDay) {
 
 ---
 
-## 5. Migrations
+## 6. Migrations
 
 drift's `MigrationStrategy`. Every schema bump increments `schemaVersion`.
 
@@ -159,7 +190,7 @@ These are committed in scope; column-level details get fleshed out here in the P
 
 ---
 
-## 6. Streak algorithm
+## 7. Streak algorithm
 
 Pure function. Lives in `domain/streaks.dart`. Inputs:
 - `Habit habit`
@@ -170,41 +201,81 @@ Pure function. Lives in `domain/streaks.dart`. Inputs:
 Outputs (record):
 
 ```dart
-({int current, int longest, int shields})
+({int current, int pending, int longest, bool todayAtRisk, DateTime? streakStartUtc})
 ```
 
-### Algorithm
+### Algorithm — per-habit streak (`computeStreaks`)
 
-1. Build the set of **completed days** = `{c.day for c in completions if c.value > 0 OR (tracking != count/number)}`.
-   - For checkbox: `value > 0` ≡ done.
-   - For count/number: `value >= target` ≡ done. `0 < value < target` is *partial* and does **not** count toward streak.
-   - For health: `value >= target` ≡ done.
-2. Build the set of **due days** for this habit, going backward from today:
-   - A day D is due if `isHabitDueOn(habit, D)` is true AND D is not within any vacation range.
-3. Walk backward day-by-day from today:
-   - If today is due: streak counts from today backwards across consecutive due-and-completed days.
-   - If today is not due: streak count is whatever the most recent completed run was (don't penalize for not-due-today).
-4. **Shield consumption:** when walking backward you encounter a missed due day, check if a shield can absorb it.
-   - Shields are earned at every 7-consecutive-completed-due-day boundary.
-   - Each 7-day window (rolling) can have at most one shield consumed.
-   - If a shield is available, treat that missed day as completed and continue.
-   - If not, terminate the streak walk.
-5. **Longest:** scan all due days from `habit.createdAt` forward, tracking the maximum consecutive run with the same shield rules.
-6. **Current shields surplus:** total earned shields minus total consumed.
+Shields do **not** affect per-habit streaks. Only `completions` and `vacations` determine a habit's streak.
+
+1. Build the set of **completed days** from `completions`:
+   - checkbox / health: `value >= 0.5` ≡ done.
+   - counter / duration: `value >= target` ≡ done.
+2. Walk forward day-by-day from `habit.startDate` through today, split at yesterday:
+   - **Phase 1** (through yesterday): advances or resets `current`; records `pendingCurrent` and `pendingStart` after.
+   - **Phase 2** (today): advances or resets `current`.
+   - Vacation days: neutral (neither advance nor reset).
+   - Not-due days: skip (neutral).
+   - `streakStartUtc`: set to the first day of the current run, reset to null on any miss.
+3. `todayAtRisk` = today is a due, non-vacation day with no completion yet.
+4. `displayStreak = todayAtRisk ? pending : current`.
+
+### Algorithm — overall day-wise streak (`computeOverallStreak`)
+
+A day is **successful** when every due habit was completed OR a `day_shields` row exists for that day.
+
+```
+outcome(d):
+  if d is vacation day → 0 (neutral)
+  if day_shields contains d → 1 (success, regardless of completions)
+  if all due habits completed → 1
+  if no habits due → 0 (neutral)
+  else → -1 (miss)
+```
+
+Walk forward from the earliest habit start (capped at 90 days for the in-memory window):
+- outcome 1 → `current++`
+- outcome -1 → `current = 0`
+- outcome 0 → no change
+
+### Shield application — forward-only rule
+
+Shields are applied at the transition boundary (when a calendar day rolls from "today" to "yesterday"), not retroactively. The launch scan:
+
+1. Read `last_seen_date` from settings.
+2. For each day D from `last_seen_date + 1` to yesterday (chronological order):
+   - Compute `outcome(D)` using completions only (no shields yet).
+   - If outcome == -1 (miss) and `available_shields > 0`:
+     - Insert `day_shields(day: D, applied_at: now)`.
+     - Decrement `available_shields`.
+   - If outcome == -1 and no shields available: day stays a miss, permanently.
+3. Set `last_seen_date = today`.
+
+Days before `last_seen_date` are never re-evaluated. Shields earned after a miss occurred do not retroactively heal it.
+
+### Shield earning
+
+After the launch scan, recompute `computeOverallStreak` (now including any newly inserted shields). Every time the streak crosses a multiple of `shieldEarnInterval` consecutive successful days, award 1 shield by incrementing `available_shields`. Track the last awarded boundary in the same scan to avoid double-awarding.
+
+### Auto-recovery
+
+When any completion is written or deleted, re-check whether the affected day now has 100% completion. If it does and a `day_shields` row exists for that day, delete the shield row and increment `available_shields` by 1.
 
 ### Test cases (must pass)
 
-- 14-day continuous run, no misses → `current = 14, shields = 2`.
-- 14-day run with one miss on day 6 (shield absorbs) → `current = 14, shields = 1`.
-- 14-day run with two misses inside one week → second miss breaks streak.
-- Schedule = weekdays, missed Sat → no streak break.
-- Vacation Mon–Fri inside a streak → streak unchanged.
+- 14-day continuous run → `current = 14`, 2 shields earned (at days 7 and 14).
+- 14-day run, miss on day 8, shield available at transition → shield consumed, `current = 14`, 1 shield earned (day 7), 1 consumed.
+- Same but no shield at transition → `current = 6` (streak broke at day 7), miss locked in.
+- Shield earned on day 14 after day-8 miss was already locked → shield stays in pool, day 8 stays a miss.
+- Vacation Mon–Fri inside a streak → streak unchanged, vacation days do not consume shields.
+- Schedule = weekdays, missed Saturday → not a due day, neutral, no shield consumed.
+- Back-fill a shielded day to 100% → `day_shields` row deleted, pool +1.
 
-These cases are golden tests in `test/domain/streaks_test.dart` and gate Phase 1 exit.
+These cases are golden tests in `test/domain/streaks_test.dart`.
 
 ---
 
-## 7. Repository surface
+## 8. Repository surface
 
 ```dart
 abstract class HabitRepository {
@@ -235,7 +306,7 @@ These are the only entry points into `data/`. UI never touches drift directly.
 
 ---
 
-## 8. Export / import format
+## 9. Export / import format
 
 Settings → Data → Export produces:
 
@@ -257,11 +328,11 @@ Import:
 3. On confirm: open a transaction, truncate all tables, insert from import. No merge mode in v1.
 4. On any error inside the transaction: rollback, show error, leave existing DB intact.
 
-Sync (Phase 11) uses a different transport but the same logical shape per row.
+Sync (Phase 10) uses a different transport but the same logical shape per row.
 
 ---
 
-## 9. Storage paths
+## 10. Storage paths
 
 | Platform | Path |
 |---|---|

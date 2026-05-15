@@ -340,7 +340,6 @@ class _HabitInspector extends StatelessWidget {
         _Block(label: 'streak', col: col, children: [
           _Row('current', '${s.displayStreak}', col: col),
           _Row('longest', '${s.longest}', col: col),
-          _Row('shields', '${s.shields}', col: col),
         ]),
         const SizedBox(height: TH.s8),
         _Block(label: 'habit', col: col, children: [

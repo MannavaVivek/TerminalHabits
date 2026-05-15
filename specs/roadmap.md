@@ -373,49 +373,70 @@
 
 > After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit per `constitution.md §7`.
 
-**Goal:** add a shield pool that can absorb missed days in the overall day-wise streak. One shield covers one missed day regardless of how many habits were missed that day.
+**Goal:** add a shield pool that absorbs missed days in the overall day-wise streak at the moment they occur. One shield covers one missed day. Shields earned later never reach back to fix already-broken streaks.
+
+### Design principles
+
+#### Shield application is forward-only
+A shield is consumed at the transition moment — when a day rolls from "today" to "yesterday", detected at the next app launch. If no shield was available at that transition, the day is permanently locked as a miss. Earning shields later does **not** retroactively heal past missed days. This keeps the streak history trustworthy: what you see is what actually happened, shielded or not.
+
+#### `last_seen_date` tracks the transition boundary
+A `last_seen_date` value (stored in `settings`) records the last calendar date on which the launch scan ran. On each launch:
+1. Compute the gap from `last_seen_date + 1` to yesterday (inclusive), in chronological order.
+2. For each day in the gap: if it was a missed day and `available_shields > 0`, consume one shield and insert a `day_shields` row. Otherwise leave it as a miss.
+3. Update `last_seen_date` to today.
+
+Days already processed (before `last_seen_date`) are never re-evaluated, even if shields are earned later.
+
+#### Long-term storage safety
+All IDs use SQLite's 64-bit `INTEGER AUTOINCREMENT` — no overflow for any realistic usage horizon. Dates are stored as 64-bit epoch milliseconds (Drift's default `DateTime` mapping) — safe past year 292 million. Dart's native `int` is 64-bit. Streak and completion counts are plain Dart `int` (64-bit). No 32-bit integers are used anywhere in the data or domain layer.
+
+#### Local-first and sync resilience
+The local SQLite file is always the source of truth. All primary keys are assigned locally (no server-generated IDs), so a full re-push of every row to a clean remote (Supabase or otherwise) is always possible without key collisions. If a remote loses data, the local DB is the recovery source. This guarantee must be preserved in Phase 10 (sync).
+
+---
 
 ### Scope
-- **New table** `day_shields(id INTEGER PK, day DATETIME UNIQUE, source TEXT, applied_at DATETIME)`.
+
+- **New table** `day_shields(id INTEGER PK AUTOINCREMENT, day DATETIME UNIQUE, applied_at DATETIME)`.
   - `day` is UTC-midnight-of-local-day (same convention as `completions.day`).
-  - `source` ∈ `{'manual', 'auto'}`.
-  - `UNIQUE` on `day` so a single day can hold at most one shield.
-- **One shield per day**: if any habits were incomplete on a given day, one shield is consumed from the pool — not one per missed habit. Vacation days do not consume shields.
+  - `UNIQUE` on `day` — at most one shield per calendar day, ever.
+  - No `source` column: all shields in this phase are auto-applied; manual apply is out of scope.
+- **One shield per day**: if any habits were incomplete on a given day, one shield is consumed from the pool — not one per missed habit. Vacation days do not consume shields (already successful by definition).
 - **Day-success definition**: a day is *successful* when all due habits are completed OR a row in `day_shields` exists for that day.
-- **Overall streak engine update**: the existing `computeOverallStreak` walker treats a shielded day as outcome `1` (success) even if habits were missed.
-- **Per-habit streaks** remain unchanged: consecutive completed-due days for that habit with no shield interaction.
-- **Shield earning**: every N consecutive successful days earns 1 shield to the available pool. `N` defaults to 7, configurable in settings (`shieldEarnInterval`). Earned shields live in a single `available_shields` counter (kept in `settings`).
-- **UI — habit row**: on a day where a shield was consumed and the habit was *not* completed, the flame icon for that habit is replaced by a shield icon. Multiple habits missed → all show shield icon, but only one shield was consumed total.
-- **UI — pending / gray streak**: the gray pending streak (shown while today is still open) counts a shielded day as a successful day, same as a completed day.
-- **Manual apply / remove**: right-click on a day cell in the week strip → menu (`apply shield`, `remove shield`). On Android, long-press. Removing returns the shield to the available pool. Applying to a future day is allowed (planned travel).
-- **Auto-apply at end-of-day**: at app launch, scan all calendar days from the last-seen date to yesterday. For each missed day with `available_shields > 0`: insert `day_shields(day, 'auto', now)` and decrement available pool. If no shields → leave as miss.
-- **Auto-recovery**: when a missed day is back-filled to 100% completion and it had a `source='auto'` shield, the shield row is deleted and the available pool is incremented. Triggered by the launch-scan and by any completion write.
-- **Shield permanence on schedule edits**: if a habit's schedule is later changed so that a previously shielded day is no longer tracked, the shield is kept (not reclaimed). No logic to recover shields from retroactive edits.
-- **UI surfacing**:
-  - Week-strip day cell renders a `🛡` overlay when a shield was consumed.
-  - Header reads `🛡 {available}` (available pool count).
-  - Inspector pane on a day-cell focus shows `applied_at` and `source`.
-- **Migration cleanup**: `StreakResult.shields` field is removed (currently always 0); `DailyState.availableShields` replaces it, backed by the settings row.
+- **Overall streak engine**: `computeOverallStreak` walker treats a shielded day as outcome `1` (success).
+- **Per-habit streaks**: unchanged — shields have no effect on individual habit streaks.
+- **Shield earning**: every N consecutive successful days (shielded days count) earns 1 shield. `N` defaults to 7, stored as `shieldEarnInterval` in settings. The available pool is a single integer counter `available_shields` in settings.
+- **Launch scan** (`last_seen_date` logic above): processes missed days chronologically, consuming shields where available, then locks. Updates `last_seen_date` to today.
+- **Auto-recovery**: if a shielded day is back-filled to 100% completion, the `day_shields` row is deleted and `available_shields` is incremented by 1. Triggered on any completion write.
+- **Shield permanence on schedule edits**: if a habit's schedule is retroactively changed so a previously shielded day is no longer tracked, the shield row is kept (not reclaimed).
+- **UI — habit row**: on a shielded day where a specific habit was *not* completed, show a shield icon (🛡) instead of the flame. Multiple habits missed on the same shielded day all show the shield icon; only one shield was consumed.
+- **UI — pending streak**: the gray pending streak counts shielded past days as successful days (not misses).
+- **UI — header**: `🛡 {available}` shows the current pool count next to the streak.
+- **UI — week strip**: `🛡` overlay on day cells where a shield was consumed.
+- **Stats — shielded days metric**: new counter in the Overview block showing total shielded days in the tracked window. Shielded days count as successful in all existing metrics (perfect days, streak length) but are also surfaced separately so the user can see how many times shields have been used.
+- **Migration cleanup**: `StreakResult.shields` field removed (currently always 0); `DailyState.availableShields` backed by the real `available_shields` settings value.
 
 ### Schema changes
-- Migration (new version): create `day_shields`. Add `available_shields` row to `settings` initialized to 0. Add `shieldEarnInterval` setting (default 7).
+- DB migration (new version): `CREATE TABLE day_shields`. Add `available_shields` setting (default `'0'`). Add `shieldEarnInterval` setting (default `'7'`). Add `last_seen_date` setting (default `''` — empty string triggers a first-run scan from the earliest habit start date or 90 days back, whichever is later).
 
 ### Exit criteria
-- [ ] Right-click a past day in the week strip → "apply shield"; streak immediately recomputes through it as a success.
-- [ ] Right-click again → "remove shield"; shield returns to pool, streak recomputes without it.
-- [ ] On a day where any habit was missed and a shield was consumed, each missed habit's row shows a shield icon instead of a flame.
-- [ ] Only one shield is consumed per day regardless of how many habits were missed.
-- [ ] Quit at end of a missed day with shields available; relaunch → yesterday auto-shielded, streak preserved.
-- [ ] Back-fill an auto-shielded day to 100% completion → shield auto-returns to pool.
-- [ ] Gray pending streak correctly counts shielded past days as successes (not misses).
+- [ ] Quit at the end of a missed day with shields available; relaunch → that day auto-shielded, streak preserved.
+- [ ] Same scenario with no shields available → day stays as a miss, streak broken, earning shields later does not fix it.
+- [ ] On a shielded day where habits were missed, each missed habit's row shows a shield icon instead of a flame.
+- [ ] Only one shield consumed per day regardless of how many habits were missed.
+- [ ] Back-fill a shielded day to 100% completion → shield auto-returns to pool.
+- [ ] Gray pending streak counts shielded past days as successes.
 - [ ] Schedule change that removes a shielded day from tracking does not reclaim the shield.
-- [ ] Per-habit streaks compute correctly and are unaffected by shields.
+- [ ] Stats overview shows correct "shielded days" count; shielded days still count toward perfect days and streak length.
+- [ ] Per-habit streaks unaffected by shields.
 - [ ] No regressions in Phases 1–7.
 
 ### Out of scope
+- Manual apply / remove shield from UI.
+- Applying shields to specific future days.
 - Earning shields by manual purchase or vacation conversion (Backlog).
 - Multiple shields per day.
-- Warning when removing a load-bearing shield.
 
 ---
 

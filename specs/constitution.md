@@ -18,7 +18,7 @@ These are constraints. Implementations that violate them are wrong, not differen
 
 1. **One codebase.** Single Flutter project, single `pubspec.yaml`. No platform-forks, no separate Android Studio project, no Compose, no SwiftUI.
 2. **One aesthetic.** macOS, Linux, and Android share the same color tokens, type scale, border treatment, and copy. Layout adapts; visual language does not.
-3. **Local-first.** SQLite (via drift) is the source of truth on every device. The app must be 100% functional offline. Cloud sync is a deferred, opt-in layer (see [roadmap.md](roadmap.md) Phase 11).
+3. **Local-first, sync-resilient.** SQLite (via drift) is the source of truth on every device. The app must be 100% functional offline. All primary keys are assigned locally (no server-generated IDs), so a full re-push of every local row to a clean remote is always possible — if a remote loses data, the local DB is the complete recovery source. Cloud sync is a deferred, opt-in layer (see [roadmap.md](roadmap.md) Phase 10).
 4. **Quiet UI.** No Material ripples, no bouncy curves, no shadow elevation, no spinner-style loading states. Use `NoSplash.splashFactory` globally and `kNoTransitionsBuilder` for route transitions.
 5. **Monospace everywhere.** JetBrains Mono is the only UI font. Other fonts appear only as user-selectable theme options inside Settings, never as default chrome.
 6. **Bordered boxes, not cards.** Containers use `DecoratedBox` with `Border.all(width: 1)`. No `Card` widget, no shadow elevation.
@@ -67,9 +67,9 @@ The UI design reference is [`../FLUTTER_NOTES.md`](../FLUTTER_NOTES.md). Treat i
 Decisions made up-front to prevent rework. Each entry: what was decided, why, and what would force us to revisit.
 
 ### D-001: Local-first, sync deferred
-- **Decided:** SQLite (drift) is the source of truth. Supabase is removed from Phase 1–7 and reintroduced as opt-in cloud sync in Phase 11.
+- **Decided:** SQLite (drift) is the source of truth. Supabase is removed from Phase 1–7 and reintroduced as opt-in cloud sync in Phase 10.
 - **Why:** Original `tech_stack.md` specified Supabase but `FLUTTER_NOTES.md` specified drift; reconciling toward local-first keeps the Mac MVP unblocked by backend setup and matches the Quiet Terminal ethos.
-- **Revisit if:** users explicitly request multi-device sync before Phase 11 ships.
+- **Revisit if:** users explicitly request multi-device sync before Phase 10 ships.
 
 ### D-002: macOS first, then Linux, then Android
 - **Decided:** Phase order is Mac → Linux → Android. Each phase ships a runnable, dogfoodable build before the next begins.

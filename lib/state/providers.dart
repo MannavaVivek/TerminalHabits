@@ -60,6 +60,18 @@ final scheduleHistoryProvider =
   (ref) => ref.watch(dbProvider).watchAllScheduleHistory(),
 );
 
+final dayShieldsProvider = StreamProvider<Set<DateTime>>((ref) {
+  final sinceUtc = localMidnightUtc(
+      DateTime.now().subtract(const Duration(days: 90)).toLocal());
+  return ref.watch(dbProvider).watchDayShields(sinceUtc).map(
+      (list) => {for (final s in list) s.day});
+});
+
+final availableShieldsProvider = StreamProvider<int>((ref) => ref
+    .watch(dbProvider)
+    .watchSetting('available_shields')
+    .map((v) => int.tryParse(v ?? '0') ?? 0));
+
 final yearlyCompletionsProvider =
     StreamProvider<Map<int, List<Completion>>>((ref) {
   final userId = ref.watch(currentUserIdProvider);
@@ -119,8 +131,9 @@ class DailyState {
   final List<DailyGroup> groups;
   final DateTime today;
   final StreakResult overallStreak;
-  final int availableShields; // always 0 until Phase 8
+  final int availableShields;
   final int totalCompletionsAllTime;
+  final Set<DateTime> shieldedDays;
 
   const DailyState({
     required this.groups,
@@ -128,6 +141,7 @@ class DailyState {
     required this.overallStreak,
     required this.availableShields,
     required this.totalCompletionsAllTime,
+    this.shieldedDays = const {},
   });
 
   int get totalDone => groups.fold(0, (sum, g) => sum + g.doneCount);
@@ -142,9 +156,11 @@ final dailyStateProvider = Provider<AsyncValue<DailyState>>((ref) {
   final recentAV = ref.watch(recentCompletionsProvider);
   final vacAV = ref.watch(vacationsProvider);
   final historyAV = ref.watch(scheduleHistoryProvider);
+  final shieldsAV = ref.watch(dayShieldsProvider);
+  final availShieldsAV = ref.watch(availableShieldsProvider);
   final selectedDay = ref.watch(selectedDayProvider);
 
-  for (final av in [groupsAV, habitsAV, recentAV, vacAV, historyAV]) {
+  for (final av in [groupsAV, habitsAV, recentAV, vacAV, historyAV, shieldsAV, availShieldsAV]) {
     if (av.isLoading) return const AsyncValue.loading();
     if (av.hasError) return AsyncValue.error(av.error!, av.stackTrace!);
   }
@@ -172,8 +188,8 @@ final dailyStateProvider = Provider<AsyncValue<DailyState>>((ref) {
       if (!vacDays.contains(c.day.toUtc())) totalCompletions++;
     }
   }
-  final overallStreak =
-      computeOverallStreak(habits, recentMap, vacList, historyMap, today);
+  final overallStreak = computeOverallStreak(
+      habits, recentMap, vacList, historyMap, today, shieldsAV.requireValue);
 
   final dailyGroups = groups
       .map((group) {
@@ -217,8 +233,9 @@ final dailyStateProvider = Provider<AsyncValue<DailyState>>((ref) {
     groups: dailyGroups,
     today: selectedDay,
     overallStreak: overallStreak,
-    availableShields: overallStreak.displayStreak ~/ 7,
+    availableShields: availShieldsAV.requireValue,
     totalCompletionsAllTime: totalCompletions,
+    shieldedDays: shieldsAV.requireValue,
   ));
 });
 
@@ -266,7 +283,8 @@ class DayRatio {
   final DateTime day;
   final int done;
   final int due;
-  const DayRatio({required this.day, required this.done, required this.due});
+  final bool shielded;
+  const DayRatio({required this.day, required this.done, required this.due, this.shielded = false});
 
   double get ratio => due == 0 ? 0 : (done / due).clamp(0, 1).toDouble();
 }
@@ -279,6 +297,7 @@ List<DayRatio> weeklyRatios(
   Map<int, List<Completion>> recentMap,
   Map<int, List<HabitScheduleHistoryData>> historyMap,
   List<Vacation> vacations,
+  Set<DateTime> shieldedDays,
 ) {
   final vacDays = buildVacationDaySet(vacations);
   final monday = DateTime(
@@ -307,7 +326,7 @@ List<DayRatio> weeklyRatios(
       final comps = recentMap[h.id] ?? const [];
       if (comps.any((c) => c.day.toUtc() == dayUtc)) done++;
     }
-    out.add(DayRatio(day: day, done: done, due: due));
+    out.add(DayRatio(day: day, done: done, due: due, shielded: shieldedDays.contains(dayUtc)));
   }
   return out;
 }
@@ -317,6 +336,7 @@ final weeklyRatiosProvider = Provider<List<DayRatio>>((ref) {
   final recentAV = ref.watch(recentCompletionsProvider);
   final historyAV = ref.watch(scheduleHistoryProvider);
   final vacAV = ref.watch(vacationsProvider);
+  final shieldsAV = ref.watch(dayShieldsProvider);
   final selectedDay = ref.watch(selectedDayProvider);
   if (habitsAV.isLoading || recentAV.isLoading || historyAV.isLoading) {
     return const [];
@@ -326,6 +346,7 @@ final weeklyRatiosProvider = Provider<List<DayRatio>>((ref) {
   }
   return weeklyRatios(selectedDay, habitsAV.requireValue,
       recentAV.requireValue, historyAV.requireValue,
-      vacAV.valueOrNull ?? const []);
+      vacAV.valueOrNull ?? const [],
+      shieldsAV.valueOrNull ?? const {});
 });
 

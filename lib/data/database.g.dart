@@ -3121,6 +3121,257 @@ class HabitScheduleHistoryCompanion
   }
 }
 
+class $DayShieldsTable extends DayShields
+    with TableInfo<$DayShieldsTable, DayShield> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DayShieldsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _dayMeta = const VerificationMeta('day');
+  @override
+  late final GeneratedColumn<DateTime> day = GeneratedColumn<DateTime>(
+    'day',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _appliedAtMeta = const VerificationMeta(
+    'appliedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> appliedAt = GeneratedColumn<DateTime>(
+    'applied_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, day, appliedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'day_shields';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DayShield> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('day')) {
+      context.handle(
+        _dayMeta,
+        day.isAcceptableOrUnknown(data['day']!, _dayMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dayMeta);
+    }
+    if (data.containsKey('applied_at')) {
+      context.handle(
+        _appliedAtMeta,
+        appliedAt.isAcceptableOrUnknown(data['applied_at']!, _appliedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {day},
+  ];
+  @override
+  DayShield map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DayShield(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      day: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}day'],
+      )!,
+      appliedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}applied_at'],
+      )!,
+    );
+  }
+
+  @override
+  $DayShieldsTable createAlias(String alias) {
+    return $DayShieldsTable(attachedDatabase, alias);
+  }
+}
+
+class DayShield extends DataClass implements Insertable<DayShield> {
+  final int id;
+  final DateTime day;
+  final DateTime appliedAt;
+  const DayShield({
+    required this.id,
+    required this.day,
+    required this.appliedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['day'] = Variable<DateTime>(day);
+    map['applied_at'] = Variable<DateTime>(appliedAt);
+    return map;
+  }
+
+  DayShieldsCompanion toCompanion(bool nullToAbsent) {
+    return DayShieldsCompanion(
+      id: Value(id),
+      day: Value(day),
+      appliedAt: Value(appliedAt),
+    );
+  }
+
+  factory DayShield.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DayShield(
+      id: serializer.fromJson<int>(json['id']),
+      day: serializer.fromJson<DateTime>(json['day']),
+      appliedAt: serializer.fromJson<DateTime>(json['appliedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'day': serializer.toJson<DateTime>(day),
+      'appliedAt': serializer.toJson<DateTime>(appliedAt),
+    };
+  }
+
+  DayShield copyWith({int? id, DateTime? day, DateTime? appliedAt}) =>
+      DayShield(
+        id: id ?? this.id,
+        day: day ?? this.day,
+        appliedAt: appliedAt ?? this.appliedAt,
+      );
+  DayShield copyWithCompanion(DayShieldsCompanion data) {
+    return DayShield(
+      id: data.id.present ? data.id.value : this.id,
+      day: data.day.present ? data.day.value : this.day,
+      appliedAt: data.appliedAt.present ? data.appliedAt.value : this.appliedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DayShield(')
+          ..write('id: $id, ')
+          ..write('day: $day, ')
+          ..write('appliedAt: $appliedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, day, appliedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DayShield &&
+          other.id == this.id &&
+          other.day == this.day &&
+          other.appliedAt == this.appliedAt);
+}
+
+class DayShieldsCompanion extends UpdateCompanion<DayShield> {
+  final Value<int> id;
+  final Value<DateTime> day;
+  final Value<DateTime> appliedAt;
+  const DayShieldsCompanion({
+    this.id = const Value.absent(),
+    this.day = const Value.absent(),
+    this.appliedAt = const Value.absent(),
+  });
+  DayShieldsCompanion.insert({
+    this.id = const Value.absent(),
+    required DateTime day,
+    this.appliedAt = const Value.absent(),
+  }) : day = Value(day);
+  static Insertable<DayShield> custom({
+    Expression<int>? id,
+    Expression<DateTime>? day,
+    Expression<DateTime>? appliedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (day != null) 'day': day,
+      if (appliedAt != null) 'applied_at': appliedAt,
+    });
+  }
+
+  DayShieldsCompanion copyWith({
+    Value<int>? id,
+    Value<DateTime>? day,
+    Value<DateTime>? appliedAt,
+  }) {
+    return DayShieldsCompanion(
+      id: id ?? this.id,
+      day: day ?? this.day,
+      appliedAt: appliedAt ?? this.appliedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (day.present) {
+      map['day'] = Variable<DateTime>(day.value);
+    }
+    if (appliedAt.present) {
+      map['applied_at'] = Variable<DateTime>(appliedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DayShieldsCompanion(')
+          ..write('id: $id, ')
+          ..write('day: $day, ')
+          ..write('appliedAt: $appliedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3132,6 +3383,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
   late final $HabitScheduleHistoryTable habitScheduleHistory =
       $HabitScheduleHistoryTable(this);
+  late final $DayShieldsTable dayShields = $DayShieldsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3144,6 +3396,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     vacations,
     appSettings,
     habitScheduleHistory,
+    dayShields,
   ];
 }
 
@@ -5446,6 +5699,155 @@ typedef $$HabitScheduleHistoryTableProcessedTableManager =
       HabitScheduleHistoryData,
       PrefetchHooks Function({bool habitId})
     >;
+typedef $$DayShieldsTableCreateCompanionBuilder =
+    DayShieldsCompanion Function({
+      Value<int> id,
+      required DateTime day,
+      Value<DateTime> appliedAt,
+    });
+typedef $$DayShieldsTableUpdateCompanionBuilder =
+    DayShieldsCompanion Function({
+      Value<int> id,
+      Value<DateTime> day,
+      Value<DateTime> appliedAt,
+    });
+
+class $$DayShieldsTableFilterComposer
+    extends Composer<_$AppDatabase, $DayShieldsTable> {
+  $$DayShieldsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get day => $composableBuilder(
+    column: $table.day,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get appliedAt => $composableBuilder(
+    column: $table.appliedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DayShieldsTableOrderingComposer
+    extends Composer<_$AppDatabase, $DayShieldsTable> {
+  $$DayShieldsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get day => $composableBuilder(
+    column: $table.day,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get appliedAt => $composableBuilder(
+    column: $table.appliedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DayShieldsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DayShieldsTable> {
+  $$DayShieldsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get day =>
+      $composableBuilder(column: $table.day, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get appliedAt =>
+      $composableBuilder(column: $table.appliedAt, builder: (column) => column);
+}
+
+class $$DayShieldsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $DayShieldsTable,
+          DayShield,
+          $$DayShieldsTableFilterComposer,
+          $$DayShieldsTableOrderingComposer,
+          $$DayShieldsTableAnnotationComposer,
+          $$DayShieldsTableCreateCompanionBuilder,
+          $$DayShieldsTableUpdateCompanionBuilder,
+          (
+            DayShield,
+            BaseReferences<_$AppDatabase, $DayShieldsTable, DayShield>,
+          ),
+          DayShield,
+          PrefetchHooks Function()
+        > {
+  $$DayShieldsTableTableManager(_$AppDatabase db, $DayShieldsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DayShieldsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DayShieldsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DayShieldsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<DateTime> day = const Value.absent(),
+                Value<DateTime> appliedAt = const Value.absent(),
+              }) => DayShieldsCompanion(id: id, day: day, appliedAt: appliedAt),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required DateTime day,
+                Value<DateTime> appliedAt = const Value.absent(),
+              }) => DayShieldsCompanion.insert(
+                id: id,
+                day: day,
+                appliedAt: appliedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DayShieldsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $DayShieldsTable,
+      DayShield,
+      $$DayShieldsTableFilterComposer,
+      $$DayShieldsTableOrderingComposer,
+      $$DayShieldsTableAnnotationComposer,
+      $$DayShieldsTableCreateCompanionBuilder,
+      $$DayShieldsTableUpdateCompanionBuilder,
+      (DayShield, BaseReferences<_$AppDatabase, $DayShieldsTable, DayShield>),
+      DayShield,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -5464,4 +5866,6 @@ class $AppDatabaseManager {
       $$AppSettingsTableTableManager(_db, _db.appSettings);
   $$HabitScheduleHistoryTableTableManager get habitScheduleHistory =>
       $$HabitScheduleHistoryTableTableManager(_db, _db.habitScheduleHistory);
+  $$DayShieldsTableTableManager get dayShields =>
+      $$DayShieldsTableTableManager(_db, _db.dayShields);
 }

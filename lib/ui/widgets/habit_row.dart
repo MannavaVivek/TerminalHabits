@@ -29,6 +29,8 @@ class HabitRow extends ConsumerWidget {
     final selectedDayUtc = localMidnightUtc(selectedDay);
     final inCurrentStreak =
         streakStart != null && !selectedDayUtc.isBefore(streakStart);
+    final shieldedDays = ref.watch(dailyStateProvider).valueOrNull?.shieldedDays ?? const {};
+    final isShieldedDay = shieldedDays.contains(selectedDayUtc);
     final iconColor = _colorFor(h.color, col);
     final iconData = lucideIconData(h.icon);
 
@@ -90,15 +92,19 @@ class HabitRow extends ConsumerWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        LucideIcons.flame,
-                        size: 13,
-                        color: isToday
-                            ? (streak > 0
-                                ? (streakAtRisk ? col.fgDim : col.amber)
-                                : col.fgFaint)
-                            : (inCurrentStreak && done ? col.amber : col.fgFaint),
-                      ),
+                      // If the day is shielded and this habit wasn't done, show shield icon.
+                      if (isShieldedDay && !done)
+                        Icon(LucideIcons.shield, size: 13, color: col.blue)
+                      else
+                        Icon(
+                          LucideIcons.flame,
+                          size: 13,
+                          color: isToday
+                              ? (streak > 0
+                                  ? (streakAtRisk ? col.fgDim : col.amber)
+                                  : col.fgFaint)
+                              : (inCurrentStreak && done ? col.amber : col.fgFaint),
+                        ),
                       const SizedBox(width: 3),
                       if (isToday && streak > 0)
                         Text('$streak',

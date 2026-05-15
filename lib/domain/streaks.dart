@@ -29,7 +29,6 @@ HabitScheduleHistoryData? effectiveScheduleAt(
 ///                  is still at risk (due but not yet completed).
 /// [todayAtRisk]    True when today is a due day that has no completion yet.
 /// [longest]        Longest consecutive streak ever.
-/// [shields]        Placeholder — always 0 until Phase 8 ships the shield pool.
 /// [streakStartUtc] UTC midnight of the first day in the currently displayed
 ///                  streak chain. Null when the displayed streak is 0.
 ///                  Used by HabitRow to color only in-chain days amber.
@@ -37,7 +36,6 @@ class StreakResult {
   final int current;
   final int pending;
   final int longest;
-  final int shields;
   final bool todayAtRisk;
   final DateTime? streakStartUtc;
 
@@ -45,7 +43,6 @@ class StreakResult {
     required this.current,
     required this.pending,
     required this.longest,
-    required this.shields,
     required this.todayAtRisk,
     this.streakStartUtc,
   });
@@ -153,7 +150,6 @@ StreakResult computeStreaks(
     current: current,
     pending: pendingCurrent,
     longest: longest,
-    shields: 0, // Phase 8 replaces this with the available-shield pool
     todayAtRisk: todayAtRisk,
     streakStartUtc: todayAtRisk ? pendingStart : currentStart,
   );
@@ -175,11 +171,12 @@ StreakResult computeOverallStreak(
   Map<int, List<Completion>> completionMap,
   List<Vacation> vacations,
   Map<int, List<HabitScheduleHistoryData>> historyMap,
-  DateTime today,
-) {
+  DateTime today, [
+  Set<DateTime> shieldedDays = const {},
+]) {
   if (habits.isEmpty) {
     return const StreakResult(
-        current: 0, pending: 0, longest: 0, shields: 0, todayAtRisk: false);
+        current: 0, pending: 0, longest: 0, todayAtRisk: false);
   }
 
   final todayLocal = today.toLocal();
@@ -188,7 +185,7 @@ StreakResult computeOverallStreak(
 
   // Cap walk start at 90 days to match the recentCompletionsProvider window.
   final cutoff = localMidnightUtc(
-      DateTime.now().subtract(const Duration(days: 90)).toLocal());
+      today.subtract(const Duration(days: 90)).toLocal());
   DateTime startDay = todayUtc;
   for (final h in habits) {
     final s = localMidnightUtc(h.startDate.toLocal());
@@ -205,6 +202,7 @@ StreakResult computeOverallStreak(
   // Returns: 1 = all done, 0 = none due (neutral), -1 = at least one missed.
   int dayOutcome(DateTime d) {
     if (vacationDays.contains(d)) return 0; // neutral per spec
+    if (shieldedDays.contains(d)) return 1; // shield absorbs the day
     var dueCount = 0;
     var doneCount = 0;
     for (final h in habits) {
@@ -251,7 +249,6 @@ StreakResult computeOverallStreak(
     current: current,
     pending: pendingCurrent,
     longest: longest,
-    shields: 0, // Phase 8 replaces with available-shield pool
     todayAtRisk: todayAtRisk,
   );
 }

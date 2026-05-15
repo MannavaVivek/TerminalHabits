@@ -52,7 +52,6 @@ void main() {
       final r = computeStreaks(_habit(), [], today, [], const []);
       expect(r.current, 0);
       expect(r.longest, 0);
-      expect(r.shields, 0);
     });
 
     test('checked today only → streak 1', () {
@@ -66,7 +65,6 @@ void main() {
       final r = computeStreaks(_habit(), _range(from, today), today, [], const []);
       expect(r.current, 14);
       expect(r.longest, 14);
-      expect(r.shields, 0); // Phase 8
     });
 
     test('missed today breaks streak (yesterday was last)', () {

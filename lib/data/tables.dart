@@ -7,7 +7,7 @@ class Users extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get username => text().unique()();
   TextColumn get displayName => text()();
-  // Plaintext until Phase 11 replaces with Supabase auth.
+  // Plaintext until Phase 10 replaces with Supabase auth.
   TextColumn get password => text()();
   DateTimeColumn get createdAt =>
       dateTime().withDefault(currentDateAndTime)();
@@ -94,6 +94,15 @@ class Vacations extends Table {
   TextColumn get note => text().nullable()();
   BoolColumn get active =>
       boolean().withDefault(const Constant(false))();
+}
+
+class DayShields extends Table {
+  IntColumn      get id        => integer().autoIncrement()();
+  DateTimeColumn get day       => dateTime()();
+  DateTimeColumn get appliedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  List<Set<Column>> get uniqueKeys => [{day}];
 }
 
 class AppSettings extends Table {
