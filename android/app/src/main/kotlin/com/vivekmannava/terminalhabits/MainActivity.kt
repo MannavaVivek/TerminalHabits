@@ -1,4 +1,4 @@
-package com.example.terminal_habits
+package com.vivekmannava.terminalhabits
 
 import io.flutter.embedding.android.FlutterActivity
 
