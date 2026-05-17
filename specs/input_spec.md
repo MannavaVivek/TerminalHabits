@@ -115,8 +115,8 @@ The grammar is implemented as a sealed-class hierarchy + a parser that returns `
 
 ### 3.1 Top-level navigation
 
-- **Bottom tab bar** with three tabs: Daily / Stats / Profile.
-- Tab bar uses bordered chips (no Material indicator). Active tab: `border: TH.green`, inactive: `border: TH.line`.
+- **Top tab bar** with three tabs: Daily / Stats / Profile, styled like terminal tabs.
+- Tab bar uses bordered chips (no Material indicator). Active tab: `border: TH.green`, text `TH.green`; inactive: `border: TH.line`, text `TH.fgMute`.
 - Tap tab → `GoToIntent` dispatch (same handler as desktop).
 - No hamburger, no drawer. Three tabs only.
 

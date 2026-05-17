@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../data/database.dart';
@@ -7,9 +9,11 @@ import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/icon_library.dart';
 import '../../theme/tokens.dart';
+import '../modals/edit_habit_dialog.dart';
 import '../modals/future_warn_dialog.dart';
 import '../modals/habit_menu.dart';
 import '../modals/value_input_dialog.dart';
+import 'bordered_toast.dart';
 
 class HabitRow extends ConsumerWidget {
   final DailyHabit dailyHabit;
@@ -37,10 +41,13 @@ class HabitRow extends ConsumerWidget {
     void focus() =>
         ref.read(focusedHabitIdProvider.notifier).state = h.id;
 
-    return GestureDetector(
+    Widget row = GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: focus,
-      onLongPress: () => showHabitMenu(context, ref, h),
+      onLongPress: () {
+        HapticFeedback.mediumImpact();
+        showHabitMenu(context, ref, h);
+      },
       onSecondaryTapDown: (details) =>
           showHabitMenu(context, ref, h, at: details.globalPosition),
       child: Container(
@@ -56,6 +63,7 @@ class HabitRow extends ConsumerWidget {
                   behavior: HitTestBehavior.opaque,
                   onTap: () async {
                     focus();
+                    HapticFeedback.lightImpact();
                     await _handleTap(context, ref, h);
                   },
                   child: Padding(
@@ -139,6 +147,40 @@ class HabitRow extends ConsumerWidget {
         ),
       ),
     );
+
+    // On Android: swipe-left archives the habit; swipe-right opens edit.
+    if (!Platform.isAndroid) return row;
+
+    final db = ref.read(dbProvider);
+    return Dismissible(
+      key: ValueKey(h.id),
+      direction: DismissDirection.horizontal,
+      // Red background for left-swipe (archive), amber for right-swipe (edit).
+      background: _SwipeBg(color: col.amber, label: 'edit', align: Alignment.centerLeft),
+      secondaryBackground: _SwipeBg(color: col.red, label: 'archive', align: Alignment.centerRight),
+      confirmDismiss: (direction) async {
+        if (direction == DismissDirection.startToEnd) {
+          // Right swipe → open edit dialog, don't remove the row.
+          HapticFeedback.lightImpact();
+          await EditHabitDialog.show(context, h);
+          return false;
+        } else {
+          // Left swipe → archive.
+          HapticFeedback.mediumImpact();
+          return true;
+        }
+      },
+      onDismissed: (_) {
+        db.archiveHabit(h.id);
+        showBorderedToast(
+          context,
+          '${h.name} archived',
+          undoLabel: 'undo',
+          onUndo: () => db.unarchiveHabit(h.id),
+        );
+      },
+      child: row,
+    );
   }
 
   Future<void> _handleTap(
@@ -211,6 +253,25 @@ class HabitRow extends ConsumerWidget {
       default:
         return col.green;
     }
+  }
+}
+
+class _SwipeBg extends StatelessWidget {
+  final Color color;
+  final String label;
+  final AlignmentGeometry align;
+  const _SwipeBg({required this.color, required this.label, required this.align});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: color.withValues(alpha: 0.15),
+      padding: const EdgeInsets.symmetric(horizontal: TH.s22),
+      alignment: align,
+      child: Text(label,
+          style: TextStyle(
+              color: color, fontSize: 12, fontWeight: FontWeight.w600)),
+    );
   }
 }
 

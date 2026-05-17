@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/database.dart';
@@ -7,6 +8,104 @@ import '../../theme/tokens.dart';
 import 'edit_habit_dialog.dart';
 
 Future<void> showHabitMenu(
+  BuildContext context,
+  WidgetRef ref,
+  Habit habit, {
+  Offset? at,
+}) async {
+  if (Platform.isAndroid) {
+    await _showBottomSheetMenu(context, ref, habit);
+  } else {
+    await _showPopupMenu(context, ref, habit, at: at);
+  }
+}
+
+// ── Mobile: bottom sheet ──────────────────────────────────���───────────────────
+
+Future<void> _showBottomSheetMenu(
+    BuildContext context, WidgetRef ref, Habit habit) async {
+  final col = AppColors.of(context);
+  final action = await showModalBottomSheet<String>(
+    context: context,
+    backgroundColor: col.bg2,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(10)),
+    ),
+    builder: (ctx) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+                TH.s22, TH.s14, TH.s22, TH.s8),
+            child: Text(habit.name,
+                style: TextStyle(
+                    color: col.fg,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600)),
+          ),
+          Container(height: 1, color: col.line),
+          _SheetItem(
+              label: 'edit', color: col.fg, col: col,
+              onTap: () => Navigator.of(ctx).pop('edit')),
+          _SheetItem(
+              label: 'archive', color: col.fgDim, col: col,
+              onTap: () => Navigator.of(ctx).pop('archive')),
+          _SheetItem(
+              label: 'delete', color: col.red, col: col,
+              onTap: () => Navigator.of(ctx).pop('delete')),
+          const SizedBox(height: TH.s8),
+        ],
+      ),
+    ),
+  );
+
+  if (action == null) return;
+  if (!context.mounted) return;
+  final db = ref.read(dbProvider);
+
+  switch (action) {
+    case 'edit':
+      await EditHabitDialog.show(context, habit);
+    case 'archive':
+      await db.archiveHabit(habit.id);
+    case 'delete':
+      if (!context.mounted) return;
+      final confirmed = await _confirmDelete(context, habit);
+      if (confirmed) await db.deleteHabit(habit.id);
+  }
+}
+
+class _SheetItem extends StatelessWidget {
+  final String label;
+  final Color color;
+  final AppColors col;
+  final VoidCallback onTap;
+  const _SheetItem(
+      {required this.label,
+      required this.color,
+      required this.col,
+      required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+            horizontal: TH.s22, vertical: TH.s14),
+        child: Text(label,
+            style: TextStyle(color: color, fontSize: 14)),
+      ),
+    );
+  }
+}
+
+// ── Desktop: popup menu ───────────────────────────────────────────────────────
+
+Future<void> _showPopupMenu(
   BuildContext context,
   WidgetRef ref,
   Habit habit, {
@@ -60,6 +159,8 @@ Future<void> showHabitMenu(
   }
 }
 
+// ── Shared delete confirmation ────────────────────────────────────────────────
+
 Future<bool> _confirmDelete(BuildContext context, Habit habit) async {
   final col = AppColors.of(context);
   final result = await showDialog<bool>(
@@ -67,8 +168,8 @@ Future<bool> _confirmDelete(BuildContext context, Habit habit) async {
     barrierColor: Colors.black54,
     builder: (ctx) => Dialog(
       backgroundColor: col.bg2,
-      shape:
-          RoundedRectangleBorder(borderRadius: const BorderRadius.all(TH.r10)),
+      shape: RoundedRectangleBorder(
+          borderRadius: const BorderRadius.all(TH.r10)),
       child: SizedBox(
         width: 400,
         child: Padding(

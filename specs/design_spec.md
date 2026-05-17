@@ -136,8 +136,9 @@ When `LayoutBuilder.maxWidth < 720`, collapse to:
 
 ```
 ┌──────────────────────────────┐
+│  [ daily ] [ stats ] [ prof ]│  ← Top tab bar (48px), terminal-tab style
+├──────────────────────────────┤
 │           MainPane           │
-│                              │
 │                              │
 │                              │
 │                              │
@@ -147,15 +148,13 @@ When `LayoutBuilder.maxWidth < 720`, collapse to:
 │                       ┌────┐ │
 │                       │ +  │ │  ← FAB-style command bridge trigger
 │                       └────┘ │
-├──────────────────────────────┤
-│  [ daily ] [ stats ] [ prof ]│  ← Bottom tab bar (64px)
 └──────────────────────────────┘
 ```
 
 Notes:
 - WindowChrome is hidden (system status bar is themed instead — see §6.2).
 - StatusBar is hidden (its information moves into MainPane headers and Inspector drawer).
-- Sidebar collapses entirely; nav is the bottom tab bar.
+- Sidebar collapses entirely; nav is the top tab bar.
 - Inspector collapses to a bottom-sheet drawer (see [input_spec.md](input_spec.md) §3.4).
 
 The breakpoint is global: **a small desktop window also gets the mobile layout.** This gives us "free" responsiveness during desktop development.

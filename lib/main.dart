@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:window_manager/window_manager.dart';
@@ -13,6 +14,15 @@ void main() async {
 
   // Fonts are bundled in assets/fonts/ — never fetch from the network.
   GoogleFonts.config.allowRuntimeFetching = false;
+
+  if (Platform.isAndroid) {
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: TH.bg,
+      statusBarIconBrightness: Brightness.light,
+      systemNavigationBarColor: TH.bg1,
+      systemNavigationBarIconBrightness: Brightness.light,
+    ));
+  }
 
   if (Platform.isMacOS || Platform.isLinux) {
     await windowManager.ensureInitialized();

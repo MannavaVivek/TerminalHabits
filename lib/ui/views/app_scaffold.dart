@@ -8,6 +8,8 @@ import '../../shortcuts/intents.dart';
 import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
 import '../inspector/inspector_pane.dart';
+import '../mobile/mobile_command_bridge.dart';
+import '../mobile/mobile_top_bar.dart';
 import '../modals/command_palette.dart';
 import '../modals/edit_habit_dialog.dart';
 import '../modals/future_warn_dialog.dart';
@@ -17,6 +19,7 @@ import '../nav/sidebar.dart';
 import '../widgets/status_bar.dart';
 import '../window/window_chrome.dart';
 import 'daily_view.dart';
+import 'profile_view.dart';
 import 'stats_view.dart';
 
 class AppScaffold extends ConsumerStatefulWidget {
@@ -46,13 +49,10 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
       vacations: vacations,
       historyMap: historyMap,
     ).then((_) {
-      // Correct any pool staleness if completions changed while the scan ran.
       if (mounted) _recomputePool();
     }, onError: (_) {});
   }
 
-  // Called whenever completions change during a session so the shield pool
-  // stays current without re-running the spending pass.
   void _recomputePool() {
     final db = ref.read(dbProvider);
     final habits = ref.read(habitsProvider).valueOrNull ?? [];
@@ -70,9 +70,9 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    // Keep these providers alive so ref.read() in tap handlers always finds
-    // a warm cached value (avoids AsyncValue.loading() → false race condition).
+  Widget build(BuildContext context, ) {
+    // Keep settings providers alive so ref.read() in tap handlers always hits
+    // a warm cached value, not AsyncValue.loading().
     ref.watch(allowFutureMarkingProvider);
     ref.watch(confirmDestructiveProvider);
 
@@ -81,133 +81,143 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
       if (next.hasValue) _recomputePool();
     });
     _maybeRunScan();
+
     final col = context.col;
     final view = ref.watch(currentViewProvider);
-    final isDesktop = Platform.isMacOS || Platform.isLinux;
     final isMeta = Platform.isMacOS;
 
     Widget mainPane = switch (view) {
       'stats' => const StatsView(),
+      'profile' => const ProfileView(),
       _ => const DailyView(),
     };
 
-    Widget body = isDesktop
-        ? Row(
-            children: [
-              const Sidebar(),
-              Container(width: 1, color: col.line),
-              Expanded(child: mainPane),
-              Container(width: 1, color: col.line),
-              const InspectorPane(),
-            ],
-          )
-        : mainPane;
+    return LayoutBuilder(builder: (context, constraints) {
+      final isMobile = constraints.maxWidth < 720;
 
-    Widget content = Scaffold(
-      backgroundColor: col.bg,
-      body: Column(
-        children: [
-          if (isDesktop) const WindowChrome(),
-          Expanded(child: body),
-          const StatusBar(),
-        ],
-      ),
-    );
+      Widget body;
+      if (isMobile) {
+        body = _MobileBody(mainPane: mainPane);
+      } else {
+        body = Row(
+          children: [
+            const Sidebar(),
+            Container(width: 1, color: col.line),
+            Expanded(child: mainPane),
+            Container(width: 1, color: col.line),
+            const InspectorPane(),
+          ],
+        );
+      }
 
-    if (!isDesktop) return content;
+      Widget content = Scaffold(
+        backgroundColor: col.bg,
+        body: Column(
+          children: [
+            if (!isMobile) const WindowChrome(),
+            Expanded(child: body),
+            if (!isMobile) const StatusBar(),
+          ],
+        ),
+      );
 
-    return Shortcuts(
-      shortcuts: <ShortcutActivator, Intent>{
-        SingleActivator(LogicalKeyboardKey.digit1,
-                meta: isMeta, control: !isMeta):
-            const GoToIntent(ViewName.daily),
-        SingleActivator(LogicalKeyboardKey.digit2,
-                meta: isMeta, control: !isMeta):
-            const GoToIntent(ViewName.stats),
+      if (isMobile) return content;
 
-        SingleActivator(LogicalKeyboardKey.keyN,
-                meta: isMeta, control: !isMeta):
-            const NewHabitIntent(),
-        SingleActivator(LogicalKeyboardKey.keyK,
-                meta: isMeta, control: !isMeta):
-            const OpenPaletteIntent(),
-        SingleActivator(LogicalKeyboardKey.comma,
-                meta: isMeta, control: !isMeta):
-            const OpenSettingsIntent(),
-        const SingleActivator(LogicalKeyboardKey.keyJ):
-            const FocusNextHabitIntent(),
-        const SingleActivator(LogicalKeyboardKey.keyK):
-            const FocusPrevHabitIntent(),
-        const SingleActivator(LogicalKeyboardKey.space):
-            const ToggleFocusedHabitIntent(),
-        const SingleActivator(LogicalKeyboardKey.keyE):
-            const EditFocusedHabitIntent(),
-        const SingleActivator(LogicalKeyboardKey.keyA):
-            const ArchiveFocusedHabitIntent(),
-      },
-      child: Actions(
-        actions: {
-          GoToIntent: CallbackAction<GoToIntent>(
-            onInvoke: (intent) {
-              ref.read(currentViewProvider.notifier).state =
-                  intent.view.name;
-              return null;
-            },
-          ),
-          NewHabitIntent: CallbackAction<NewHabitIntent>(
-            onInvoke: (_) {
-              NewHabitDialog.show(context);
-              return null;
-            },
-          ),
-          OpenPaletteIntent: CallbackAction<OpenPaletteIntent>(
-            onInvoke: (_) {
-              CommandPalette.show(context);
-              return null;
-            },
-          ),
-          OpenSettingsIntent: CallbackAction<OpenSettingsIntent>(
-            onInvoke: (_) {
-              SettingsDialog.show(context);
-              return null;
-            },
-          ),
-          FocusNextHabitIntent: CallbackAction<FocusNextHabitIntent>(
-            onInvoke: (_) {
-              _moveFocus(ref, 1);
-              return null;
-            },
-          ),
-          FocusPrevHabitIntent: CallbackAction<FocusPrevHabitIntent>(
-            onInvoke: (_) {
-              _moveFocus(ref, -1);
-              return null;
-            },
-          ),
-          ToggleFocusedHabitIntent:
-              CallbackAction<ToggleFocusedHabitIntent>(
-            onInvoke: (_) {
-              _toggleFocused(context, ref);
-              return null;
-            },
-          ),
-          EditFocusedHabitIntent: CallbackAction<EditFocusedHabitIntent>(
-            onInvoke: (_) {
-              _editFocused(context, ref);
-              return null;
-            },
-          ),
-          ArchiveFocusedHabitIntent:
-              CallbackAction<ArchiveFocusedHabitIntent>(
-            onInvoke: (_) {
-              _archiveFocused(ref);
-              return null;
-            },
-          ),
+      return Shortcuts(
+        shortcuts: <ShortcutActivator, Intent>{
+          SingleActivator(LogicalKeyboardKey.digit1,
+                  meta: isMeta, control: !isMeta):
+              const GoToIntent(ViewName.daily),
+          SingleActivator(LogicalKeyboardKey.digit2,
+                  meta: isMeta, control: !isMeta):
+              const GoToIntent(ViewName.stats),
+          SingleActivator(LogicalKeyboardKey.digit3,
+                  meta: isMeta, control: !isMeta):
+              const GoToIntent(ViewName.profile),
+          SingleActivator(LogicalKeyboardKey.keyN,
+                  meta: isMeta, control: !isMeta):
+              const NewHabitIntent(),
+          SingleActivator(LogicalKeyboardKey.keyK,
+                  meta: isMeta, control: !isMeta):
+              const OpenPaletteIntent(),
+          SingleActivator(LogicalKeyboardKey.comma,
+                  meta: isMeta, control: !isMeta):
+              const OpenSettingsIntent(),
+          const SingleActivator(LogicalKeyboardKey.keyJ):
+              const FocusNextHabitIntent(),
+          const SingleActivator(LogicalKeyboardKey.keyK):
+              const FocusPrevHabitIntent(),
+          const SingleActivator(LogicalKeyboardKey.space):
+              const ToggleFocusedHabitIntent(),
+          const SingleActivator(LogicalKeyboardKey.keyE):
+              const EditFocusedHabitIntent(),
+          const SingleActivator(LogicalKeyboardKey.keyA):
+              const ArchiveFocusedHabitIntent(),
         },
-        child: Focus(autofocus: true, child: content),
-      ),
-    );
+        child: Actions(
+          actions: {
+            GoToIntent: CallbackAction<GoToIntent>(
+              onInvoke: (intent) {
+                ref.read(currentViewProvider.notifier).state =
+                    intent.view.name;
+                return null;
+              },
+            ),
+            NewHabitIntent: CallbackAction<NewHabitIntent>(
+              onInvoke: (_) {
+                NewHabitDialog.show(context);
+                return null;
+              },
+            ),
+            OpenPaletteIntent: CallbackAction<OpenPaletteIntent>(
+              onInvoke: (_) {
+                CommandPalette.show(context);
+                return null;
+              },
+            ),
+            OpenSettingsIntent: CallbackAction<OpenSettingsIntent>(
+              onInvoke: (_) {
+                SettingsDialog.show(context);
+                return null;
+              },
+            ),
+            FocusNextHabitIntent: CallbackAction<FocusNextHabitIntent>(
+              onInvoke: (_) {
+                _moveFocus(ref, 1);
+                return null;
+              },
+            ),
+            FocusPrevHabitIntent: CallbackAction<FocusPrevHabitIntent>(
+              onInvoke: (_) {
+                _moveFocus(ref, -1);
+                return null;
+              },
+            ),
+            ToggleFocusedHabitIntent:
+                CallbackAction<ToggleFocusedHabitIntent>(
+              onInvoke: (_) {
+                _toggleFocused(context, ref);
+                return null;
+              },
+            ),
+            EditFocusedHabitIntent: CallbackAction<EditFocusedHabitIntent>(
+              onInvoke: (_) {
+                _editFocused(context, ref);
+                return null;
+              },
+            ),
+            ArchiveFocusedHabitIntent:
+                CallbackAction<ArchiveFocusedHabitIntent>(
+              onInvoke: (_) {
+                _archiveFocused(ref);
+                return null;
+              },
+            ),
+          },
+          child: Focus(autofocus: true, child: content),
+        ),
+      );
+    });
   }
 
   void _moveFocus(WidgetRef ref, int delta) {
@@ -240,8 +250,7 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
     ref.read(focusedHabitIdProvider.notifier).state = null;
   }
 
-  Future<void> _toggleFocused(
-      BuildContext context, WidgetRef ref) async {
+  Future<void> _toggleFocused(BuildContext context, WidgetRef ref) async {
     final focusedId = ref.read(focusedHabitIdProvider);
     if (focusedId == null) return;
 
@@ -263,5 +272,64 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
     final db = ref.read(dbProvider);
     final dayUtc = localMidnightUtc(selectedDay);
     await db.toggleCompletion(focusedId, dayUtc);
+  }
+}
+
+// ── Mobile body ───────────────────────────────────────────────────────────────
+
+class _MobileBody extends StatelessWidget {
+  final Widget mainPane;
+  const _MobileBody({required this.mainPane});
+
+  @override
+  Widget build(BuildContext context) {
+    final col = context.col;
+    return Stack(
+      children: [
+        Column(
+          children: [
+            const MobileTopBar(),
+            Container(height: 1, color: col.line),
+            Expanded(child: mainPane),
+          ],
+        ),
+        Positioned(
+          bottom: 20,
+          right: 20,
+          child: _MobileFab(),
+        ),
+      ],
+    );
+  }
+}
+
+class _MobileFab extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final col = context.col;
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        showMobileCommandBridge(context);
+      },
+      child: Container(
+        width: 52,
+        height: 52,
+        decoration: BoxDecoration(
+          color: col.bg2,
+          border: Border.all(color: col.green),
+          borderRadius: const BorderRadius.all(Radius.circular(6)),
+        ),
+        child: Center(
+          child: Text(
+            '[ + ]',
+            style: TextStyle(
+                color: col.green,
+                fontSize: 13,
+                fontWeight: FontWeight.w600),
+          ),
+        ),
+      ),
+    );
   }
 }
