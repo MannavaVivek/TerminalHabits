@@ -450,7 +450,7 @@ This phase is the largest UX shift. See [input_spec.md](input_spec.md) §3 for t
 
 ### Scope
 - Single-pane layout under `LayoutBuilder` breakpoint `<720px`:
-  - Bottom tab bar (Daily / Stats / Profile, 3 tabs) replaces the desktop sidebar on phones; tablets in landscape may keep the sidebar.
+  - Top tab bar (Daily / Stats / Profile, 3 tabs) styled like terminal tabs — replaces the desktop sidebar on phones; tablets in landscape may keep the sidebar.
   - Inspector content collapses into bottom-sheet drawer, opened via swipe-up or button.
   - Window chrome and status bar are hidden; system status bar styled to match.
 - `MobileCommandBridge`: a `GridView` of bordered command buttons that replaces the command palette. Buttons dispatch the same `Intent`s as the desktop palette.
@@ -469,8 +469,9 @@ This phase is the largest UX shift. See [input_spec.md](input_spec.md) §3 for t
 - [ ] Same feature set as Phases 5 + 6 works via touch only — no keyboard plugged in.
 - [ ] One full week of dogfooding on a personal Android device with no critical bugs.
 - [ ] Health Connect wires `[health]` habits to step count.
-- [ ] `.apk` size under 30 MB.
 - [ ] No regressions on macOS from the touch refactor.
+
+**Soft target:** `.apk` size under 30 MB (not a blocking criterion).
 
 ### Out of scope
 - iOS, Android tablets (deferred).
