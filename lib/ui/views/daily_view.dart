@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import '../../domain/shield_service.dart';
 import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/tokens.dart';
@@ -41,28 +42,47 @@ class DailyView extends ConsumerWidget {
               !selMidnight.isAfter(end);
         }).firstOrNull;
 
+        Future<void> onRefresh() async {
+          final db = ref.read(dbProvider);
+          final habits = ref.read(habitsProvider).valueOrNull ?? [];
+          if (habits.isEmpty) return;
+          await recomputeShieldPool(
+            db: db,
+            habits: habits,
+            completionMap: ref.read(recentCompletionsProvider).valueOrNull ?? {},
+            vacations: ref.read(vacationsProvider).valueOrNull ?? [],
+            historyMap: ref.read(scheduleHistoryProvider).valueOrNull ?? {},
+          );
+        }
+
         Widget body;
         if (activeVac != null) {
           body = _VacationActiveMessage(vacation: activeVac);
+        } else if (state.groups.isEmpty) {
+          body = _EmptyDay(selectedDay: state.today);
         } else {
-          body = state.groups.isEmpty
-              ? _EmptyDay(selectedDay: state.today)
-              : ListView.builder(
-                  padding: const EdgeInsets.only(bottom: TH.s22),
-                  itemCount: state.groups.length + 1,
-                  itemBuilder: (context, i) {
-                    if (i == state.groups.length) {
-                      return Padding(
-                        padding: const EdgeInsets.fromLTRB(
-                            TH.s14, TH.s14, TH.s14, TH.s8),
-                        child: _AddHabitButton(
-                            defaultStartDate: state.today),
-                      );
-                    }
-                    return HabitGroupWidget(
-                        dailyGroup: state.groups[i]);
-                  },
+          Widget list = ListView.builder(
+            padding: const EdgeInsets.only(bottom: 88), // clear the FAB
+            itemCount: state.groups.length + 1,
+            itemBuilder: (context, i) {
+              if (i == state.groups.length) {
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                      TH.s14, TH.s14, TH.s14, TH.s8),
+                  child: _AddHabitButton(defaultStartDate: state.today),
                 );
+              }
+              return HabitGroupWidget(dailyGroup: state.groups[i]);
+            },
+          );
+          body = Platform.isAndroid
+              ? RefreshIndicator(
+                  color: col.green,
+                  backgroundColor: col.bg2,
+                  onRefresh: onRefresh,
+                  child: list,
+                )
+              : list;
         }
 
         return Column(
@@ -255,15 +275,15 @@ class _EmptyDay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final col = context.col;
-    final isDesktop = Platform.isMacOS || Platform.isLinux;
-    final hint = isDesktop
-        ? 'press ⌘N to add a habit.'
-        : 'tap [ + new habit ] above to add one.';
+    final isMobile = Platform.isAndroid;
+    final hint = isMobile
+        ? 'tap [ + ] to add a habit.'
+        : 'press ⌘N to add a habit.';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (!isDesktop)
+        if (isMobile)
           Padding(
             padding:
                 const EdgeInsets.fromLTRB(TH.s14, 0, TH.s14, TH.s14),

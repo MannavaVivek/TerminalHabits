@@ -7,8 +7,10 @@ import '../../domain/streaks.dart';
 import '../../shortcuts/intents.dart';
 import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/tokens.dart';
 import '../inspector/inspector_pane.dart';
 import '../mobile/mobile_command_bridge.dart';
+import '../mobile/mobile_inspector_sheet.dart';
 import '../mobile/mobile_top_bar.dart';
 import '../modals/command_palette.dart';
 import '../modals/edit_habit_dialog.dart';
@@ -21,6 +23,7 @@ import '../window/window_chrome.dart';
 import 'daily_view.dart';
 import 'profile_view.dart';
 import 'stats_view.dart';
+import 'vacation_view.dart';
 
 class AppScaffold extends ConsumerStatefulWidget {
   const AppScaffold({super.key});
@@ -89,6 +92,7 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
     Widget mainPane = switch (view) {
       'stats' => const StatsView(),
       'profile' => const ProfileView(),
+      'vacation' => const VacationView(),
       _ => const DailyView(),
     };
 
@@ -284,21 +288,56 @@ class _MobileBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final col = context.col;
-    return Stack(
-      children: [
-        Column(
-          children: [
-            const MobileTopBar(),
-            Container(height: 1, color: col.line),
-            Expanded(child: mainPane),
-          ],
+    return GestureDetector(
+      // Swipe-up from anywhere on the main pane → open inspector.
+      onVerticalDragEnd: (details) {
+        if ((details.primaryVelocity ?? 0) < -400) {
+          showMobileInspector(context);
+        }
+      },
+      child: Stack(
+        children: [
+          Column(
+            children: [
+              const MobileTopBar(),
+              Container(height: 1, color: col.line),
+              Expanded(child: mainPane),
+            ],
+          ),
+          // Inspector chip at bottom-left.
+          Positioned(
+            bottom: 20,
+            left: 20,
+            child: _InspectorChip(),
+          ),
+          // Command bridge FAB at bottom-right.
+          Positioned(
+            bottom: 20,
+            right: 20,
+            child: _MobileFab(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InspectorChip extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final col = context.col;
+    return GestureDetector(
+      onTap: () => showMobileInspector(context),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: TH.s8, vertical: 6),
+        decoration: BoxDecoration(
+          color: col.bg2,
+          border: Border.all(color: col.line2),
+          borderRadius: const BorderRadius.all(TH.r4),
         ),
-        Positioned(
-          bottom: 20,
-          right: 20,
-          child: _MobileFab(),
-        ),
-      ],
+        child: Text('[ ⌃ ]',
+            style: TextStyle(color: col.fgMute, fontSize: 12)),
+      ),
     );
   }
 }

@@ -44,6 +44,7 @@ class _MobileCommandBridge extends ConsumerWidget {
       _Cell(label: '[ daily ]',   desc: 'daily view',    col: col, onTap: () => go('daily')),
       _Cell(label: '[ stats ]',   desc: 'stats view',    col: col, onTap: () => go('stats')),
       _Cell(label: '[ profile ]', desc: 'profile view',  col: col, onTap: () => go('profile')),
+      _Cell(label: '[ vacation ]', desc: 'vacation mode', col: col, onTap: () => go('vacation')),
       _Cell(
         label: '[ settings ]',
         desc: 'preferences',
