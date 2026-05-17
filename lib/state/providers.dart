@@ -327,7 +327,7 @@ List<DayRatio> weeklyRatios(
       final comps = recentMap[h.id] ?? const [];
       if (comps.any((c) => c.day.toUtc() == dayUtc)) done++;
     }
-    out.add(DayRatio(day: day, done: done, due: due, shielded: shieldedDays.contains(dayUtc)));
+    out.add(DayRatio(day: day, done: done, due: due, shielded: due > 0 && shieldedDays.contains(dayUtc)));
   }
   return out;
 }

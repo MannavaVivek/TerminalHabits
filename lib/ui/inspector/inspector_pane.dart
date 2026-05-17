@@ -27,6 +27,7 @@ class InspectorPane extends ConsumerWidget {
     final recentAV = ref.watch(recentCompletionsProvider);
     final vacAV = ref.watch(vacationsProvider);
     final historyAV = ref.watch(scheduleHistoryProvider);
+    final shieldsAV = ref.watch(dayShieldsProvider);
     final selectedDay = ref.watch(selectedDayProvider);
 
     // Stats view → show glossary
@@ -71,7 +72,13 @@ class InspectorPane extends ConsumerWidget {
         final history = historyAV.requireValue[habit.id] ?? const [];
         final streaks = computeStreaks(
             habit, comps, DateTime.now(), vacAV.requireValue, history);
-        body = _HabitInspector(habit: habit, streaks: streaks, history: history);
+        body = _HabitInspector(
+          habit: habit,
+          streaks: streaks,
+          history: history,
+          comps: comps,
+          shieldedDays: shieldsAV.valueOrNull ?? const {},
+        );
       } else {
         body = _TodaySummary(
           habitsAV: habitsAV,
@@ -302,16 +309,38 @@ class _HabitInspector extends StatelessWidget {
   final Habit habit;
   final StreakResult streaks;
   final List<HabitScheduleHistoryData> history;
-  const _HabitInspector(
-      {required this.habit,
-      required this.streaks,
-      required this.history});
+  final List<Completion> comps;
+  final Set<DateTime> shieldedDays;
+  const _HabitInspector({
+    required this.habit,
+    required this.streaks,
+    required this.history,
+    required this.comps,
+    required this.shieldedDays,
+  });
 
   @override
   Widget build(BuildContext context) {
     final col = context.col;
     final h = habit;
     final s = streaks;
+
+    // Count completions + shielded days where this habit was due but not done.
+    final completedDayUtcs = {for (final c in comps) c.day.toUtc()};
+    var shieldedBonus = 0;
+    for (final dayUtc in shieldedDays) {
+      if (completedDayUtcs.contains(dayUtc)) continue;
+      final local = dayUtc.toLocal();
+      final d = DateTime(local.year, local.month, local.day);
+      final hStart = localMidnightUtc(h.startDate.toLocal());
+      if (dayUtc.isBefore(hStart)) continue;
+      if (h.endDate != null &&
+          dayUtc.isAfter(localMidnightUtc(h.endDate!.toLocal()))) continue;
+      final entry = effectiveScheduleAt(history, dayUtc);
+      if (!isDueOnSchedule(entry?.schedule ?? h.schedule, d)) continue;
+      shieldedBonus++;
+    }
+    final completedCount = completedDayUtcs.length + shieldedBonus;
 
     return ListView(
       padding: const EdgeInsets.all(TH.s14),
@@ -340,6 +369,7 @@ class _HabitInspector extends StatelessWidget {
         _Block(label: 'streak', col: col, children: [
           _Row('current', '${s.displayStreak}', col: col),
           _Row('longest', '${s.longest}', col: col),
+          _Row('done (90d)', '$completedCount', col: col),
         ]),
         const SizedBox(height: TH.s8),
         _Block(label: 'habit', col: col, children: [

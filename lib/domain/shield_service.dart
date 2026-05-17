@@ -20,7 +20,11 @@ Future<void> runLaunchScan({
   required List<Vacation> vacations,
   required Map<int, List<HabitScheduleHistoryData>> historyMap,
 }) async {
-  if (habits.isEmpty) return;
+  if (habits.isEmpty) {
+    for (final s in await db.getAllDayShields()) await db.deleteDayShield(s.day);
+    await db.setAvailableShields(0);
+    return;
+  }
 
   final now = DateTime.now();
   final todayLocal = DateTime(now.year, now.month, now.day);
@@ -141,7 +145,11 @@ Future<void> recomputeShieldPool({
   required List<Vacation> vacations,
   required Map<int, List<HabitScheduleHistoryData>> historyMap,
 }) async {
-  if (habits.isEmpty) return;
+  if (habits.isEmpty) {
+    for (final s in await db.getAllDayShields()) await db.deleteDayShield(s.day);
+    await db.setAvailableShields(0);
+    return;
+  }
 
   // Auto-recovery: remove shields for days that are now fully complete.
   final allShields = await db.getAllDayShields();

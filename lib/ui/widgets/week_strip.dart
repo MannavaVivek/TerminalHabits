@@ -32,8 +32,11 @@ class WeekStrip extends ConsumerWidget {
         _NavArrow(
           label: '<',
           col: col,
-          onTap: () => ref.read(selectedDayProvider.notifier).state =
-              DateTime(selected.year, selected.month, selected.day - 7),
+          onTap: () {
+            final delta = selected.weekday == 1 ? 1 : 7;
+            ref.read(selectedDayProvider.notifier).state =
+                DateTime(selected.year, selected.month, selected.day - delta);
+          },
         ),
         const SizedBox(width: 4),
         for (int i = 0; i < 7; i++) ...[
@@ -59,8 +62,11 @@ class WeekStrip extends ConsumerWidget {
         _NavArrow(
           label: '>',
           col: col,
-          onTap: () => ref.read(selectedDayProvider.notifier).state =
-              DateTime(selected.year, selected.month, selected.day + 7),
+          onTap: () {
+            final delta = selected.weekday == 7 ? 1 : 7;
+            ref.read(selectedDayProvider.notifier).state =
+                DateTime(selected.year, selected.month, selected.day + delta);
+          },
         ),
       ],
     );

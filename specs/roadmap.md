@@ -371,7 +371,7 @@
 
 ## Phase 8 — Per-day shield system (≈ 1.5 weeks)
 
-> After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit per `constitution.md §7`.
+**Completed:** 2026-05-17
 
 **Goal:** add a shield pool that absorbs missed days in the overall day-wise streak at the moment they occur. One shield covers one missed day. Shields earned later never reach back to fix already-broken streaks.
 
@@ -421,16 +421,16 @@ The local SQLite file is always the source of truth. All primary keys are assign
 - DB migration (new version): `CREATE TABLE day_shields`. Add `available_shields` setting (default `'0'`). Add `shieldEarnInterval` setting (default `'7'`). Add `last_seen_date` setting (default `''` — empty string triggers a first-run scan from the earliest habit start date or 90 days back, whichever is later).
 
 ### Exit criteria
-- [ ] Quit at the end of a missed day with shields available; relaunch → that day auto-shielded, streak preserved.
-- [ ] Same scenario with no shields available → day stays as a miss, streak broken, earning shields later does not fix it.
-- [ ] On a shielded day where habits were missed, each missed habit's row shows a shield icon instead of a flame.
-- [ ] Only one shield consumed per day regardless of how many habits were missed.
-- [ ] Back-fill a shielded day to 100% completion → shield auto-returns to pool.
-- [ ] Gray pending streak counts shielded past days as successes.
-- [ ] Schedule change that removes a shielded day from tracking does not reclaim the shield.
-- [ ] Stats overview shows correct "shielded days" count; shielded days still count toward perfect days and streak length.
-- [ ] Per-habit streaks unaffected by shields.
-- [ ] No regressions in Phases 1–7.
+- [x] Quit at the end of a missed day with shields available; relaunch → that day auto-shielded, streak preserved.
+- [x] Same scenario with no shields available → day stays as a miss, streak broken, earning shields later does not fix it.
+- [x] On a shielded day where habits were missed, each missed habit's row shows a shield icon instead of a flame.
+- [x] Only one shield consumed per day regardless of how many habits were missed.
+- [x] Back-fill a shielded day to 100% completion → shield auto-returns to pool.
+- [x] Gray pending streak counts shielded past days as successes.
+- [x] Schedule change that removes a shielded day from tracking does not reclaim the shield.
+- [x] Stats overview shows correct "shielded days" count; shielded days still count toward perfect days and streak length.
+- [x] Per-habit streaks unaffected by shields.
+- [x] No regressions in Phases 1–7.
 
 ### Out of scope
 - Manual apply / remove shield from UI.

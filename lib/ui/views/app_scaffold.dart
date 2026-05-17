@@ -71,6 +71,11 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
 
   @override
   Widget build(BuildContext context) {
+    // Keep these providers alive so ref.read() in tap handlers always finds
+    // a warm cached value (avoids AsyncValue.loading() → false race condition).
+    ref.watch(allowFutureMarkingProvider);
+    ref.watch(confirmDestructiveProvider);
+
     ref.listen(dailyStateProvider, (_, __) => _maybeRunScan());
     ref.listen(recentCompletionsProvider, (_, next) {
       if (next.hasValue) _recomputePool();
