@@ -20,6 +20,7 @@ import '../modals/settings_dialog.dart';
 import '../nav/sidebar.dart';
 import '../widgets/status_bar.dart';
 import '../window/window_chrome.dart';
+import 'archive_view.dart';
 import 'daily_view.dart';
 import 'profile_view.dart';
 import 'stats_view.dart';
@@ -93,6 +94,7 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
       'stats' => const StatsView(),
       'profile' => const ProfileView(),
       'vacation' => const VacationView(),
+      'archive' => const ArchiveView(),
       _ => const DailyView(),
     };
 
@@ -138,6 +140,9 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
           SingleActivator(LogicalKeyboardKey.digit3,
                   meta: isMeta, control: !isMeta):
               const GoToIntent(ViewName.profile),
+          SingleActivator(LogicalKeyboardKey.keyV,
+                  meta: isMeta, control: !isMeta):
+              const GoToIntent(ViewName.vacation),
           SingleActivator(LogicalKeyboardKey.keyN,
                   meta: isMeta, control: !isMeta):
               const NewHabitIntent(),
