@@ -48,9 +48,30 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
     ).ignore();
   }
 
+  // Called whenever completions change during a session so the shield pool
+  // stays current without re-running the spending pass.
+  void _recomputePool() {
+    final db = ref.read(dbProvider);
+    final habits = ref.read(habitsProvider).valueOrNull ?? [];
+    if (habits.isEmpty) return;
+    final completionMap = ref.read(recentCompletionsProvider).valueOrNull ?? {};
+    final vacations = ref.read(vacationsProvider).valueOrNull ?? [];
+    final historyMap = ref.read(scheduleHistoryProvider).valueOrNull ?? {};
+    recomputeShieldPool(
+      db: db,
+      habits: habits,
+      completionMap: completionMap,
+      vacations: vacations,
+      historyMap: historyMap,
+    ).ignore();
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.listen(dailyStateProvider, (_, __) => _maybeRunScan());
+    ref.listen(recentCompletionsProvider, (_, next) {
+      if (next.hasValue) _recomputePool();
+    });
     _maybeRunScan();
     final col = context.col;
     final view = ref.watch(currentViewProvider);

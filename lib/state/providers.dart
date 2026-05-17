@@ -63,8 +63,9 @@ final scheduleHistoryProvider =
 final dayShieldsProvider = StreamProvider<Set<DateTime>>((ref) {
   final sinceUtc = localMidnightUtc(
       DateTime.now().subtract(const Duration(days: 90)).toLocal());
+  // Drift returns local datetimes; normalise to UTC for consistent Set lookups.
   return ref.watch(dbProvider).watchDayShields(sinceUtc).map(
-      (list) => {for (final s in list) s.day});
+      (list) => {for (final s in list) s.day.toUtc()});
 });
 
 final availableShieldsProvider = StreamProvider<int>((ref) => ref
