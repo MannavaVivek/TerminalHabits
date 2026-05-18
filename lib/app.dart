@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'state/providers.dart';
@@ -26,7 +27,9 @@ class App extends ConsumerWidget {
       theme: buildTheme(colors),
       builder: (ctx, child) => MediaQuery(
         data: MediaQuery.of(ctx).copyWith(
-            textScaler: TextScaler.linear(scale)),
+            textScaler: Platform.isAndroid
+                ? TextScaler.noScaling
+                : TextScaler.linear(scale)),
         child: child!,
       ),
       home: const SplashView(),

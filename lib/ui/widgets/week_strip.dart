@@ -38,7 +38,7 @@ class WeekStrip extends ConsumerWidget {
                 DateTime(selected.year, selected.month, selected.day - delta);
           },
         ),
-        const SizedBox(width: 4),
+        const SizedBox(width: 2),
         for (int i = 0; i < 7; i++) ...[
           Expanded(
             child: GestureDetector(
@@ -56,9 +56,9 @@ class WeekStrip extends ConsumerWidget {
               ),
             ),
           ),
-          if (i < 6) const SizedBox(width: 4),
+          if (i < 6) const SizedBox(width: 2),
         ],
-        const SizedBox(width: 4),
+        const SizedBox(width: 2),
         _NavArrow(
           label: '>',
           col: col,
@@ -88,7 +88,7 @@ class _NavArrow extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: SizedBox(
-        width: 20,
+        width: 14,
         height: 56,
         child: Center(
           child: Text(label,

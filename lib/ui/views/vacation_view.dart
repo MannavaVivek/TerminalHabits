@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/database.dart';
 import '../../state/providers.dart';
@@ -98,12 +97,10 @@ class _ActiveVacation extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Text('on vacation.',
+            style: TextStyle(color: col.fg, fontSize: 13)),
         Text(
-          'on vacation.  ${_fmtDate(vacation.start)} → ${_fmtDate(vacation.end)}.',
-          style: TextStyle(color: col.fg, fontSize: 13),
-        ),
-        Text(
-          'day $dayN of $totalDays.',
+          '${_fmtDate(vacation.start)} → ${_fmtDate(vacation.end)}  ·  day $dayN of $totalDays',
           style: TextStyle(color: col.fgDim, fontSize: 12),
         ),
         const SizedBox(height: TH.s14),
@@ -129,11 +126,17 @@ class _ActiveVacation extends ConsumerWidget {
   }
 
   Future<void> _showExtendDialog(BuildContext context, WidgetRef ref) async {
-    final days = await _promptDays(context, col, title: 'extend by how many days?');
-    if (days == null || days <= 0) return;
-    if (!context.mounted) return;
-    final newEnd = vacation.end.toLocal();
-    final extended = DateTime(newEnd.year, newEnd.month, newEnd.day + days).toUtc();
+    final currentEnd = vacation.end.toLocal();
+    final firstDate = DateTime(currentEnd.year, currentEnd.month, currentEnd.day + 1);
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: firstDate,
+      firstDate: firstDate,
+      lastDate: DateTime.now().add(const Duration(days: 180)),
+      helpText: 'new end date',
+    );
+    if (picked == null || !context.mounted) return;
+    final extended = DateTime(picked.year, picked.month, picked.day).toUtc();
     await ref.read(dbProvider).extendVacation(vacation.id, extended);
   }
 
@@ -165,13 +168,19 @@ class _NoVacation extends ConsumerWidget {
   }
 
   Future<void> _showStartDialog(BuildContext context, WidgetRef ref) async {
-    final days = await _promptDays(context, col, title: 'vacation for how many days?');
-    if (days == null || days <= 0) return;
-    if (!context.mounted) return;
-    final userId = ref.read(currentUserIdProvider);
     final now = DateTime.now();
+    final tomorrow = DateTime(now.year, now.month, now.day + 1);
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: tomorrow,
+      firstDate: tomorrow,
+      lastDate: now.add(const Duration(days: 180)),
+      helpText: 'vacation ends on',
+    );
+    if (picked == null || !context.mounted) return;
+    final userId = ref.read(currentUserIdProvider);
     final start = DateTime(now.year, now.month, now.day).toUtc();
-    final end = DateTime(now.year, now.month, now.day + days - 1).toUtc();
+    final end = DateTime(picked.year, picked.month, picked.day).toUtc();
     await ref.read(dbProvider).startVacation(userId, start, end);
   }
 }
@@ -199,7 +208,7 @@ class _PastVacations extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 2),
               child: Text(
-                '${_fmtDate(v.start)} → ${_fmtDate(v.end)}',
+                _formatPast(v),
                 style: TextStyle(color: col.fgDim, fontSize: 12),
               ),
             ),
@@ -238,84 +247,11 @@ class _ActionButton extends StatelessWidget {
   }
 }
 
-Future<int?> _promptDays(
-    BuildContext context, AppColors col, {required String title}) async {
-  final ctrl = TextEditingController();
-  return showDialog<int>(
-    context: context,
-    barrierColor: Colors.black54,
-    builder: (ctx) => Dialog(
-      backgroundColor: col.bg2,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(TH.r10)),
-      child: SizedBox(
-        width: 320,
-        child: Padding(
-          padding: const EdgeInsets.all(TH.s22),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: TextStyle(color: col.fg, fontSize: 14)),
-              const SizedBox(height: TH.s14),
-              TextField(
-                controller: ctrl,
-                autofocus: true,
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                style: TextStyle(color: col.fg, fontSize: 14),
-                decoration: InputDecoration(
-                  hintText: 'days',
-                  hintStyle: TextStyle(color: col.fgFaint, fontSize: 14),
-                  enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: col.line2),
-                      borderRadius: const BorderRadius.all(TH.r4)),
-                  focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: col.green),
-                      borderRadius: const BorderRadius.all(TH.r4)),
-                  fillColor: col.bg1,
-                  filled: true,
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: TH.s8, vertical: TH.s8),
-                ),
-                onSubmitted: (v) {
-                  final n = int.tryParse(v.trim());
-                  Navigator.of(ctx).pop(n);
-                },
-              ),
-              const SizedBox(height: TH.s14),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.of(ctx).pop(),
-                    child: Text('[ cancel ]',
-                        style: TextStyle(color: col.fgMute, fontSize: 12)),
-                  ),
-                  const SizedBox(width: TH.s14),
-                  GestureDetector(
-                    onTap: () {
-                      final n = int.tryParse(ctrl.text.trim());
-                      Navigator.of(ctx).pop(n);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: TH.s14, vertical: TH.s8),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: col.green),
-                        borderRadius: const BorderRadius.all(TH.r4),
-                      ),
-                      child: Text('[ ok ]',
-                          style: TextStyle(color: col.green, fontSize: 12)),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    ),
-  );
+String _formatPast(Vacation v) {
+  final s = v.start.toLocal();
+  final e = v.end.toLocal();
+  final startDay = DateTime(s.year, s.month, s.day);
+  final endDay = DateTime(e.year, e.month, e.day);
+  if (!endDay.isAfter(startDay)) return '${_fmtDate(v.start)} (cancelled)';
+  return '${_fmtDate(v.start)} → ${_fmtDate(v.end)}';
 }

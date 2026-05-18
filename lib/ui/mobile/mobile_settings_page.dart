@@ -23,7 +23,6 @@ class MobileSettingsPage extends ConsumerWidget {
     final col = context.col;
     final db = ref.read(dbProvider);
     final themeId = ref.watch(themeIdProvider).valueOrNull ?? 'matrix';
-    final fontSize = ref.watch(fontSizeProvider).valueOrNull ?? 'md';
     final allowFuture = ref.watch(allowFutureMarkingProvider).valueOrNull ?? false;
     final confirmDest = ref.watch(confirmDestructiveProvider).valueOrNull ?? true;
 
@@ -62,36 +61,6 @@ class MobileSettingsPage extends ConsumerWidget {
                   Text('›', style: TextStyle(color: col.fgMute, fontSize: 14)),
                 ],
               ),
-            ),
-          ),
-          const SizedBox(height: TH.s8),
-          _SettingRow(
-            label: 'font size',
-            col: col,
-            child: Row(
-              children: ['sm', 'md', 'lg'].map((s) {
-                final sel = fontSize == s;
-                return Padding(
-                  padding: const EdgeInsets.only(right: TH.s8),
-                  child: GestureDetector(
-                    onTap: () => db.setSetting('fontSize', s),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: TH.s8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: sel ? col.bg3 : Colors.transparent,
-                        border:
-                            Border.all(color: sel ? col.green : col.line2),
-                        borderRadius: const BorderRadius.all(TH.r4),
-                      ),
-                      child: Text(s,
-                          style: TextStyle(
-                              color: sel ? col.green : col.fgDim,
-                              fontSize: 12)),
-                    ),
-                  ),
-                );
-              }).toList(),
             ),
           ),
           const SizedBox(height: TH.s22),
