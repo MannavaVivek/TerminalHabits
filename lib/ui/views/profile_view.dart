@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/tokens.dart';
+import '../modals/settings_dialog.dart';
 import '../widgets/prompt_line.dart';
 import 'login_view.dart';
 
@@ -33,6 +34,18 @@ class ProfileView extends ConsumerWidget {
                 _Row('name', name, col: col),
                 _Row('email', email, col: col),
                 _Row('habits', '${habits.length} active', col: col),
+              ]),
+              const SizedBox(height: TH.s14),
+              _Block(label: 'navigate', col: col, children: [
+                _NavRow(label: 'vacation', desc: 'manage vacation periods',
+                    col: col, onTap: () => ref.read(currentViewProvider.notifier).state = 'vacation'),
+                _NavRow(label: 'archive', desc: 'view archived habits',
+                    col: col, onTap: () => ref.read(currentViewProvider.notifier).state = 'archive'),
+              ]),
+              const SizedBox(height: TH.s14),
+              _Block(label: 'app', col: col, children: [
+                _NavRow(label: 'settings', desc: 'theme, font, preferences',
+                    col: col, onTap: () => SettingsDialog.show(context)),
               ]),
               const SizedBox(height: TH.s22),
               GestureDetector(
@@ -66,6 +79,38 @@ class ProfileView extends ConsumerWidget {
       transitionDuration: Duration.zero,
       reverseTransitionDuration: Duration.zero,
     ));
+  }
+}
+
+class _NavRow extends StatelessWidget {
+  final String label;
+  final String desc;
+  final VoidCallback onTap;
+  final AppColors col;
+  const _NavRow({required this.label, required this.desc, required this.onTap, required this.col});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            Text('[ $label ]',
+                style: TextStyle(color: col.green, fontSize: 12,
+                    fontWeight: FontWeight.w600)),
+            const SizedBox(width: TH.s8),
+            Expanded(
+              child: Text(desc,
+                  style: TextStyle(color: col.fgMute, fontSize: 11)),
+            ),
+            Text('›', style: TextStyle(color: col.fgMute, fontSize: 14)),
+          ],
+        ),
+      ),
+    );
   }
 }
 

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/database.dart';
@@ -188,7 +189,6 @@ class _TodaySummary extends StatelessWidget {
         Text('── today',
             style: TextStyle(color: col.fgMute, fontSize: 11)),
         const SizedBox(height: TH.s4),
-        _Row('due', '$dueToday', col: col),
         _Row('done', '$doneToday', col: col),
         _Row('remaining', '${(dueToday - doneToday).clamp(0, 999)}', col: col),
         const SizedBox(height: TH.s8),
@@ -196,11 +196,13 @@ class _TodaySummary extends StatelessWidget {
             style: TextStyle(color: col.fgMute, fontSize: 11)),
         const SizedBox(height: TH.s4),
         _Row('active', '$activeStreaks', col: col),
-        const SizedBox(height: TH.s14),
-        Text(
-          'j/k to focus a habit\nspace to toggle\ne to edit\na to archive',
-          style: TextStyle(color: col.fgFaint, fontSize: 11, height: 1.6),
-        ),
+        if (!Platform.isAndroid) ...[
+          const SizedBox(height: TH.s14),
+          Text(
+            'j/k to focus a habit\nspace to toggle\ne to edit\na to archive',
+            style: TextStyle(color: col.fgFaint, fontSize: 11, height: 1.6),
+          ),
+        ],
       ],
     );
   }
@@ -442,8 +444,9 @@ class _Row extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 72,
+            width: 84,
             child: Text('$label:',
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(color: col.fgDim, fontSize: 12)),
           ),
           Expanded(

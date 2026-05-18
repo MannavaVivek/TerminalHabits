@@ -9,7 +9,6 @@ import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/tokens.dart';
 import '../inspector/inspector_pane.dart';
-import '../mobile/mobile_command_bridge.dart';
 import '../mobile/mobile_inspector_sheet.dart';
 import '../mobile/mobile_top_bar.dart';
 import '../modals/command_palette.dart';
@@ -294,6 +293,7 @@ class _MobileBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final col = context.col;
     return SafeArea(
+      minimum: const EdgeInsets.symmetric(horizontal: 8),
       child: GestureDetector(
         // Swipe-up from anywhere on the main pane → open inspector.
         onVerticalDragEnd: (details) {
@@ -349,14 +349,17 @@ class _InspectorChip extends StatelessWidget {
   }
 }
 
-class _MobileFab extends StatelessWidget {
+class _MobileFab extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final view = ref.watch(currentViewProvider);
+    if (view != 'daily') return const SizedBox.shrink();
+
     final col = context.col;
     return GestureDetector(
       onTap: () {
         HapticFeedback.lightImpact();
-        showMobileCommandBridge(context);
+        NewHabitDialog.show(context);
       },
       child: Container(
         width: 52,
