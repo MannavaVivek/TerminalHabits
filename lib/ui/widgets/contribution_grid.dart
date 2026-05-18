@@ -133,14 +133,17 @@ class _ContributionGridState extends State<ContributionGrid> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Grid
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Column(children: dowAxis),
-            const SizedBox(width: 2),
-            Wrap(spacing: gap, children: weekCols),
-          ],
+        // Grid — horizontally scrollable so it fits on narrow screens.
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Column(children: dowAxis),
+              const SizedBox(width: 2),
+              Wrap(spacing: gap, children: weekCols),
+            ],
+          ),
         ),
         const SizedBox(height: TH.s8),
         // Legend

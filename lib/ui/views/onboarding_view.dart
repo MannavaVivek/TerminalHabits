@@ -102,37 +102,49 @@ class _OnboardingViewState extends ConsumerState<OnboardingView> {
     final col = context.col;
     return Scaffold(
       backgroundColor: col.bg,
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              PromptLine(user: 'you', command: 'onboarding'),
-              const SizedBox(height: TH.s22),
-              _StepIndicator(current: _step, total: _totalSteps),
-              const SizedBox(height: TH.s22),
-              _buildStepBody(context),
-              const SizedBox(height: TH.s36),
-              Row(
-                children: [
-                  _TermButton(
-                    label: _finishing
-                        ? '[ ... ]'
-                        : _step < _totalSteps - 1
-                            ? '[ next ]'
-                            : '[ begin ]',
-                    onTap: _finishing ? null : _next,
-                    accent: true,
+      body: SafeArea(
+        child: LayoutBuilder(builder: (context, constraints) {
+          return SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 480),
+                  child: Padding(
+                    padding: const EdgeInsets.all(TH.s22),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        PromptLine(user: 'you', command: 'onboarding'),
+                        const SizedBox(height: TH.s22),
+                        _StepIndicator(current: _step, total: _totalSteps),
+                        const SizedBox(height: TH.s22),
+                        _buildStepBody(context),
+                        const SizedBox(height: TH.s36),
+                        Row(
+                          children: [
+                            _TermButton(
+                              label: _finishing
+                                  ? '[ ... ]'
+                                  : _step < _totalSteps - 1
+                                      ? '[ next ]'
+                                      : '[ begin ]',
+                              onTap: _finishing ? null : _next,
+                              accent: true,
+                            ),
+                            const SizedBox(width: TH.s14),
+                            _TermButton(label: '[ skip ]', onTap: _finishing ? null : _finish),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(width: TH.s14),
-                  _TermButton(label: '[ skip ]', onTap: _finishing ? null : _finish),
-                ],
+                ),
               ),
-            ],
-          ),
-        ),
+            ),
+          );
+        }),
       ),
     );
   }

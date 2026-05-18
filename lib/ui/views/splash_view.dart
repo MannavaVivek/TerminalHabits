@@ -109,7 +109,11 @@ class _SplashViewState extends ConsumerState<SplashView>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (_logoText.isNotEmpty) ...[
-                    AsciiArt(_logoText, fontSize: 11, color: col.green),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: AsciiArt(_logoText, fontSize: 11, color: col.green),
+                    ),
                     const SizedBox(height: TH.s22),
                   ],
                   _SystemInfoBox(),

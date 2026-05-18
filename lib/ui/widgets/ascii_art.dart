@@ -16,7 +16,7 @@ class AsciiArt extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SelectableText(
+    return Text(
       text,
       style: TextStyle(
         fontFamily: 'JetBrains Mono',

@@ -293,35 +293,37 @@ class _MobileBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final col = context.col;
-    return GestureDetector(
-      // Swipe-up from anywhere on the main pane → open inspector.
-      onVerticalDragEnd: (details) {
-        if ((details.primaryVelocity ?? 0) < -400) {
-          showMobileInspector(context);
-        }
-      },
-      child: Stack(
-        children: [
-          Column(
-            children: [
-              const MobileTopBar(),
-              Container(height: 1, color: col.line),
-              Expanded(child: mainPane),
-            ],
-          ),
-          // Inspector chip at bottom-left.
-          Positioned(
-            bottom: 20,
-            left: 20,
-            child: _InspectorChip(),
-          ),
-          // Command bridge FAB at bottom-right.
-          Positioned(
-            bottom: 20,
-            right: 20,
-            child: _MobileFab(),
-          ),
-        ],
+    return SafeArea(
+      child: GestureDetector(
+        // Swipe-up from anywhere on the main pane → open inspector.
+        onVerticalDragEnd: (details) {
+          if ((details.primaryVelocity ?? 0) < -400) {
+            showMobileInspector(context);
+          }
+        },
+        child: Stack(
+          children: [
+            Column(
+              children: [
+                const MobileTopBar(),
+                Container(height: 1, color: col.line),
+                Expanded(child: mainPane),
+              ],
+            ),
+            // Inspector chip at bottom-left.
+            Positioned(
+              bottom: 20,
+              left: 20,
+              child: _InspectorChip(),
+            ),
+            // Command bridge FAB at bottom-right.
+            Positioned(
+              bottom: 20,
+              right: 20,
+              child: _MobileFab(),
+            ),
+          ],
+        ),
       ),
     );
   }
