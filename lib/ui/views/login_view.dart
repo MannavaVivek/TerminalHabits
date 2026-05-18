@@ -32,21 +32,21 @@ class _LoginViewState extends ConsumerState<LoginView> {
   }
 
   Future<void> _submit() async {
-    final username = _userCtrl.text.trim();
+    final email = _userCtrl.text.trim().toLowerCase();
     final pwd = _pwdCtrl.text;
 
-    if (username.isEmpty || pwd.isEmpty) {
-      setState(() => _error = 'enter username and password.');
+    if (email.isEmpty || pwd.isEmpty) {
+      setState(() => _error = 'enter email and password.');
       return;
     }
 
     setState(() { _loading = true; _error = null; });
 
     final db = ref.read(dbProvider);
-    final user = await db.getUserByUsername(username);
+    final user = await db.getUserByUsername(email);
 
     if (user == null || user.password != pwd) {
-      setState(() { _loading = false; _error = 'invalid username or password.'; });
+      setState(() { _loading = false; _error = 'invalid email or password.'; });
       return;
     }
 
@@ -96,7 +96,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
               children: [
                 const PromptLine(user: '?', command: 'login'),
                 const SizedBox(height: TH.s22),
-                AuthField(label: 'username', controller: _userCtrl,
+                AuthField(label: 'email', controller: _userCtrl,
                     autofocus: true),
                 const SizedBox(height: TH.s14),
                 AuthField(label: 'password', controller: _pwdCtrl,

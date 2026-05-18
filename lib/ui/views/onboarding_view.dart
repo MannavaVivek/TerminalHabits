@@ -55,11 +55,14 @@ class _OnboardingViewState extends ConsumerState<OnboardingView> {
     final name = _nameCtrl.text.trim();
     if (name.isNotEmpty) await prefs.setString('userName', name);
 
+    final db = ref.read(dbProvider);
+    final userId = ref.read(currentUserIdProvider);
+    if (name.isNotEmpty) await db.updateDisplayName(userId, name);
+
     if (_selectedHabits.isNotEmpty) {
-      final db = ref.read(dbProvider);
-      final userId = ref.read(currentUserIdProvider);
       final existing = await db.getActiveHabits(userId);
       var sortIndex = existing.length;
+      final now = DateTime.now();
       for (final key in _selectedHabits) {
         final h = _starterDefs[key]!;
         await db.createHabit(HabitsCompanion.insert(
@@ -69,6 +72,7 @@ class _OnboardingViewState extends ConsumerState<OnboardingView> {
           icon: Value(h.$2),
           tracking: 'checkbox',
           schedule: dailySchedule(),
+          startDate: Value(now),
           sortIndex: sortIndex++,
         ));
       }
@@ -136,7 +140,7 @@ class _OnboardingViewState extends ConsumerState<OnboardingView> {
   Widget _buildStepBody(BuildContext context) {
     return switch (_step) {
       0 => _NameStep(title: _stepTitles[0], controller: _nameCtrl),
-      1 => const _ThemeStep(title: 'pick a theme.'),
+      1 => const _ThemeStep(),
       2 => _StarterHabitsStep(
           title: _stepTitles[2],
           selected: _selectedHabits,
@@ -243,34 +247,63 @@ class _NameStep extends StatelessWidget {
 
 // ── Step 1: theme ─────────────────────────────────────────────────────────────
 
-class _ThemeStep extends StatelessWidget {
-  final String title;
-  const _ThemeStep({required this.title});
+class _ThemeStep extends ConsumerWidget {
+  const _ThemeStep();
+
+  static const _themes = [
+    (id: 'matrix',    label: 'matrix',    accent: Color(0xFF5CE39A), bg: Color(0xFF0B1014)),
+    (id: 'hacker',    label: 'hacker',    accent: Color(0xFF00FF41), bg: Color(0xFF000000)),
+    (id: 'nord',      label: 'nord',      accent: Color(0xFF88C0D0), bg: Color(0xFF2E3440)),
+    (id: 'solarized', label: 'solarized', accent: Color(0xFF268BD2), bg: Color(0xFF002B36)),
+    (id: 'monokai',   label: 'monokai',   accent: Color(0xFFA6E22E), bg: Color(0xFF272822)),
+    (id: 'gruvbox',   label: 'gruvbox',   accent: Color(0xFFB8BB26), bg: Color(0xFF282828)),
+  ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final col = context.col;
+    final themeId = ref.watch(themeIdProvider).valueOrNull ?? 'matrix';
+    final db = ref.read(dbProvider);
+
     return _StepShell(
-      title: title,
+      title: 'pick a theme.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('theme: matrix',
-              style: TextStyle(
-                  color: col.green,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600)),
+          Text('changes apply instantly:',
+              style: TextStyle(color: col.fgDim, fontSize: 12)),
           const SizedBox(height: TH.s8),
-          Text(
-            'dark background · green accent · monospace font\n'
-            'looks best with JetBrains Mono or Fira Code.',
-            style: TextStyle(color: col.fgDim, fontSize: 12),
-          ),
-          const SizedBox(height: TH.s14),
-          Text(
-            '// change theme anytime via ⌘, settings.',
-            style: TextStyle(color: col.fgFaint, fontSize: 11),
-          ),
+          ..._themes.map((t) {
+            final isSel = themeId == t.id;
+            return GestureDetector(
+              onTap: () => db.setSetting('themeId', t.id),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(children: [
+                  Text(isSel ? '[●]' : '[ ]',
+                      style: TextStyle(
+                          color: isSel ? t.accent : col.fgMute,
+                          fontSize: 13)),
+                  const SizedBox(width: TH.s8),
+                  Container(
+                    width: 12, height: 12,
+                    decoration: BoxDecoration(
+                      color: t.bg,
+                      border: Border.all(color: t.accent, width: 1),
+                    ),
+                  ),
+                  const SizedBox(width: TH.s8),
+                  Text(t.label,
+                      style: TextStyle(
+                          color: isSel ? col.fg : col.fgDim,
+                          fontSize: 13)),
+                ]),
+              ),
+            );
+          }),
+          const SizedBox(height: TH.s8),
+          Text('// change anytime via settings.',
+              style: TextStyle(color: col.fgFaint, fontSize: 11)),
         ],
       ),
     );

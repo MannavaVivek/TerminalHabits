@@ -17,8 +17,7 @@ class RegisterView extends ConsumerStatefulWidget {
 }
 
 class _RegisterViewState extends ConsumerState<RegisterView> {
-  final _nameCtrl = TextEditingController();
-  final _userCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
   final _pwdCtrl = TextEditingController();
   final _pwd2Ctrl = TextEditingController();
   String? _error;
@@ -26,21 +25,19 @@ class _RegisterViewState extends ConsumerState<RegisterView> {
 
   @override
   void dispose() {
-    _nameCtrl.dispose();
-    _userCtrl.dispose();
+    _emailCtrl.dispose();
     _pwdCtrl.dispose();
     _pwd2Ctrl.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
-    final name = _nameCtrl.text.trim();
-    final username = _userCtrl.text.trim();
+    final email = _emailCtrl.text.trim().toLowerCase();
     final pwd = _pwdCtrl.text;
     final pwd2 = _pwd2Ctrl.text;
 
-    if (name.isEmpty || username.isEmpty || pwd.isEmpty) {
-      setState(() => _error = 'all fields required.');
+    if (email.isEmpty || pwd.isEmpty) {
+      setState(() => _error = 'email and password required.');
       return;
     }
     if (pwd != pwd2) {
@@ -51,13 +48,13 @@ class _RegisterViewState extends ConsumerState<RegisterView> {
     setState(() { _loading = true; _error = null; });
 
     final db = ref.read(dbProvider);
-    final existing = await db.getUserByUsername(username);
+    final existing = await db.getUserByUsername(email);
     if (existing != null) {
-      setState(() { _loading = false; _error = 'username already taken.'; });
+      setState(() { _loading = false; _error = 'email already registered.'; });
       return;
     }
 
-    final userId = await db.createUser(username, name, pwd);
+    final userId = await db.createUser(email, '', pwd);
     await db.createGroup(userId, 'general');
 
     final prefs = await SharedPreferences.getInstance();
@@ -90,10 +87,8 @@ class _RegisterViewState extends ConsumerState<RegisterView> {
               children: [
                 const PromptLine(user: 'new', command: 'register'),
                 const SizedBox(height: TH.s22),
-                AuthField(label: 'display name', controller: _nameCtrl,
+                AuthField(label: 'email', controller: _emailCtrl,
                     autofocus: true),
-                const SizedBox(height: TH.s14),
-                AuthField(label: 'username', controller: _userCtrl),
                 const SizedBox(height: TH.s14),
                 AuthField(label: 'password', controller: _pwdCtrl,
                     obscure: true),
