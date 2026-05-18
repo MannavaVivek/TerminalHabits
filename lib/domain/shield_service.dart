@@ -5,14 +5,14 @@ import '../domain/streaks.dart';
 /// Runs the once-per-launch shield scan.
 ///
 /// Pass 1 — spending: walks [last_seen_date+1 … yesterday] chronologically.
-/// For each completion-miss, consumes one pre-existing shield (not shields
-/// earned in this same scan) and inserts a day_shields row.
+/// Shields are only spent on days on or after the latest habit createdAt, so
+/// backdated history never triggers spending.  A miss is only shielded when
+/// the overall streak is alive at that point.
 ///
 /// Pass 2 — earning: calls [recomputeShieldPool] so the pool reflects
 /// every milestone crossed in the full streak history.
 ///
-/// Sets last_seen_date = yesterday so the next launch picks up from today
-/// (today hasn't ended yet and cannot be processed).
+/// Sets last_seen_date = yesterday so the next launch picks up from today.
 Future<void> runLaunchScan({
   required AppDatabase db,
   required List<Habit> habits,
@@ -28,10 +28,10 @@ Future<void> runLaunchScan({
   final yesterdayStr = _isoDate(yesterday);
 
   // ── Auto-recovery ──────────────────────────────────────────────────────────
+  // Run before the spending pass so the pool count is correct.
   final allShields = await db.getAllDayShields();
   var shields = await db.getAvailableShields();
   for (final shield in allShields) {
-    // Drift returns local datetimes; normalise to UTC before comparing.
     final dayUtc = shield.day.toUtc();
     if (_dayFullyComplete(dayUtc, habits, completionMap, historyMap)) {
       await db.deleteDayShield(shield.day);
@@ -63,16 +63,24 @@ Future<void> runLaunchScan({
   }
 
   // ── Pass 1: SPENDING ───────────────────────────────────────────────────────
-  // Spend only shields already in the pool before this scan. Milestones earned
-  // during this scan (pass 2 below) are banked, not consumed here.
+  // Only spend shields already in the pool before this scan.
   //
-  // Shields are only consumed while the overall streak is alive — a miss on an
-  // already-broken streak should not burn a shield.
+  // Two guards before a shield is spent on day D:
+  //   1. The overall streak must be alive (spendingStreak > 0).
+  //   2. D must be on or after every habit's createdAt — backdated history
+  //      earns milestones but never consumes shields.
   final shieldRows = await db.getAllDayShields();
-  // Drift returns local datetimes; normalise to UTC so Set.contains() works.
   final shieldedDays = {for (final s in shieldRows) s.day.toUtc()};
   final vacationDays = buildVacationDaySet(vacations);
   shields = await db.getAvailableShields();
+
+  // Earliest day on which spending is allowed = latest createdAt across habits.
+  DateTime spendingStart = DateTime(1970);
+  for (final h in habits) {
+    final c = h.createdAt.toLocal();
+    final cDay = DateTime(c.year, c.month, c.day);
+    if (cDay.isAfter(spendingStart)) spendingStart = cDay;
+  }
 
   // Streak value at the end of the day before scanFrom.
   final preScan = computeOverallStreak(
@@ -92,7 +100,7 @@ Future<void> runLaunchScan({
       if (outcome == 1) {
         spendingStreak++;
       } else if (outcome == -1) {
-        if (spendingStreak > 0 && shields > 0) {
+        if (spendingStreak > 0 && shields > 0 && !d.isBefore(spendingStart)) {
           await db.insertDayShield(dUtc);
           shieldedDays.add(dUtc);
           shields--;
@@ -120,10 +128,12 @@ Future<void> runLaunchScan({
 
 /// Recomputes available_shields = totalMilestonesEarned − shieldedDaysCount.
 ///
-/// This is deterministic given the current completion and shield state, so it
-/// is safe to call after every completion write/delete during a session.
-/// Calling it reactively keeps the pool accurate without re-running the full
-/// spending pass.
+/// Also runs auto-recovery: if a shielded day is now fully complete (the user
+/// went back and filled it in), the shield row is removed so it no longer
+/// counts as spent. This is the session-time recovery path — the launch scan
+/// handles the at-startup case.
+///
+/// Safe to call after every completion write/delete during a session.
 Future<void> recomputeShieldPool({
   required AppDatabase db,
   required List<Habit> habits,
@@ -132,6 +142,14 @@ Future<void> recomputeShieldPool({
   required Map<int, List<HabitScheduleHistoryData>> historyMap,
 }) async {
   if (habits.isEmpty) return;
+
+  // Auto-recovery: remove shields for days that are now fully complete.
+  final allShields = await db.getAllDayShields();
+  for (final shield in allShields) {
+    if (_dayFullyComplete(shield.day.toUtc(), habits, completionMap, historyMap)) {
+      await db.deleteDayShield(shield.day);
+    }
+  }
 
   final shieldRows = await db.getAllDayShields();
   final shieldedDays = {for (final s in shieldRows) s.day.toUtc()};
@@ -156,8 +174,7 @@ Future<void> recomputeShieldPool({
 /// Each streak break resets the per-run milestone boundary, so a fresh run
 /// can earn milestones independently.
 ///
-/// Iterates LOCAL calendar days (same pattern as runLaunchScan) so the walk
-/// is correct in every timezone, including non-UTC offsets and DST gaps.
+/// Iterates LOCAL calendar days so the walk is correct in every timezone.
 int _totalMilestonesEarned(
   List<Habit> habits,
   Map<int, List<Completion>> completionMap,
@@ -169,7 +186,6 @@ int _totalMilestonesEarned(
 ) {
   if (interval <= 0) return 0;
 
-  // All dates kept as LOCAL midnight; UTC conversion only for DB lookups.
   final yesterday =
       DateTime(todayLocal.year, todayLocal.month, todayLocal.day - 1);
   final cutoff =
@@ -263,8 +279,6 @@ bool _dayFullyComplete(
 ) {
   final local = dayUtc.toLocal();
   final d = DateTime(local.year, local.month, local.day);
-  // Re-derive UTC via localMidnightUtc so the value is always isUtc=true,
-  // which is required for the c.day.toUtc() == dUtc comparison in _dayOutcome.
   return _dayOutcome(d, localMidnightUtc(d), habits, completionMap, historyMap) == 1;
 }
 

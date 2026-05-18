@@ -8,7 +8,7 @@ import 'package:terminal_habits/domain/streaks.dart';
 // Fixed past dates within the 90-day window (today ≈ 2026-05-16, cutoff ≈ 2026-02-15).
 final _start = DateTime(2026, 4, 1); // habit start
 
-Habit _habit({int id = 1, DateTime? startDate}) => Habit(
+Habit _habit({int id = 1, DateTime? startDate, DateTime? createdAt}) => Habit(
       id: id,
       userId: 1,
       groupId: 'g1',
@@ -18,7 +18,7 @@ Habit _habit({int id = 1, DateTime? startDate}) => Habit(
       tracking: 'checkbox',
       schedule: dailySchedule(),
       sortIndex: 0,
-      createdAt: startDate ?? _start,
+      createdAt: createdAt ?? startDate ?? _start,
       startDate: startDate ?? _start,
     );
 
@@ -123,6 +123,28 @@ void main() {
         historyMap: {},
       );
       expect(await db.getAvailableShields(), 0);
+    });
+
+    test('auto-recovery: marking shielded day complete removes shield and updates pool', () async {
+      // Simulates a user going back mid-session to complete a shielded day.
+      // Shield was on day 8 (pool=0). User completes day 8 → pool should become 1.
+      final habit = _habit();
+      await db.insertDayShield(localMidnightUtc(DateTime(2026, 4, 8)));
+      await db.setAvailableShields(0);
+
+      // completionMap now includes day 8 (user just marked it)
+      final comps = _range(1, _start, DateTime(2026, 4, 8));
+
+      await recomputeShieldPool(
+        db: db,
+        habits: [habit],
+        completionMap: {1: comps},
+        vacations: [],
+        historyMap: {},
+      );
+
+      expect(await db.getAllDayShields(), isEmpty);
+      expect(await db.getAvailableShields(), 1); // 1 milestone earned, 0 shielded days
     });
 
     test('shielded day deducted from pool: 1 earned, 1 spent → 0 available', () async {
@@ -242,6 +264,45 @@ void main() {
       );
 
       expect(await db.getAllDayShields(), isEmpty);
+    });
+
+    test('createdAt gate: no spending on days before a habit was created', () async {
+      // Habit backdated to April 1 but actually created April 15.
+      // Miss on April 8 is before createdAt → shield must NOT be spent.
+      final habit = _habit(startDate: _start, createdAt: DateTime(2026, 4, 15));
+      await db.setAvailableShields(1);
+      await db.setSetting('last_seen_date', '2026-04-07'); // scanFrom = April 8
+
+      await runLaunchScan(
+        db: db,
+        habits: [habit],
+        completionMap: {1: _range(1, _start, DateTime(2026, 4, 7))},
+        vacations: [],
+        historyMap: {},
+      );
+
+      expect(await db.getAllDayShields(), isEmpty);
+      // Pool = 1 milestone earned (days 1-7), 0 shielded days → 1
+      expect(await db.getAvailableShields(), 1);
+    });
+
+    test('createdAt gate: spending IS allowed on and after createdAt', () async {
+      // Habit created same day as startDate (no backdating) — normal case.
+      final habit = _habit(startDate: _start, createdAt: _start);
+      await db.setAvailableShields(1);
+      await db.setSetting('last_seen_date', '2026-04-07');
+
+      await runLaunchScan(
+        db: db,
+        habits: [habit],
+        completionMap: {1: _range(1, _start, DateTime(2026, 4, 7))},
+        vacations: [],
+        historyMap: {},
+      );
+
+      final shieldedDays = await db.getAllDayShields();
+      expect(shieldedDays, hasLength(1)); // April 8 shielded
+      expect(shieldedDays.first.day.isAtSameMomentAs(localMidnightUtc(DateTime(2026, 4, 8))), isTrue);
     });
 
     test('empty habits list returns early without error', () async {

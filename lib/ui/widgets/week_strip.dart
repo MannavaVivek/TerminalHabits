@@ -125,36 +125,26 @@ class _DayCell extends StatelessWidget {
         Text(label,
             style: TextStyle(color: col.fgMute, fontSize: 10)),
         const SizedBox(height: 2),
-        Stack(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              decoration: BoxDecoration(
-                color: isSelected ? col.bg3 : Colors.transparent,
-                borderRadius: const BorderRadius.all(TH.r4),
-              ),
-              child: Center(
-                child: Text(
-                  isSelected ? '*${date.day}' : '${date.day}',
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 13,
-                    fontWeight:
-                        isSelected ? FontWeight.w600 : FontWeight.normal,
-                  ),
-                ),
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          decoration: BoxDecoration(
+            color: isSelected ? col.bg3 : Colors.transparent,
+            borderRadius: const BorderRadius.all(TH.r4),
+          ),
+          child: Center(
+            child: Text(
+              isSelected ? '*${date.day}' : '${date.day}',
+              style: TextStyle(
+                color: color,
+                fontSize: 13,
+                fontWeight:
+                    isSelected ? FontWeight.w600 : FontWeight.normal,
               ),
             ),
-            if (shielded)
-              const Positioned(
-                top: 0,
-                right: 0,
-                child: Text('🛡', style: TextStyle(fontSize: 8)),
-              ),
-          ],
+          ),
         ),
         const SizedBox(height: 4),
-        _IntensityBar(ratio: ratio, col: col),
+        _IntensityBar(ratio: ratio, col: col, shielded: shielded),
       ],
     );
   }
@@ -163,10 +153,17 @@ class _DayCell extends StatelessWidget {
 class _IntensityBar extends StatelessWidget {
   final double ratio;
   final AppColors col;
-  const _IntensityBar({required this.ratio, required this.col});
+  final bool shielded;
+  const _IntensityBar({required this.ratio, required this.col, this.shielded = false});
 
   @override
   Widget build(BuildContext context) {
+    // Shielded incomplete day → full blue bar.
+    // Otherwise → amber bar at completion ratio.
+    final isProtected = shielded && ratio < 1.0;
+    final fillWidth = isProtected ? 1.0 : ratio;
+    final fillColor = isProtected ? col.blue : col.amber;
+
     return SizedBox(
       height: 6,
       child: LayoutBuilder(builder: (_, constraints) {
@@ -180,14 +177,15 @@ class _IntensityBar extends StatelessWidget {
               borderRadius: const BorderRadius.all(Radius.circular(2)),
             ),
           ),
-          Container(
-            width: width * ratio,
-            height: 6,
-            decoration: BoxDecoration(
-              color: col.amber,
-              borderRadius: const BorderRadius.all(Radius.circular(2)),
+          if (fillWidth > 0)
+            Container(
+              width: width * fillWidth,
+              height: 6,
+              decoration: BoxDecoration(
+                color: fillColor,
+                borderRadius: const BorderRadius.all(Radius.circular(2)),
+              ),
             ),
-          ),
         ]);
       }),
     );

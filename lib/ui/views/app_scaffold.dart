@@ -45,7 +45,10 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
       completionMap: completionMap,
       vacations: vacations,
       historyMap: historyMap,
-    ).ignore();
+    ).then((_) {
+      // Correct any pool staleness if completions changed while the scan ran.
+      if (mounted) _recomputePool();
+    }, onError: (_) {});
   }
 
   // Called whenever completions change during a session so the shield pool
