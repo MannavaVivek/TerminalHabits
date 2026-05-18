@@ -20,6 +20,7 @@ class OnboardingView extends ConsumerStatefulWidget {
 class _OnboardingViewState extends ConsumerState<OnboardingView> {
   int _step = 0;
   static const _totalSteps = 4;
+  bool _finishing = false;
 
   final _nameCtrl = TextEditingController();
   final _selectedHabits = <String>{};
@@ -46,6 +47,8 @@ class _OnboardingViewState extends ConsumerState<OnboardingView> {
   }
 
   Future<void> _finish() async {
+    if (_finishing) return;
+    setState(() => _finishing = true);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('seenOnboarding', true);
 
@@ -111,14 +114,16 @@ class _OnboardingViewState extends ConsumerState<OnboardingView> {
               Row(
                 children: [
                   _TermButton(
-                    label: _step < _totalSteps - 1
-                        ? '[ next ]'
-                        : '[ begin ]',
-                    onTap: _next,
+                    label: _finishing
+                        ? '[ ... ]'
+                        : _step < _totalSteps - 1
+                            ? '[ next ]'
+                            : '[ begin ]',
+                    onTap: _finishing ? null : _next,
                     accent: true,
                   ),
                   const SizedBox(width: TH.s14),
-                  _TermButton(label: '[ skip ]', onTap: _finish),
+                  _TermButton(label: '[ skip ]', onTap: _finishing ? null : _finish),
                 ],
               ),
             ],
@@ -393,7 +398,7 @@ class _StepIndicator extends StatelessWidget {
 
 class _TermButton extends StatelessWidget {
   final String label;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final bool accent;
 
   const _TermButton(

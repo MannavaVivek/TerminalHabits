@@ -6,7 +6,6 @@ import '../../theme/app_colors.dart';
 import '../../theme/tokens.dart';
 import '../widgets/auth_widgets.dart';
 import '../widgets/prompt_line.dart';
-import 'app_scaffold.dart';
 import 'login_view.dart';
 import 'onboarding_view.dart';
 
@@ -63,13 +62,13 @@ class _RegisterViewState extends ConsumerState<RegisterView> {
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('loggedInUserId', userId);
+    // New account always sees onboarding regardless of any stale pref.
+    await prefs.remove('seenOnboarding');
     ref.read(currentUserIdProvider.notifier).state = userId;
 
     if (!mounted) return;
-    final seenOnboarding = prefs.getBool('seenOnboarding') ?? false;
     Navigator.of(context).pushReplacement(PageRouteBuilder<void>(
-      pageBuilder: (_, __, ___) =>
-          seenOnboarding ? const AppScaffold() : const OnboardingView(),
+      pageBuilder: (_, __, ___) => const OnboardingView(),
       transitionDuration: Duration.zero,
       reverseTransitionDuration: Duration.zero,
     ));
