@@ -28,12 +28,6 @@ class Sidebar extends ConsumerWidget {
               onTap: () => ref.read(currentViewProvider.notifier).state = 'daily'),
           _NavItem(label: 'stats', selected: view == 'stats',
               onTap: () => ref.read(currentViewProvider.notifier).state = 'stats'),
-          _NavItem(label: 'profile', selected: view == 'profile',
-              onTap: () => ref.read(currentViewProvider.notifier).state = 'profile'),
-          _NavItem(label: 'vacation', selected: view == 'vacation',
-              onTap: () => ref.read(currentViewProvider.notifier).state = 'vacation'),
-          _NavItem(label: 'archive', selected: view == 'archive',
-              onTap: () => ref.read(currentViewProvider.notifier).state = 'archive'),
           const Spacer(),
           GestureDetector(
             onTap: () => showUserWindow(context),
