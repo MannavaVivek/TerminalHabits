@@ -1,12 +1,17 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/tokens.dart';
+import '../mobile/mobile_settings_page.dart';
+import '../mobile/mobile_sub_page.dart';
 import '../modals/settings_dialog.dart';
 import '../widgets/prompt_line.dart';
+import 'archive_view.dart';
 import 'login_view.dart';
+import 'vacation_view.dart';
 
 class ProfileView extends ConsumerWidget {
   const ProfileView({super.key});
@@ -38,14 +43,38 @@ class ProfileView extends ConsumerWidget {
               const SizedBox(height: TH.s14),
               _Block(label: 'navigate', col: col, children: [
                 _NavRow(label: 'vacation', desc: 'manage vacation periods',
-                    col: col, onTap: () => ref.read(currentViewProvider.notifier).state = 'vacation'),
+                    col: col, onTap: () {
+                  if (Platform.isAndroid) {
+                    Navigator.push(context, MaterialPageRoute(
+                      builder: (_) => const MobileSubPage(title: 'vacation', child: VacationView()),
+                    ));
+                  } else {
+                    ref.read(currentViewProvider.notifier).state = 'vacation';
+                  }
+                }),
                 _NavRow(label: 'archive', desc: 'view archived habits',
-                    col: col, onTap: () => ref.read(currentViewProvider.notifier).state = 'archive'),
+                    col: col, onTap: () {
+                  if (Platform.isAndroid) {
+                    Navigator.push(context, MaterialPageRoute(
+                      builder: (_) => const MobileSubPage(title: 'archive', child: ArchiveView()),
+                    ));
+                  } else {
+                    ref.read(currentViewProvider.notifier).state = 'archive';
+                  }
+                }),
               ]),
               const SizedBox(height: TH.s14),
               _Block(label: 'app', col: col, children: [
                 _NavRow(label: 'settings', desc: 'theme, font, preferences',
-                    col: col, onTap: () => SettingsDialog.show(context)),
+                    col: col, onTap: () {
+                  if (Platform.isAndroid) {
+                    Navigator.push(context, MaterialPageRoute(
+                      builder: (_) => const MobileSettingsPage(),
+                    ));
+                  } else {
+                    SettingsDialog.show(context);
+                  }
+                }),
               ]),
               const SizedBox(height: TH.s22),
               GestureDetector(

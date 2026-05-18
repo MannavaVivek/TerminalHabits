@@ -64,8 +64,6 @@ class _VacationContent extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _PalmTree(col: col),
-          const SizedBox(height: TH.s14),
           if (active != null)
             _ActiveVacation(vacation: active!, col: col)
           else
@@ -77,28 +75,6 @@ class _VacationContent extends ConsumerWidget {
           const SizedBox(height: TH.s22),
         ],
       ),
-    );
-  }
-}
-
-class _PalmTree extends StatelessWidget {
-  final AppColors col;
-  const _PalmTree({required this.col});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      '    )  (   (\n'
-      '   (   ) )  )\n'
-      '    ) ( (  (\n'
-      '    .-\'-.  \n'
-      '   /|6 6|\\\n'
-      '  | | ^ | |\n'
-      '   \\|\\_/|/\n'
-      '    |   |\n'
-      '    |   |\n'
-      '  ~~|~~~|~~',
-      style: TextStyle(color: col.green, fontSize: 13, height: 1.4),
     );
   }
 }

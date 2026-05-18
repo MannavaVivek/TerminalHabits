@@ -60,7 +60,8 @@ class _NewGroupDialogState extends State<NewGroupDialog> {
           RoundedRectangleBorder(borderRadius: const BorderRadius.all(TH.r10)),
       child: SizedBox(
         width: 380,
-        child: Padding(
+        child: SingleChildScrollView(
+          child: Padding(
           padding: const EdgeInsets.all(TH.s22),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -212,6 +213,7 @@ class _NewGroupDialogState extends State<NewGroupDialog> {
               ),
             ],
           ),
+        ),
         ),
       ),
     );

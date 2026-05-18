@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../data/database.dart';
 import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
-import '../../theme/icon_library.dart';
 import '../../theme/tokens.dart';
 
 const _kThemes = [
@@ -34,9 +32,6 @@ class SettingsDialog extends ConsumerWidget {
         ref.watch(allowFutureMarkingProvider).valueOrNull ?? false;
     final confirmDest =
         ref.watch(confirmDestructiveProvider).valueOrNull ?? true;
-    final archivedAV = ref.watch(archivedHabitsProvider);
-    final groupsAV = ref.watch(groupsProvider);
-
     return Dialog(
       backgroundColor: col.bg2,
       shape: RoundedRectangleBorder(
@@ -190,14 +185,6 @@ class SettingsDialog extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: TH.s22),
-                    _sectionLabel('data', col),
-                    const SizedBox(height: TH.s14),
-                    _ArchiveList(
-                      archivedAV: archivedAV,
-                      groupsAV: groupsAV,
-                      db: db,
-                    ),
-                    const SizedBox(height: TH.s22),
                     _sectionLabel('about', col),
                     const SizedBox(height: TH.s14),
                     _AboutRow('version', '0.3.0', col: col),
@@ -305,196 +292,3 @@ class _AboutRow extends StatelessWidget {
   }
 }
 
-class _ArchiveList extends ConsumerWidget {
-  final AsyncValue<List<Habit>> archivedAV;
-  final AsyncValue<List<Group>> groupsAV;
-  final AppDatabase db;
-
-  const _ArchiveList({
-    required this.archivedAV,
-    required this.groupsAV,
-    required this.db,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final col = context.col;
-    return archivedAV.when(
-      loading: () => Text('loading...',
-          style: TextStyle(color: col.fgDim, fontSize: 12)),
-      error: (e, _) => Text('error: $e',
-          style: TextStyle(color: col.red, fontSize: 12)),
-      data: (archived) {
-        final groups = groupsAV.valueOrNull ?? const <Group>[];
-        final groupName = {for (final g in groups) g.id: g.name};
-
-        if (archived.isEmpty) {
-          return Text('// no archived habits.',
-              style: TextStyle(color: col.fgMute, fontSize: 11));
-        }
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '// ${archived.length} habit${archived.length == 1 ? '' : 's'} archived.',
-              style: TextStyle(color: col.fgMute, fontSize: 11),
-            ),
-            const SizedBox(height: TH.s8),
-            ...archived.map(
-              (h) => _ArchivedItem(
-                habit: h,
-                groupLabel: groupName[h.groupId] ?? h.groupId,
-                db: db,
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _ArchivedItem extends StatelessWidget {
-  final Habit habit;
-  final String groupLabel;
-  final AppDatabase db;
-  const _ArchivedItem(
-      {required this.habit, required this.groupLabel, required this.db});
-
-  String _relative(DateTime when) {
-    final diff = DateTime.now().difference(when);
-    if (diff.inDays >= 1) return '${diff.inDays}d ago';
-    if (diff.inHours >= 1) return '${diff.inHours}h ago';
-    if (diff.inMinutes >= 1) return '${diff.inMinutes}m ago';
-    return 'just now';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final col = context.col;
-    final archivedOn = habit.archivedAt;
-    final iconData = lucideIconData(habit.icon);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-          horizontal: 0, vertical: TH.s8),
-      decoration: BoxDecoration(
-        border: Border(
-            bottom: BorderSide(color: col.line, width: 1)),
-      ),
-      child: Row(
-        children: [
-          if (iconData != null)
-            Icon(iconData, size: 13, color: col.fgDim)
-          else
-            Text(habit.icon,
-                style: TextStyle(
-                    color: col.fgDim, fontSize: 12)),
-          const SizedBox(width: TH.s8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(habit.name,
-                    style: TextStyle(
-                        color: col.fgDim, fontSize: 13)),
-                Text(
-                  archivedOn == null
-                      ? groupLabel
-                      : '$groupLabel · ${_relative(archivedOn)}',
-                  style: TextStyle(
-                      color: col.fgFaint, fontSize: 10),
-                ),
-              ],
-            ),
-          ),
-          GestureDetector(
-            onTap: () => db.unarchiveHabit(habit.id),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: TH.s8, vertical: 4),
-              child: Text('[ restore ]',
-                  style: TextStyle(
-                      color: col.green, fontSize: 11)),
-            ),
-          ),
-          GestureDetector(
-            onTap: () => _confirmAndDelete(context),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: TH.s8, vertical: 4),
-              child: Text('[ delete ]',
-                  style: TextStyle(
-                      color: col.red, fontSize: 11)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _confirmAndDelete(BuildContext context) async {
-    final col = AppColors.of(context);
-    final ok = await showDialog<bool>(
-      context: context,
-      barrierColor: Colors.black54,
-      builder: (ctx) => Dialog(
-        backgroundColor: col.bg2,
-        shape: RoundedRectangleBorder(
-            borderRadius: const BorderRadius.all(TH.r10)),
-        child: SizedBox(
-          width: 400,
-          child: Padding(
-            padding: const EdgeInsets.all(TH.s22),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('permanently delete "${habit.name}"?',
-                    style: TextStyle(
-                        color: col.fg,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600)),
-                const SizedBox(height: TH.s8),
-                Text(
-                  'this removes the habit and every completion record.',
-                  style: TextStyle(color: col.fgDim, fontSize: 12),
-                ),
-                const SizedBox(height: TH.s22),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    GestureDetector(
-                      onTap: () => Navigator.of(ctx).pop(false),
-                      child: Text('[ cancel ]',
-                          style: TextStyle(
-                              color: col.fgMute, fontSize: 12)),
-                    ),
-                    const SizedBox(width: TH.s14),
-                    GestureDetector(
-                      onTap: () => Navigator.of(ctx).pop(true),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: TH.s14, vertical: TH.s8),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: col.red),
-                          borderRadius:
-                              const BorderRadius.all(TH.r4),
-                        ),
-                        child: Text('[ delete ]',
-                            style: TextStyle(
-                                color: col.red, fontSize: 12)),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-    if (ok == true) await db.deleteHabit(habit.id);
-  }
-}
