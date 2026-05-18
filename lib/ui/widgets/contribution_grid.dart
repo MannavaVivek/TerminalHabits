@@ -22,6 +22,23 @@ class ContributionGrid extends StatefulWidget {
 
 class _ContributionGridState extends State<ContributionGrid> {
   DateTime? _hovered;
+  final _scrollCtrl = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollCtrl.hasClients) {
+        _scrollCtrl.jumpTo(_scrollCtrl.position.maxScrollExtent);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
 
   static List<DateTime> _buildDays() {
     final now = DateTime.now();
@@ -136,6 +153,7 @@ class _ContributionGridState extends State<ContributionGrid> {
         // Grid — horizontally scrollable so it fits on narrow screens.
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
+          controller: _scrollCtrl,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

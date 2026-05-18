@@ -482,6 +482,10 @@ class AppDatabase extends _$AppDatabase {
       (update(vacations)..where((v) => v.id.equals(id)))
           .write(VacationsCompanion(end: Value(newEnd)));
 
+  Future<void> editVacation(int id, DateTime newStart, DateTime newEnd) =>
+      (update(vacations)..where((v) => v.id.equals(id)))
+          .write(VacationsCompanion(start: Value(newStart), end: Value(newEnd)));
+
   Future<bool> hasCompletionsInRange(
       List<int> habitIds, DateTime startUtc, DateTime endUtc) async {
     if (habitIds.isEmpty) return false;

@@ -107,10 +107,10 @@ class _ActiveVacation extends ConsumerWidget {
         Row(
           children: [
             _ActionButton(
-              label: '[ extend ]',
+              label: '[ edit ]',
               col: col,
               color: col.amber,
-              onTap: () => _showExtendDialog(context, ref),
+              onTap: () => _showEditDialog(context, ref),
             ),
             const SizedBox(width: TH.s14),
             _ActionButton(
@@ -125,19 +125,25 @@ class _ActiveVacation extends ConsumerWidget {
     );
   }
 
-  Future<void> _showExtendDialog(BuildContext context, WidgetRef ref) async {
-    final currentEnd = vacation.end.toLocal();
-    final firstDate = DateTime(currentEnd.year, currentEnd.month, currentEnd.day + 1);
-    final picked = await showDatePicker(
+  Future<void> _showEditDialog(BuildContext context, WidgetRef ref) async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final curStart = vacation.start.toLocal();
+    final curEnd = vacation.end.toLocal();
+    final range = await showDateRangePicker(
       context: context,
-      initialDate: firstDate,
-      firstDate: firstDate,
-      lastDate: DateTime.now().add(const Duration(days: 180)),
-      helpText: 'new end date',
+      initialDateRange: DateTimeRange(
+        start: DateTime(curStart.year, curStart.month, curStart.day),
+        end: DateTime(curEnd.year, curEnd.month, curEnd.day),
+      ),
+      firstDate: today.subtract(const Duration(days: 30)),
+      lastDate: today.add(const Duration(days: 180)),
+      helpText: 'edit vacation period',
     );
-    if (picked == null || !context.mounted) return;
-    final extended = DateTime(picked.year, picked.month, picked.day).toUtc();
-    await ref.read(dbProvider).extendVacation(vacation.id, extended);
+    if (range == null || !context.mounted) return;
+    final newStart = DateTime(range.start.year, range.start.month, range.start.day).toUtc();
+    final newEnd = DateTime(range.end.year, range.end.month, range.end.day).toUtc();
+    await ref.read(dbProvider).editVacation(vacation.id, newStart, newEnd);
   }
 
   Future<void> _endNow(BuildContext context, WidgetRef ref) async {
@@ -169,18 +175,21 @@ class _NoVacation extends ConsumerWidget {
 
   Future<void> _showStartDialog(BuildContext context, WidgetRef ref) async {
     final now = DateTime.now();
-    final tomorrow = DateTime(now.year, now.month, now.day + 1);
-    final picked = await showDatePicker(
+    final today = DateTime(now.year, now.month, now.day);
+    final range = await showDateRangePicker(
       context: context,
-      initialDate: tomorrow,
-      firstDate: tomorrow,
-      lastDate: now.add(const Duration(days: 180)),
-      helpText: 'vacation ends on',
+      initialDateRange: DateTimeRange(
+        start: today,
+        end: today.add(const Duration(days: 7)),
+      ),
+      firstDate: today.subtract(const Duration(days: 30)),
+      lastDate: today.add(const Duration(days: 180)),
+      helpText: 'select vacation period',
     );
-    if (picked == null || !context.mounted) return;
+    if (range == null || !context.mounted) return;
     final userId = ref.read(currentUserIdProvider);
-    final start = DateTime(now.year, now.month, now.day).toUtc();
-    final end = DateTime(picked.year, picked.month, picked.day).toUtc();
+    final start = DateTime(range.start.year, range.start.month, range.start.day).toUtc();
+    final end = DateTime(range.end.year, range.end.month, range.end.day).toUtc();
     await ref.read(dbProvider).startVacation(userId, start, end);
   }
 }
@@ -252,6 +261,6 @@ String _formatPast(Vacation v) {
   final e = v.end.toLocal();
   final startDay = DateTime(s.year, s.month, s.day);
   final endDay = DateTime(e.year, e.month, e.day);
-  if (!endDay.isAfter(startDay)) return '${_fmtDate(v.start)} (cancelled)';
+  if (endDay.isBefore(startDay)) return '${_fmtDate(v.start)} (cancelled)';
   return '${_fmtDate(v.start)} → ${_fmtDate(v.end)}';
 }

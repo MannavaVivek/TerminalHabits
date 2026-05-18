@@ -94,10 +94,7 @@ class DailyView extends ConsumerWidget {
               child: _DailyHeader(state: state),
             ),
             const SizedBox(height: TH.s14),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: TH.s14),
-              child: WeekStrip(),
-            ),
+            const WeekStrip(),
             const SizedBox(height: TH.s14),
             Expanded(child: body),
           ],
