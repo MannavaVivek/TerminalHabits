@@ -55,14 +55,11 @@ class _RegisterViewState extends ConsumerState<RegisterView> {
     try {
       final res = await Supabase.instance.client.auth
           .signUp(email: email, password: pwd);
-      // If email confirmation is required, session will be null.
       if (res.session == null && res.user == null) {
         setState(() { _loading = false; _error = 'registration failed. try again.'; });
         return;
       }
       if (res.session == null) {
-        // Email confirmation required — Supabase is configured with it on.
-        // Show a message and redirect to login.
         setState(() { _loading = false; _error = 'check your email to confirm your account, then log in.'; });
         return;
       }
@@ -76,7 +73,6 @@ class _RegisterViewState extends ConsumerState<RegisterView> {
 
     final db = ref.read(dbProvider);
     await db.ensurePlaceholderUser(email);
-    // New account always sees onboarding.
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('seenOnboarding');
     ref.read(currentUserIdProvider.notifier).state = 1;
@@ -99,50 +95,51 @@ class _RegisterViewState extends ConsumerState<RegisterView> {
           return SingleChildScrollView(
             child: ConstrainedBox(
               constraints: BoxConstraints(minHeight: constraints.maxHeight),
-              child: Padding(
-                padding: const EdgeInsets.all(TH.s22),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                const PromptLine(user: 'new', command: 'register'),
-                const SizedBox(height: TH.s22),
-                AuthField(label: 'email', controller: _emailCtrl,
-                    autofocus: true),
-                const SizedBox(height: TH.s14),
-                AuthField(label: 'password', controller: _pwdCtrl,
-                    obscure: true),
-                const SizedBox(height: TH.s14),
-                AuthField(label: 'confirm password', controller: _pwd2Ctrl,
-                    obscure: true, onSubmit: _submit),
-                if (_error != null) ...[
-                  const SizedBox(height: TH.s8),
-                  Text(_error!,
-                      style: TextStyle(color: col.red, fontSize: 12)),
-                ],
-                const SizedBox(height: TH.s22),
-                Row(
-                  children: [
-                    AuthButton(
-                      label: _loading ? '[ ... ]' : '[ create account ]',
-                      accent: true,
-                      onTap: _loading ? null : _submit,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: TH.s14),
-                GestureDetector(
-                  onTap: () => Navigator.of(context).pushReplacement(
-                    PageRouteBuilder<void>(
-                      pageBuilder: (_, __, ___) => const LoginView(),
-                      transitionDuration: Duration.zero,
-                      reverseTransitionDuration: Duration.zero,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 400),
+                  child: Padding(
+                    padding: const EdgeInsets.all(TH.s22),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const PromptLine(user: 'new', command: 'register'),
+                        const SizedBox(height: TH.s22),
+                        AuthField(label: 'email', controller: _emailCtrl,
+                            autofocus: true),
+                        const SizedBox(height: TH.s14),
+                        AuthField(label: 'password', controller: _pwdCtrl,
+                            obscure: true),
+                        const SizedBox(height: TH.s14),
+                        AuthField(label: 'confirm password', controller: _pwd2Ctrl,
+                            obscure: true, onSubmit: _submit),
+                        if (_error != null) ...[
+                          const SizedBox(height: TH.s8),
+                          Text(_error!,
+                              style: TextStyle(color: col.red, fontSize: 12)),
+                        ],
+                        const SizedBox(height: TH.s22),
+                        AuthButton(
+                          label: _loading ? '[ ... ]' : '[ create account ]',
+                          accent: true,
+                          onTap: _loading ? null : _submit,
+                        ),
+                        const SizedBox(height: TH.s14),
+                        GestureDetector(
+                          onTap: () => Navigator.of(context).pushReplacement(
+                            PageRouteBuilder<void>(
+                              pageBuilder: (_, __, ___) => const LoginView(),
+                              transitionDuration: Duration.zero,
+                              reverseTransitionDuration: Duration.zero,
+                            ),
+                          ),
+                          child: Text('already have an account? [ login ]',
+                              style: TextStyle(color: col.fgDim, fontSize: 12)),
+                        ),
+                      ],
                     ),
                   ),
-                  child: Text('already have an account? [ login ]',
-                      style: TextStyle(color: col.fgDim, fontSize: 12)),
-                ),
-              ],
                 ),
               ),
             ),

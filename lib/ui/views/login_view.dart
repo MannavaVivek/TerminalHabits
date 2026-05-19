@@ -63,7 +63,6 @@ class _LoginViewState extends ConsumerState<LoginView> {
     await db.ensurePlaceholderUser(email);
     ref.read(currentUserIdProvider.notifier).state = 1;
 
-    // Pull from Supabase (non-fatal if offline or empty).
     try { await SyncService(db).pullAll(); } catch (_) {}
 
     if (!mounted) return;
@@ -102,54 +101,56 @@ class _LoginViewState extends ConsumerState<LoginView> {
         child: LayoutBuilder(builder: (context, constraints) {
           return SingleChildScrollView(
             child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: 400,
-                minHeight: constraints.maxHeight,
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 400),
+                  child: Padding(
+                    padding: const EdgeInsets.all(TH.s22),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const PromptLine(user: '?', command: 'login'),
+                        const SizedBox(height: TH.s22),
+                        AuthField(label: 'email', controller: _emailCtrl,
+                            autofocus: true),
+                        const SizedBox(height: TH.s14),
+                        AuthField(label: 'password', controller: _pwdCtrl,
+                            obscure: true, onSubmit: _submit),
+                        if (_error != null) ...[
+                          const SizedBox(height: TH.s8),
+                          Text(_error!,
+                              style: TextStyle(color: col.red, fontSize: 12)),
+                        ],
+                        const SizedBox(height: TH.s22),
+                        AuthButton(
+                          label: _loading ? '[ ... ]' : '[ login ]',
+                          accent: true,
+                          onTap: _loading ? null : _submit,
+                        ),
+                        const SizedBox(height: TH.s22),
+                        Row(
+                          children: [
+                            GestureDetector(
+                              onTap: _goRegister,
+                              child: Text('[ register ]',
+                                  style: TextStyle(color: col.fgDim, fontSize: 12)),
+                            ),
+                            const SizedBox(width: TH.s22),
+                            GestureDetector(
+                              onTap: _goForgot,
+                              child: Text('[ forgot password ]',
+                                  style: TextStyle(color: col.fgDim, fontSize: 12)),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(TH.s22),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                const PromptLine(user: '?', command: 'login'),
-                const SizedBox(height: TH.s22),
-                AuthField(label: 'email', controller: _emailCtrl,
-                    autofocus: true),
-                const SizedBox(height: TH.s14),
-                AuthField(label: 'password', controller: _pwdCtrl,
-                    obscure: true, onSubmit: _submit),
-                if (_error != null) ...[
-                  const SizedBox(height: TH.s8),
-                  Text(_error!,
-                      style: TextStyle(color: col.red, fontSize: 12)),
-                ],
-                const SizedBox(height: TH.s22),
-                AuthButton(
-                  label: _loading ? '[ ... ]' : '[ login ]',
-                  accent: true,
-                  onTap: _loading ? null : _submit,
-                ),
-                const SizedBox(height: TH.s22),
-                Row(
-                  children: [
-                    GestureDetector(
-                      onTap: _goRegister,
-                      child: Text('[ register ]',
-                          style: TextStyle(color: col.fgDim, fontSize: 12)),
-                    ),
-                    const SizedBox(width: TH.s22),
-                    GestureDetector(
-                      onTap: _goForgot,
-                      child: Text('[ forgot password ]',
-                          style: TextStyle(color: col.fgDim, fontSize: 12)),
-                    ),
-                  ],
-                ),
-              ],
             ),
-          ),
-        ),
           );
         }),
       ),
