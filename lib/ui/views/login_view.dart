@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../data/sync_service.dart';
 import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/tokens.dart';
@@ -19,20 +21,20 @@ class LoginView extends ConsumerStatefulWidget {
 }
 
 class _LoginViewState extends ConsumerState<LoginView> {
-  final _userCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
   final _pwdCtrl = TextEditingController();
   String? _error;
   bool _loading = false;
 
   @override
   void dispose() {
-    _userCtrl.dispose();
+    _emailCtrl.dispose();
     _pwdCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
-    final email = _userCtrl.text.trim().toLowerCase();
+    final email = _emailCtrl.text.trim().toLowerCase();
     final pwd = _pwdCtrl.text;
 
     if (email.isEmpty || pwd.isEmpty) {
@@ -42,19 +44,30 @@ class _LoginViewState extends ConsumerState<LoginView> {
 
     setState(() { _loading = true; _error = null; });
 
-    final db = ref.read(dbProvider);
-    final user = await db.getUserByUsername(email);
-
-    if (user == null || user.password != pwd) {
-      setState(() { _loading = false; _error = 'invalid email or password.'; });
+    try {
+      final res = await Supabase.instance.client.auth
+          .signInWithPassword(email: email, password: pwd);
+      if (res.session == null) {
+        setState(() { _loading = false; _error = 'login failed. try again.'; });
+        return;
+      }
+    } on AuthException catch (e) {
+      setState(() { _loading = false; _error = e.message; });
+      return;
+    } catch (e) {
+      setState(() { _loading = false; _error = 'network error. check your connection.'; });
       return;
     }
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('loggedInUserId', user.id);
-    ref.read(currentUserIdProvider.notifier).state = user.id;
+    final db = ref.read(dbProvider);
+    await db.ensurePlaceholderUser(email);
+    ref.read(currentUserIdProvider.notifier).state = 1;
+
+    // Pull from Supabase (non-fatal if offline or empty).
+    try { await SyncService(db).pullAll(); } catch (_) {}
 
     if (!mounted) return;
+    final prefs = await SharedPreferences.getInstance();
     final seenOnboarding = prefs.getBool('seenOnboarding') ?? false;
     Navigator.of(context).pushReplacement(PageRouteBuilder<void>(
       pageBuilder: (_, __, ___) =>
@@ -101,7 +114,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
                   children: [
                 const PromptLine(user: '?', command: 'login'),
                 const SizedBox(height: TH.s22),
-                AuthField(label: 'email', controller: _userCtrl,
+                AuthField(label: 'email', controller: _emailCtrl,
                     autofocus: true),
                 const SizedBox(height: TH.s14),
                 AuthField(label: 'password', controller: _pwdCtrl,

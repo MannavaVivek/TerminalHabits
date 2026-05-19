@@ -480,9 +480,9 @@ This phase is the largest UX shift. See [input_spec.md](input_spec.md) §3 for t
 
 ---
 
-## Phase 10 — Optional cloud sync (post-1.0, deferred)
+## Phase 10 — Cloud sync / Supabase auth
 
-> After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit and tag `v1.0.0` per `constitution.md §7`.
+**In Progress: 2026-05-19**
 
 **Goal:** opt-in multi-device sync. User signs in once on each device; habits and completions converge.
 

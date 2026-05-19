@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:window_manager/window_manager.dart';
 import 'app.dart';
+import 'config/supabase_config.dart';
 import 'data/database.dart';
 import 'state/providers.dart';
 import 'theme/tokens.dart';
@@ -14,6 +16,8 @@ void main() async {
 
   // Fonts are bundled in assets/fonts/ — never fetch from the network.
   GoogleFonts.config.allowRuntimeFetching = false;
+
+  await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
 
   if (Platform.isAndroid) {
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(

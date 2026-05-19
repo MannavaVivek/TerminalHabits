@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import 'package:syncfusion_flutter_datepicker/datepicker.dart';
 import '../../data/database.dart';
 import '../../state/providers.dart';
@@ -50,8 +50,7 @@ class _UserWindowDialogState extends ConsumerState<_UserWindowDialog> {
   }
 
   Future<void> _logOut() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('loggedInUserId');
+    try { await Supabase.instance.client.auth.signOut(); } catch (_) {}
     ref.read(currentUserIdProvider.notifier).state = 0;
     if (!mounted) return;
     Navigator.of(context).pop();

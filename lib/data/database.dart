@@ -127,6 +127,27 @@ class AppDatabase extends _$AppDatabase {
       (update(users)..where((u) => u.id.equals(userId)))
           .write(UsersCompanion(displayName: Value(displayName)));
 
+  // Creates the placeholder local user (id=1) if it doesn't exist, then
+  // updates the username to match the Supabase-authenticated email.
+  Future<void> ensurePlaceholderUser(String email) async {
+    final existing = await getUserById(1);
+    if (existing == null) {
+      await customInsert(
+        'INSERT OR IGNORE INTO users (id, username, display_name, password, created_at) VALUES (1, ?, ?, \'\', ?)',
+        variables: [
+          Variable.withString(email),
+          Variable.withString(email.split('@').first),
+          Variable.withInt(DateTime.now().millisecondsSinceEpoch),
+        ],
+      );
+      return;
+    }
+    if (existing.username != email) {
+      await (update(users)..where((u) => u.id.equals(1)))
+          .write(UsersCompanion(username: Value(email)));
+    }
+  }
+
   // ── Groups ─────────────────────────────────────────────────────────────────
 
   Stream<List<Group>> watchGroups(int userId) =>
@@ -198,6 +219,20 @@ class AppDatabase extends _$AppDatabase {
   }
 
   // ── Habits ─────────────────────────────────────────────────────────────────
+
+  Future<List<Habit>> getAllHabits(int userId) =>
+      (select(habits)..where((h) => h.userId.equals(userId))
+        ..orderBy([(h) => OrderingTerm.asc(h.sortIndex)]))
+      .get();
+
+  Future<List<Completion>> getAllCompletions() =>
+      (select(completions)..orderBy([(c) => OrderingTerm.asc(c.id)])).get();
+
+  Future<List<Completion>> getRecentCompletionsList(DateTime sinceUtc) =>
+      (select(completions)
+        ..where((c) => c.day.isBiggerOrEqualValue(sinceUtc))
+        ..orderBy([(c) => OrderingTerm.asc(c.day)]))
+      .get();
 
   Stream<List<Habit>> watchActiveHabits(int userId) => (select(habits)
         ..where((h) => h.userId.equals(userId) & h.archivedAt.isNull())

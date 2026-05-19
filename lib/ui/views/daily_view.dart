@@ -2,7 +2,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../data/database.dart' show Completion;
+import '../../data/sync_service.dart';
 import '../../domain/shield_service.dart';
+import '../../domain/streaks.dart' show localMidnightUtc;
 import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/tokens.dart';
@@ -44,14 +48,28 @@ class DailyView extends ConsumerWidget {
 
         Future<void> onRefresh() async {
           final db = ref.read(dbProvider);
-          final habits = ref.read(habitsProvider).valueOrNull ?? [];
+
+          // Pull from Supabase if authenticated.
+          if (Supabase.instance.client.auth.currentSession != null) {
+            try { await SyncService(db).pullAll(); } catch (_) {}
+          }
+
+          // Recompute shield pool from fresh DB reads.
+          final habits = await db.getActiveHabits(1);
           if (habits.isEmpty) return;
+          final vacations = await db.getVacations(1);
+          final sinceUtc = localMidnightUtc(
+              DateTime.now().subtract(const Duration(days: 90)));
+          final recentList = await db.getRecentCompletionsList(sinceUtc);
+          final completionMap = <int, List<Completion>>{};
+          for (final c in recentList) (completionMap[c.habitId] ??= []).add(c);
+          final historyMap = await db.getAllScheduleHistory();
           await recomputeShieldPool(
             db: db,
             habits: habits,
-            completionMap: ref.read(recentCompletionsProvider).valueOrNull ?? {},
-            vacations: ref.read(vacationsProvider).valueOrNull ?? [],
-            historyMap: ref.read(scheduleHistoryProvider).valueOrNull ?? {},
+            completionMap: completionMap,
+            vacations: vacations,
+            historyMap: historyMap,
           );
         }
 

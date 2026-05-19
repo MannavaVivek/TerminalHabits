@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/tokens.dart';
@@ -54,26 +55,25 @@ class _SplashViewState extends ConsumerState<SplashView>
     await prefs.setBool('seenSplash', true);
     if (!mounted) return;
 
-    final db = ref.read(dbProvider);
-    final savedId = prefs.getInt('loggedInUserId');
-
-    if (savedId != null) {
-      final user = await db.getUserById(savedId);
-      if (user != null) {
-        ref.read(currentUserIdProvider.notifier).state = savedId;
-        if (!mounted) return;
-        final seenOnboarding = prefs.getBool('seenOnboarding') ?? false;
-        Navigator.of(context).pushReplacement(PageRouteBuilder<void>(
-          pageBuilder: (_, __, ___) =>
-              seenOnboarding ? const AppScaffold() : const OnboardingView(),
-          transitionDuration: Duration.zero,
-          reverseTransitionDuration: Duration.zero,
-        ));
-        return;
-      }
-      await prefs.remove('loggedInUserId');
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session != null) {
+      final email = Supabase.instance.client.auth.currentUser!.email!;
+      final db = ref.read(dbProvider);
+      await db.ensurePlaceholderUser(email);
+      ref.read(currentUserIdProvider.notifier).state = 1;
+      if (!mounted) return;
+      final seenOnboarding = prefs.getBool('seenOnboarding') ?? false;
+      Navigator.of(context).pushReplacement(PageRouteBuilder<void>(
+        pageBuilder: (_, __, ___) =>
+            seenOnboarding ? const AppScaffold() : const OnboardingView(),
+        transitionDuration: Duration.zero,
+        reverseTransitionDuration: Duration.zero,
+      ));
+      return;
     }
 
+    // No Supabase session — go to register (first time) or login.
+    final db = ref.read(dbProvider);
     final userCount = await db.getUserCount();
     if (!mounted) return;
     Navigator.of(context).pushReplacement(PageRouteBuilder<void>(

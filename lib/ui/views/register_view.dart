@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/tokens.dart';
@@ -44,24 +45,41 @@ class _RegisterViewState extends ConsumerState<RegisterView> {
       setState(() => _error = 'passwords do not match.');
       return;
     }
-
-    setState(() { _loading = true; _error = null; });
-
-    final db = ref.read(dbProvider);
-    final existing = await db.getUserByUsername(email);
-    if (existing != null) {
-      setState(() { _loading = false; _error = 'email already registered.'; });
+    if (pwd.length < 6) {
+      setState(() => _error = 'password must be at least 6 characters.');
       return;
     }
 
-    final userId = await db.createUser(email, '', pwd);
-    await db.createGroup(userId, 'general');
+    setState(() { _loading = true; _error = null; });
 
+    try {
+      final res = await Supabase.instance.client.auth
+          .signUp(email: email, password: pwd);
+      // If email confirmation is required, session will be null.
+      if (res.session == null && res.user == null) {
+        setState(() { _loading = false; _error = 'registration failed. try again.'; });
+        return;
+      }
+      if (res.session == null) {
+        // Email confirmation required — Supabase is configured with it on.
+        // Show a message and redirect to login.
+        setState(() { _loading = false; _error = 'check your email to confirm your account, then log in.'; });
+        return;
+      }
+    } on AuthException catch (e) {
+      setState(() { _loading = false; _error = e.message; });
+      return;
+    } catch (e) {
+      setState(() { _loading = false; _error = 'network error. check your connection.'; });
+      return;
+    }
+
+    final db = ref.read(dbProvider);
+    await db.ensurePlaceholderUser(email);
+    // New account always sees onboarding.
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('loggedInUserId', userId);
-    // New account always sees onboarding regardless of any stale pref.
     await prefs.remove('seenOnboarding');
-    ref.read(currentUserIdProvider.notifier).state = userId;
+    ref.read(currentUserIdProvider.notifier).state = 1;
 
     if (!mounted) return;
     Navigator.of(context).pushReplacement(PageRouteBuilder<void>(
@@ -134,4 +152,3 @@ class _RegisterViewState extends ConsumerState<RegisterView> {
     );
   }
 }
-

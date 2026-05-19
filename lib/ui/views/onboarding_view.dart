@@ -2,7 +2,9 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/database.dart';
+import '../../data/sync_service.dart';
 import '../../domain/schedule.dart';
 import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
@@ -77,6 +79,11 @@ class _OnboardingViewState extends ConsumerState<OnboardingView> {
           sortIndex: sortIndex++,
         ));
       }
+    }
+
+    // Push local data to Supabase after onboarding creates habits.
+    if (Supabase.instance.client.auth.currentSession != null) {
+      try { await SyncService(db).pushAll(); } catch (_) {}
     }
 
     if (!mounted) return;

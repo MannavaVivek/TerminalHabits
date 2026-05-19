@@ -46,3 +46,6 @@ app.*.map.json
 
 # Claude Code session memory — never commit
 .claude/
+
+# Supabase credentials — keep off git for public repos
+lib/config/supabase_config.dart

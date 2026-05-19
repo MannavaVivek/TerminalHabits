@@ -1,42 +1,45 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../state/providers.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/tokens.dart';
 import '../widgets/auth_widgets.dart';
 import '../widgets/prompt_line.dart';
 
-// Temporary local dev feature — Phase 11 replaces with email recovery.
-class ForgotPasswordView extends ConsumerStatefulWidget {
+class ForgotPasswordView extends StatefulWidget {
   const ForgotPasswordView({super.key});
 
   @override
-  ConsumerState<ForgotPasswordView> createState() =>
-      _ForgotPasswordViewState();
+  State<ForgotPasswordView> createState() => _ForgotPasswordViewState();
 }
 
-class _ForgotPasswordViewState extends ConsumerState<ForgotPasswordView> {
-  final _userCtrl = TextEditingController();
-  String? _password;
+class _ForgotPasswordViewState extends State<ForgotPasswordView> {
+  final _emailCtrl = TextEditingController();
   String? _error;
+  bool _sent = false;
+  bool _loading = false;
 
   @override
   void dispose() {
-    _userCtrl.dispose();
+    _emailCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _lookup() async {
-    final username = _userCtrl.text.trim();
-    if (username.isEmpty) {
-      setState(() { _error = 'enter a username.'; _password = null; });
+  Future<void> _submit() async {
+    final email = _emailCtrl.text.trim().toLowerCase();
+    if (email.isEmpty) {
+      setState(() => _error = 'enter your email address.');
       return;
     }
-    final user = await ref.read(dbProvider).getUserByUsername(username);
-    if (user == null) {
-      setState(() { _error = 'no account found.'; _password = null; });
-    } else {
-      setState(() { _error = null; _password = user.password; });
+
+    setState(() { _loading = true; _error = null; });
+
+    try {
+      await Supabase.instance.client.auth.resetPasswordForEmail(email);
+      if (mounted) setState(() { _loading = false; _sent = true; });
+    } on AuthException catch (e) {
+      if (mounted) setState(() { _loading = false; _error = e.message; });
+    } catch (_) {
+      if (mounted) setState(() { _loading = false; _error = 'network error. check your connection.'; });
     }
   }
 
@@ -56,60 +59,54 @@ class _ForgotPasswordViewState extends ConsumerState<ForgotPasswordView> {
               children: [
                 const PromptLine(user: '?', command: 'forgot-password'),
                 const SizedBox(height: TH.s22),
-                AuthField(
-                  label: 'username',
-                  controller: _userCtrl,
-                  autofocus: true,
-                  onSubmit: _lookup,
-                ),
-                if (_error != null) ...[
-                  const SizedBox(height: TH.s8),
-                  Text(_error!,
-                      style: TextStyle(color: col.red, fontSize: 12)),
-                ],
-                if (_password != null) ...[
-                  const SizedBox(height: TH.s14),
+                if (_sent) ...[
                   Container(
-                    padding: const EdgeInsets.all(TH.s8),
+                    padding: const EdgeInsets.all(TH.s14),
                     decoration: BoxDecoration(
-                      border: Border.all(color: col.line),
+                      border: Border.all(color: col.green),
                       borderRadius: const BorderRadius.all(TH.r4),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('password:',
+                        Text('email sent.',
                             style: TextStyle(
-                                color: col.fgMute, fontSize: 11)),
-                        const SizedBox(height: 4),
-                        Text(_password!,
-                            style: TextStyle(
-                                color: col.amber,
+                                color: col.green,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600)),
+                        const SizedBox(height: TH.s8),
+                        Text(
+                          'check your inbox for a password reset link.\n'
+                          'the link expires in 1 hour.',
+                          style: TextStyle(color: col.fgDim, fontSize: 12),
+                        ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: TH.s8),
-                  Text(
-                    '// temporary dev feature — Phase 11 replaces this with email recovery.',
-                    style: TextStyle(color: col.fgFaint, fontSize: 11),
+                  const SizedBox(height: TH.s22),
+                ] else ...[
+                  AuthField(
+                    label: 'email',
+                    controller: _emailCtrl,
+                    autofocus: true,
+                    onSubmit: _submit,
                   ),
-                ],
-                const SizedBox(height: TH.s22),
-                Row(
-                  children: [
-                    AuthButton(
-                      label: '[ look up ]',
-                      accent: true,
-                      onTap: _lookup,
-                    ),
-                    const SizedBox(width: TH.s14),
-                    AuthButton(
-                      label: '[ back ]',
-                      onTap: () => Navigator.of(context).pop(),
-                    ),
+                  if (_error != null) ...[
+                    const SizedBox(height: TH.s8),
+                    Text(_error!,
+                        style: TextStyle(color: col.red, fontSize: 12)),
                   ],
+                  const SizedBox(height: TH.s22),
+                  AuthButton(
+                    label: _loading ? '[ ... ]' : '[ send reset email ]',
+                    accent: true,
+                    onTap: _loading ? null : _submit,
+                  ),
+                  const SizedBox(height: TH.s14),
+                ],
+                AuthButton(
+                  label: '[ back ]',
+                  onTap: () => Navigator.of(context).pop(),
                 ),
               ],
             ),
