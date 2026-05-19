@@ -20,11 +20,12 @@ class MobileTopBar extends ConsumerWidget {
       ),
       padding: const EdgeInsets.symmetric(horizontal: TH.s14),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           _Tab(label: 'daily',   view: 'daily',   current: view, col: col, ref: ref),
-          const SizedBox(width: TH.s8),
+          const SizedBox(width: TH.s14),
           _Tab(label: 'stats',   view: 'stats',   current: view, col: col, ref: ref),
-          const SizedBox(width: TH.s8),
+          const SizedBox(width: TH.s14),
           _Tab(label: 'profile', view: 'profile', current: view, col: col, ref: ref),
         ],
       ),

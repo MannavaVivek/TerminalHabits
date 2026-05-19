@@ -248,12 +248,18 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
     final iconData = lucideIconData(_iconKey);
     final iconColor = colorMap[_color] ?? col.green;
 
+    final keyboardHeight = MediaQuery.viewInsetsOf(context).bottom;
+    final screenHeight = MediaQuery.sizeOf(context).height;
     return Dialog(
       backgroundColor: col.bg2,
       shape: RoundedRectangleBorder(
           borderRadius: const BorderRadius.all(TH.r10)),
-      child: SizedBox(
-        width: 440,
+      insetPadding: EdgeInsets.fromLTRB(12, 12, 12, keyboardHeight + 12),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 440,
+          maxHeight: screenHeight - keyboardHeight - 48,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

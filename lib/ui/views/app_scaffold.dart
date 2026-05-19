@@ -95,8 +95,7 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
       _ => const DailyView(),
     };
 
-    return LayoutBuilder(builder: (context, constraints) {
-      final isMobile = constraints.maxWidth < 720;
+    final isMobile = Platform.isAndroid;
 
       Widget body;
       if (isMobile) {
@@ -231,7 +230,6 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
           child: Focus(autofocus: true, child: content),
         ),
       );
-    });
   }
 
   void _moveFocus(WidgetRef ref, int delta) {

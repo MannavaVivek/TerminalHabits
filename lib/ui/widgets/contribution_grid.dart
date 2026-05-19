@@ -150,18 +150,20 @@ class _ContributionGridState extends State<ContributionGrid> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Grid — horizontally scrollable so it fits on narrow screens.
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          controller: _scrollCtrl,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Column(children: dowAxis),
-              const SizedBox(width: 2),
-              Wrap(spacing: gap, children: weekCols),
-            ],
-          ),
+        // Grid — DOW labels fixed, week columns horizontally scrollable.
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Column(children: dowAxis),
+            const SizedBox(width: 2),
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                controller: _scrollCtrl,
+                child: Wrap(spacing: gap, children: weekCols),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: TH.s8),
         // Legend
