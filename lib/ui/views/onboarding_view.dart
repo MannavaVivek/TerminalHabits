@@ -6,6 +6,7 @@ import '../../data/database.dart';
 import '../../domain/schedule.dart';
 import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/icon_library.dart';
 import '../../theme/tokens.dart';
 import '../widgets/prompt_line.dart';
 import 'app_scaffold.dart';
@@ -89,12 +90,12 @@ class _OnboardingViewState extends ConsumerState<OnboardingView> {
   }
 
   static const _starterDefs = {
-    'meditate': ('meditate', '🧘'),
-    'journal':  ('journal',  '📓'),
-    'exercise': ('exercise', '💪'),
-    'read':     ('read',     '📚'),
-    'water':    ('drink water', '💧'),
-    'sleep':    ('sleep on time', '🌙'),
+    'meditate': ('meditate',       'brain'),
+    'journal':  ('journal',        'pencil'),
+    'exercise': ('exercise',       'dumbbell'),
+    'read':     ('read',           'book'),
+    'water':    ('drink water',    'droplets'),
+    'sleep':    ('sleep on time',  'moon'),
   };
 
   @override
@@ -361,7 +362,9 @@ class _StarterHabitsStep extends StatelessWidget {
                             color: isSel ? col.green : col.fgMute,
                             fontSize: 13)),
                     const SizedBox(width: TH.s8),
-                    Text(e.value.$2, style: const TextStyle(fontSize: 13)),
+                    Icon(lucideIconData(e.value.$2),
+                        size: 14,
+                        color: isSel ? col.green : col.fgMute),
                     const SizedBox(width: TH.s8),
                     Text(e.value.$1,
                         style: TextStyle(

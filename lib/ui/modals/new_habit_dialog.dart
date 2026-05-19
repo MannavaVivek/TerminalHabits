@@ -248,26 +248,21 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
     final iconData = lucideIconData(_iconKey);
     final iconColor = colorMap[_color] ?? col.green;
 
-    final keyboardHeight = MediaQuery.viewInsetsOf(context).bottom;
-    final screenHeight = MediaQuery.sizeOf(context).height;
     return Dialog(
       backgroundColor: col.bg2,
       shape: RoundedRectangleBorder(
           borderRadius: const BorderRadius.all(TH.r10)),
-      insetPadding: EdgeInsets.fromLTRB(12, 12, 12, keyboardHeight + 12),
+      insetPadding: const EdgeInsets.all(12),
       child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: 440,
-          maxHeight: screenHeight - keyboardHeight - 48,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // ── Header bar ─────────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: TH.s14, vertical: TH.s8),
-              child: Row(
+        constraints: const BoxConstraints(maxWidth: 440),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(TH.s14, TH.s8, TH.s14, TH.s14),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Header bar ─────────────────────────────────────────────────
+              Row(
                 children: [
                   GestureDetector(
                     onTap: () => Navigator.of(context).pop(),
@@ -290,18 +285,11 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
                   ),
                 ],
               ),
-            ),
-            Divider(color: col.line, height: 1),
+              const SizedBox(height: TH.s8),
+              Divider(color: col.line, height: 1),
 
-            // ── Body ────────────────────────────────────────────────────────
-            Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(
-                    TH.s14, TH.s4, TH.s14, TH.s14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // / name ─────────────────────────────────────────────────
+              // ── Body ────────────────────────────────────────────────────────
+              // / name ─────────────────────────────────────────────────
                     _SecHeader(LucideIcons.pencil, 'name', col: col),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -526,9 +514,6 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
                 ),
               ),
             ),
-          ],
-        ),
-      ),
     );
   }
 }

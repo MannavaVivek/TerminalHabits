@@ -122,6 +122,7 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
 
       Widget content = Scaffold(
         backgroundColor: col.bg,
+        resizeToAvoidBottomInset: false,
         body: Column(
           children: [
             if (!isMobile) const WindowChrome(),

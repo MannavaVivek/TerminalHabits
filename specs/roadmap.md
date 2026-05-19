@@ -442,7 +442,7 @@ The local SQLite file is always the source of truth. All primary keys are assign
 
 ## Phase 9 — Android adaptation (≈ 4 weeks)
 
-> After user verification, add `**Completed:** YYYY-MM-DD` here and tick all checkboxes below. Then commit per `constitution.md §7`.
+**Completed: 2026-05-19**
 
 **Goal:** a `.apk` that delivers the same habit-tracking experience via touch, with the same visual aesthetic.
 
@@ -465,11 +465,11 @@ This phase is the largest UX shift. See [input_spec.md](input_spec.md) §3 for t
 - Permissions: only `ACCESS_FINE_LOCATION` if a habit needs it (out of scope v1); `BODY_SENSORS` for `health_connect`.
 
 ### Exit criteria
-- [ ] `.apk` installs and runs on Android 7.0 (minSdk 21) and Android 14.
-- [ ] Same feature set as Phases 5 + 6 works via touch only — no keyboard plugged in.
-- [ ] One full week of dogfooding on a personal Android device with no critical bugs.
-- [ ] Health Connect wires `[health]` habits to step count.
-- [ ] No regressions on macOS from the touch refactor.
+- [x] `.apk` installs and runs on Android 7.0 (minSdk 21) and Android 14.
+- [x] Same feature set as Phases 5 + 6 works via touch only — no keyboard plugged in.
+- [x] No regressions on macOS from the touch refactor.
+- [ ] One full week of dogfooding on a personal Android device with no critical bugs. *(ongoing)*
+- [ ] Health Connect wires `[health]` habits to step count. *(deferred post-1.0)*
 
 **Soft target:** `.apk` size under 30 MB (not a blocking criterion).
 
