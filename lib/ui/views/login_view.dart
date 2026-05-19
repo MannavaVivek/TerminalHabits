@@ -85,15 +85,20 @@ class _LoginViewState extends ConsumerState<LoginView> {
     final col = context.col;
     return Scaffold(
       backgroundColor: col.bg,
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 400),
-          child: Padding(
-            padding: const EdgeInsets.all(TH.s22),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+      body: SafeArea(
+        child: LayoutBuilder(builder: (context, constraints) {
+          return SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: 400,
+                minHeight: constraints.maxHeight,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(TH.s22),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                 const PromptLine(user: '?', command: 'login'),
                 const SizedBox(height: TH.s22),
                 AuthField(label: 'email', controller: _userCtrl,
@@ -132,6 +137,8 @@ class _LoginViewState extends ConsumerState<LoginView> {
             ),
           ),
         ),
+          );
+        }),
       ),
     );
   }

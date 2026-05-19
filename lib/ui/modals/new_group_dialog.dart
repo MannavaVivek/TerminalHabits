@@ -54,12 +54,18 @@ class _NewGroupDialogState extends State<NewGroupDialog> {
     final col = context.col;
     final iconData = lucideIconData(_icon);
 
+    final keyboardH = MediaQuery.viewInsetsOf(context).bottom;
+    final screenH = MediaQuery.sizeOf(context).height;
     return Dialog(
       backgroundColor: col.bg2,
       shape:
           RoundedRectangleBorder(borderRadius: const BorderRadius.all(TH.r10)),
-      child: SizedBox(
-        width: 380,
+      insetPadding: EdgeInsets.fromLTRB(12, 12, 12, keyboardH + 12),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 380,
+          maxHeight: screenH - keyboardH - 48,
+        ),
         child: SingleChildScrollView(
           child: Padding(
           padding: const EdgeInsets.all(TH.s22),

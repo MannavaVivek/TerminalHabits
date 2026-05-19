@@ -89,7 +89,9 @@ class _SplashViewState extends ConsumerState<SplashView>
     final col = context.col;
     return Scaffold(
       backgroundColor: col.bg,
-      body: KeyboardListener(
+      body: SafeArea(
+        minimum: const EdgeInsets.all(TH.s14),
+        child: KeyboardListener(
         focusNode: FocusNode()..requestFocus(),
         autofocus: true,
         onKeyEvent: (event) {
@@ -145,6 +147,7 @@ class _SplashViewState extends ConsumerState<SplashView>
             ),
           ),
         ),
+      ),
       ),
     );
   }

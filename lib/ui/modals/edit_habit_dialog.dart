@@ -281,12 +281,18 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
     final groupsAV = ref.watch(groupsProvider);
     final groups = groupsAV.valueOrNull ?? const <Group>[];
 
+    final keyboardH = MediaQuery.viewInsetsOf(context).bottom;
+    final screenH = MediaQuery.sizeOf(context).height;
     return Dialog(
       backgroundColor: col.bg2,
       shape:
           RoundedRectangleBorder(borderRadius: const BorderRadius.all(TH.r10)),
-      child: SizedBox(
-        width: 460,
+      insetPadding: EdgeInsets.fromLTRB(12, 12, 12, keyboardH + 12),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 460,
+          maxHeight: screenH - keyboardH - 48,
+        ),
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(TH.s22),
           child: Column(
