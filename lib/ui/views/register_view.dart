@@ -55,12 +55,20 @@ class _RegisterViewState extends ConsumerState<RegisterView> {
     try {
       final res = await Supabase.instance.client.auth
           .signUp(email: email, password: pwd);
-      if (res.session == null && res.user == null) {
+      if (res.user == null) {
         setState(() { _loading = false; _error = 'registration failed. try again.'; });
         return;
       }
       if (res.session == null) {
-        setState(() { _loading = false; _error = 'check your email to confirm your account, then log in.'; });
+        // Email confirmation is enabled, or account already existed.
+        // Redirect to login — they can sign in immediately once confirmed.
+        if (!mounted) return;
+        setState(() => _loading = false);
+        Navigator.of(context).pushReplacement(PageRouteBuilder<void>(
+          pageBuilder: (_, __, ___) => const LoginView(),
+          transitionDuration: Duration.zero,
+          reverseTransitionDuration: Duration.zero,
+        ));
         return;
       }
     } on AuthException catch (e) {
