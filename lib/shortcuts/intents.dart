@@ -46,3 +46,7 @@ class EditFocusedHabitIntent extends Intent {
 class ArchiveFocusedHabitIntent extends Intent {
   const ArchiveFocusedHabitIntent();
 }
+
+class SyncIntent extends Intent {
+  const SyncIntent();
+}

@@ -50,8 +50,9 @@ class DailyView extends ConsumerWidget {
           final db = ref.read(dbProvider);
 
           // Pull from Supabase if authenticated.
+          // Auto-push (AppScaffold debounce) handles the outbound direction.
           if (Supabase.instance.client.auth.currentSession != null) {
-            try { await SyncService(db).pullAll(); } catch (_) {}
+            try { await SyncService(db).pullAll(); } catch (e) { debugPrint('pullAll error: $e'); }
           }
 
           // Recompute shield pool from fresh DB reads.
@@ -79,8 +80,9 @@ class DailyView extends ConsumerWidget {
         } else if (state.groups.isEmpty) {
           body = _EmptyDay(selectedDay: state.today);
         } else {
-          Widget list = ListView.builder(
+          body = ListView.builder(
             padding: const EdgeInsets.only(bottom: 88), // clear the FAB
+            physics: const AlwaysScrollableScrollPhysics(),
             itemCount: state.groups.length + 1,
             itemBuilder: (context, i) {
               if (i == state.groups.length) {
@@ -93,14 +95,23 @@ class DailyView extends ConsumerWidget {
               return HabitGroupWidget(dailyGroup: state.groups[i]);
             },
           );
-          body = Platform.isAndroid
-              ? RefreshIndicator(
-                  color: col.green,
-                  backgroundColor: col.bg2,
-                  onRefresh: onRefresh,
-                  child: list,
-                )
-              : list;
+        }
+
+        if (Platform.isAndroid) {
+          body = RefreshIndicator(
+            color: col.green,
+            backgroundColor: col.bg2,
+            onRefresh: onRefresh,
+            child: body is _EmptyDay || body is _VacationActiveMessage
+                ? SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: SizedBox(
+                      height: MediaQuery.of(context).size.height * 0.6,
+                      child: body,
+                    ),
+                  )
+                : body,
+          );
         }
 
         return Column(

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:drift/drift.dart' show Value;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'database.dart';
@@ -9,9 +10,23 @@ class SyncService {
   SupabaseClient get _c => Supabase.instance.client;
   String get _uid => _c.auth.currentUser!.id;
 
+  // True while a pull is in progress + 3s cooldown after it completes.
+  // AppScaffold checks this before scheduling a push so post-pull stream
+  // emissions don't immediately overwrite the server with stale local data.
+  static bool isPulling = false;
+  static Timer? _pullCooldown;
+
   // ── Push (local → Supabase) ────────────────────────────────────────────────
 
   Future<void> pushAll() async {
+    // Delete server data in FK-safe order (children before parents).
+    await _c.from('completions').delete().eq('user_id', _uid);
+    await _c.from('day_shields').delete().eq('user_id', _uid);
+    await _c.from('habit_schedule_history').delete().eq('user_id', _uid);
+    await _c.from('habits').delete().eq('user_id', _uid);
+    await _c.from('groups').delete().eq('user_id', _uid);
+    await _c.from('vacations').delete().eq('user_id', _uid);
+    // Reinsert in parent-first order.
     await _pushGroups();
     await _pushHabits();
     await _pushHistory();
@@ -77,7 +92,6 @@ class SyncService {
   Future<void> _pushCompletions() async {
     final rows = await _db.getAllCompletions();
     if (rows.isEmpty) return;
-    // Batch in chunks of 500 to stay within request size limits.
     for (var i = 0; i < rows.length; i += 500) {
       final batch = rows.sublist(i, (i + 500).clamp(0, rows.length));
       await _c.from('completions').upsert(batch.map((c) => {
@@ -118,8 +132,20 @@ class SyncService {
   // ── Pull (Supabase → local) ────────────────────────────────────────────────
 
   // Replaces all local synced data with server state.
-  // Skips if the server has no data yet (prevents wiping local on first sync).
-  Future<void> pullAll() async {
+  // Returns true if server had data (and local was replaced), false if skipped.
+  Future<bool> pullAll() async {
+    isPulling = true;
+    _pullCooldown?.cancel();
+    try {
+      return await _pullAllInner();
+    } finally {
+      // Keep isPulling true for 3s so AppScaffold's debounced auto-push
+      // (triggered by stream emissions from the pull) is suppressed.
+      _pullCooldown = Timer(const Duration(seconds: 3), () => isPulling = false);
+    }
+  }
+
+  Future<bool> _pullAllInner() async {
     final serverGroups = await _c.from('groups').select().eq('user_id', _uid)
         as List<dynamic>;
     final serverHabits = await _c.from('habits').select().eq('user_id', _uid)
@@ -139,9 +165,11 @@ class SyncService {
         .select()
         .eq('user_id', _uid) as List<dynamic>;
 
-    // If server is completely empty, user hasn't pushed yet — don't wipe local.
-    if (serverGroups.isEmpty && serverHabits.isEmpty && serverCompletions.isEmpty) {
-      return;
+    // If server has no habits, skip — either a fresh account or another device's
+    // pushAll() is mid-flight (deleted but not yet reinserted). Wiping local
+    // with an empty snapshot would destroy data.
+    if (serverHabits.isEmpty) {
+      return false;
     }
 
     await _db.transaction(() async {
@@ -234,6 +262,7 @@ class SyncService {
             ));
       }
     });
+    return true;
   }
 
   DateTime _ms(dynamic ms) =>

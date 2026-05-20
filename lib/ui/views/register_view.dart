@@ -60,16 +60,23 @@ class _RegisterViewState extends ConsumerState<RegisterView> {
         return;
       }
       if (res.session == null) {
-        // Email confirmation is enabled, or account already existed.
-        // Redirect to login — they can sign in immediately once confirmed.
-        if (!mounted) return;
-        setState(() => _loading = false);
-        Navigator.of(context).pushReplacement(PageRouteBuilder<void>(
-          pageBuilder: (_, __, ___) => const LoginView(),
-          transitionDuration: Duration.zero,
-          reverseTransitionDuration: Duration.zero,
-        ));
-        return;
+        // No session yet — try immediate sign-in (email confirmation disabled).
+        try {
+          final signIn = await Supabase.instance.client.auth
+              .signInWithPassword(email: email, password: pwd);
+          if (signIn.session == null) throw Exception('no session');
+          // Fall through to the post-auth setup below.
+        } catch (_) {
+          // Needs email confirmation — send them to login.
+          if (!mounted) return;
+          setState(() => _loading = false);
+          Navigator.of(context).pushReplacement(PageRouteBuilder<void>(
+            pageBuilder: (_, __, ___) => const LoginView(),
+            transitionDuration: Duration.zero,
+            reverseTransitionDuration: Duration.zero,
+          ));
+          return;
+        }
       }
     } on AuthException catch (e) {
       setState(() { _loading = false; _error = e.message; });

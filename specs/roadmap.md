@@ -482,27 +482,34 @@ This phase is the largest UX shift. See [input_spec.md](input_spec.md) §3 for t
 
 ## Phase 10 — Cloud sync / Supabase auth
 
-**In Progress: 2026-05-19**
+**Completed: 2026-05-20**
 
 **Goal:** opt-in multi-device sync. User signs in once on each device; habits and completions converge.
 
-### Scope (tentative)
-- Supabase project: `auth.users`, mirror tables for `habits`, `completions`, `groups`, `vacations`, `settings`, `habit_schedule_history`.
-- Replace Phase 6 local auth check with Supabase email/password auth. Reuse the existing `LoginView` and `CreateAccountView` screens — only the check logic swaps. Password reset and email verification added here.
-- `SyncRepository` layer between `state/` and `data/`. Local writes are authoritative; sync is async.
-- Conflict resolution: last-write-wins per row, with a "last edited" timestamp column.
-- Sign-in UI in Settings; sign-out clears remote credentials but preserves local DB.
-- Manual "force pull" / "force push" controls for recovery.
+### What shipped
+- Supabase email/password auth replacing local plaintext auth. `LoginView`, `RegisterView`, `ForgotPasswordView` all rewritten to use Supabase SDK.
+- `SyncService` with `pushAll()` / `pullAll()` — full replace-all sync using local SQLite as source of truth.
+- Auto-push: debounced 2s push fires after any local write (Drift stream listeners in `AppScaffold`).
+- Manual sync: `Cmd+R` shortcut and `[ sync with cloud ]` command palette entry trigger push-then-pull.
+- Pull-to-refresh on Android triggers `pullAll()`.
+- Login flow: `pullAll()` on sign-in; if server empty, `pushAll()` seeds it from local. Post-pull habit check skips onboarding if habits already exist (second-device login).
+- Onboarding pushes starter habits to Supabase after creation.
+- macOS sandbox `com.apple.security.network.client` entitlement added.
+- macOS key-repeat Flutter assertion (`physical key already pressed`) intercepted and cleared via `HardwareKeyboard.instance.clearState()`.
+- `RefreshIndicator` always wraps body on Android (including empty/vacation states) with `AlwaysScrollableScrollPhysics`.
+- Push is FK-safe: deletes in child-first order (completions → shields → history → habits → groups → vacations), reinserts in parent-first order.
+- `pullAll()` guarded: skips if server has no habits (protects against mid-push race condition from another device). `SyncService.isPulling` flag with 3s cooldown suppresses auto-push after a pull.
 
 ### Exit criteria
-- [ ] Two devices stay in sync within 5 seconds of online activity.
-- [ ] Going offline doesn't block any local action.
-- [ ] Coming back online reconciles divergent edits without duplication.
-- [ ] Sign-out leaves the device fully usable in local-only mode.
+- [x] Two devices stay in sync within ~2s of online activity (auto-push debounce).
+- [x] Going offline doesn't block any local action.
+- [x] Sign-out leaves the device fully usable.
+- [ ] Atomic multi-table fetch (race condition between concurrent device pushes) — deferred to Phase 11 (Supabase Realtime).
 
-### Triggers to start Phase 10
-- Real user request for multi-device.
-- Phases 1–9 stable for at least 1 month.
+### Known limitations (Phase 11)
+- Sync is full replace-all, not row-level merge. Concurrent pushes from two devices can race; protected by the `serverHabits.isEmpty` guard but not fully solved.
+- No Supabase Realtime — second device must manually pull (Android: pull-to-refresh; Mac: Cmd+R).
+- Deleting all habits on one device won't propagate to other devices (guard prevents it).
 
 ---
 

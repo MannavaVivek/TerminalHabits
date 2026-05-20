@@ -83,7 +83,7 @@ class _OnboardingViewState extends ConsumerState<OnboardingView> {
 
     // Push local data to Supabase after onboarding creates habits.
     if (Supabase.instance.client.auth.currentSession != null) {
-      try { await SyncService(db).pushAll(); } catch (_) {}
+      try { await SyncService(db).pushAll(); } catch (e) { debugPrint('pushAll error: $e'); }
     }
 
     if (!mounted) return;

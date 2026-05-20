@@ -14,6 +14,19 @@ import 'theme/tokens.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // macOS sends key-repeat as KeyDownEvent for an already-pressed key, which
+  // corrupts Flutter's key state and breaks modifier shortcuts (Cmd+R etc.).
+  // Intercept the assertion and clear the stale state so shortcuts keep working.
+  final _origOnError = FlutterError.onError;
+  FlutterError.onError = (FlutterErrorDetails details) {
+    if (details.exceptionAsString().contains('physical key is already pressed')) {
+      // ignore: invalid_use_of_visible_for_testing_member
+      HardwareKeyboard.instance.clearState();
+      return;
+    }
+    _origOnError?.call(details);
+  };
+
   // Fonts are bundled in assets/fonts/ — never fetch from the network.
   GoogleFonts.config.allowRuntimeFetching = false;
 

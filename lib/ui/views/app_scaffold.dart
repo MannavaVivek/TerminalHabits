@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../data/sync_service.dart';
 import '../../domain/shield_service.dart';
 import '../../domain/streaks.dart';
 import '../../shortcuts/intents.dart';
@@ -32,6 +35,24 @@ class AppScaffold extends ConsumerStatefulWidget {
 
 class _AppScaffoldState extends ConsumerState<AppScaffold> {
   bool _scanDone = false;
+  Timer? _syncTimer;
+  bool _pulling = false;
+
+  void _schedulePush() {
+    if (_pulling || SyncService.isPulling) return;
+    if (Supabase.instance.client.auth.currentSession == null) return;
+    _syncTimer?.cancel();
+    _syncTimer = Timer(const Duration(seconds: 2), () {
+      final db = ref.read(dbProvider);
+      SyncService(db).pushAll().catchError((e) => debugPrint('pushAll error: $e'));
+    });
+  }
+
+  @override
+  void dispose() {
+    _syncTimer?.cancel();
+    super.dispose();
+  }
 
   void _maybeRunScan() {
     if (_scanDone) return;
@@ -81,6 +102,11 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
     ref.listen(recentCompletionsProvider, (_, next) {
       if (next.hasValue) _recomputePool();
     });
+    // Auto-push to Supabase 2s after any data change (debounced).
+    ref.listen(habitsProvider, (_, __) => _schedulePush());
+    ref.listen(recentCompletionsProvider, (_, __) => _schedulePush());
+    ref.listen(groupsProvider, (_, __) => _schedulePush());
+    ref.listen(vacationsProvider, (_, __) => _schedulePush());
     _maybeRunScan();
 
     final col = context.col;
@@ -157,6 +183,9 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
           SingleActivator(LogicalKeyboardKey.comma,
                   meta: isMeta, control: !isMeta):
               const OpenSettingsIntent(),
+          SingleActivator(LogicalKeyboardKey.keyR,
+                  meta: isMeta, control: !isMeta):
+              const SyncIntent(),
           const SingleActivator(LogicalKeyboardKey.keyJ):
               const FocusNextHabitIntent(),
           const SingleActivator(LogicalKeyboardKey.keyK):
@@ -227,10 +256,25 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
                 return null;
               },
             ),
+            SyncIntent: CallbackAction<SyncIntent>(
+              onInvoke: (_) {
+                _syncNow();
+                return null;
+              },
+            ),
           },
           child: Focus(autofocus: true, child: content),
         ),
       );
+  }
+
+  void _syncNow() {
+    if (Supabase.instance.client.auth.currentSession == null) return;
+    final db = ref.read(dbProvider);
+    _pulling = true;
+    SyncService(db).pullAll()
+        .catchError((Object e) { debugPrint('sync error: $e'); return false; })
+        .whenComplete(() => _pulling = false);
   }
 
   void _moveFocus(WidgetRef ref, int delta) {

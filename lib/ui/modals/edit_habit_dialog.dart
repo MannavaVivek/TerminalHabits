@@ -430,88 +430,66 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
                 ),
               ],
               const SizedBox(height: TH.s14),
+              _Label('icon', col: col),
               Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _Label('icon', col: col),
-                        Row(
-                          children: [
-                            Container(
-                              width: 36,
-                              height: 36,
-                              decoration: BoxDecoration(
-                                border: Border.all(color: col.line2),
-                                borderRadius: const BorderRadius.all(TH.r4),
-                                color: col.bg1,
-                              ),
-                              child: Center(
-                                child: () {
-                                  final d = lucideIconData(_iconKey) ??
-                                      lucideIconData(widget.habit.icon);
-                                  final c = colorMap[_color] ?? col.green;
-                                  return d != null
-                                      ? Icon(d, size: 18, color: c)
-                                      : Text(widget.habit.icon,
-                                          style: TextStyle(
-                                              color: c, fontSize: 16));
-                                }(),
-                              ),
-                            ),
-                            const SizedBox(width: TH.s8),
-                            GestureDetector(
-                              onTap: () async {
-                                final key = await IconPickerDialog.show(
-                                    context,
-                                    initial: _iconKey ??
-                                        (lucideIconData(widget.habit.icon) !=
-                                                null
-                                            ? widget.habit.icon
-                                            : null));
-                                if (key != null) {
-                                  setState(() => _iconKey = key);
-                                }
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: TH.s8, vertical: TH.s4),
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: col.line2),
-                                  borderRadius: const BorderRadius.all(TH.r4),
-                                ),
-                                child: Text('[ pick icon ]',
-                                    style: TextStyle(
-                                        color: col.fgDim, fontSize: 12)),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: col.line2),
+                      borderRadius: const BorderRadius.all(TH.r4),
+                      color: col.bg1,
+                    ),
+                    child: Center(
+                      child: () {
+                        final d = lucideIconData(_iconKey) ??
+                            lucideIconData(widget.habit.icon);
+                        final c = colorMap[_color] ?? col.green;
+                        return d != null
+                            ? Icon(d, size: 18, color: c)
+                            : Text(widget.habit.icon,
+                                style: TextStyle(color: c, fontSize: 16));
+                      }(),
                     ),
                   ),
-                  const SizedBox(width: TH.s14),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _Label('color', col: col),
-                      Row(
-                        children: [
-                          for (final c in colorMap.keys)
-                            Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: _ColorDot(
-                                color: colorMap[c]!,
-                                selected: _color == c,
-                                onTap: () => setState(() => _color = c),
-                              ),
-                            ),
-                        ],
+                  const SizedBox(width: TH.s8),
+                  GestureDetector(
+                    onTap: () async {
+                      final key = await IconPickerDialog.show(
+                          context,
+                          initial: _iconKey ??
+                              (lucideIconData(widget.habit.icon) != null
+                                  ? widget.habit.icon
+                                  : null));
+                      if (key != null) setState(() => _iconKey = key);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: TH.s8, vertical: TH.s4),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: col.line2),
+                        borderRadius: const BorderRadius.all(TH.r4),
                       ),
-                    ],
+                      child: Text('[ pick icon ]',
+                          style: TextStyle(color: col.fgDim, fontSize: 12)),
+                    ),
                   ),
+                ],
+              ),
+              const SizedBox(height: TH.s14),
+              _Label('color', col: col),
+              Row(
+                children: [
+                  for (final c in colorMap.keys)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: _ColorDot(
+                        color: colorMap[c]!,
+                        selected: _color == c,
+                        onTap: () => setState(() => _color = c),
+                      ),
+                    ),
                 ],
               ),
               const SizedBox(height: TH.s14),

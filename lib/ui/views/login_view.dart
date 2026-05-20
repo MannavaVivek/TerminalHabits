@@ -63,14 +63,32 @@ class _LoginViewState extends ConsumerState<LoginView> {
     await db.ensurePlaceholderUser(email);
     ref.read(currentUserIdProvider.notifier).state = 1;
 
-    try { await SyncService(db).pullAll(); } catch (_) {}
+    bool hadServerData = false;
+    try { hadServerData = await SyncService(db).pullAll(); } catch (_) {}
+    if (!hadServerData) {
+      try { await SyncService(db).pushAll(); } catch (_) {}
+    }
 
     if (!mounted) return;
     final prefs = await SharedPreferences.getInstance();
     final seenOnboarding = prefs.getBool('seenOnboarding') ?? false;
+
+    Widget dest;
+    if (seenOnboarding) {
+      dest = const AppScaffold();
+    } else {
+      final habits = await db.getActiveHabits(1);
+      if (habits.isNotEmpty) {
+        await prefs.setBool('seenOnboarding', true);
+        dest = const AppScaffold();
+      } else {
+        dest = const OnboardingView();
+      }
+    }
+
+    if (!mounted) return;
     Navigator.of(context).pushReplacement(PageRouteBuilder<void>(
-      pageBuilder: (_, __, ___) =>
-          seenOnboarding ? const AppScaffold() : const OnboardingView(),
+      pageBuilder: (_, __, ___) => dest,
       transitionDuration: Duration.zero,
       reverseTransitionDuration: Duration.zero,
     ));
