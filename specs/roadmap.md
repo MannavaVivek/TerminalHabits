@@ -513,6 +513,101 @@ This phase is the largest UX shift. See [input_spec.md](input_spec.md) §3 for t
 
 ---
 
+## Phase 11 — Sync v2: Realtime + row-level merge (≈ 2 weeks)
+
+**Not started**
+
+**Goal:** make multi-device sync reliable. Replace the delete-all-reinsert push model with a proper diff-based approach and add Supabase Realtime so the second device updates automatically without manual pull.
+
+### Scope
+
+- **Row-level upsert merge**: remove the bulk `DELETE … WHERE user_id` from `pushAll()`. Instead, upsert only rows that exist locally and delete only rows that are missing locally (by diffing local IDs vs server IDs per table). This eliminates the window between delete and reinsert that currently causes data loss on concurrent pushes.
+- **Tombstone pattern for deletions**: add a `deleted_at TIMESTAMPTZ` column to `habits`, `groups`, `vacations`, `completions`. Local deletes set `deleted_at` rather than removing the row. `pushAll()` upserts tombstoned rows; `pullAll()` removes local rows whose server counterpart is tombstoned. Drift schema migration required.
+- **Supabase Realtime subscriptions**: subscribe to `INSERT`/`UPDATE`/`DELETE` events on `habits`, `completions`, `groups` via `supabase.from(...).stream(...)` or `RealtimeChannel`. On receiving a change, apply it locally as a targeted upsert/delete rather than a full pull. This replaces manual Cmd+R / pull-to-refresh for the second device.
+- **Remove `SyncService.isPulling` guard and `serverHabits.isEmpty` guard** once the race condition is structurally eliminated.
+- **Remove `pushAll()` from login** — with Realtime active, login just needs to pull current state once.
+
+### Exit criteria
+- [ ] Edit a habit on Mac; it appears on Android within 3 seconds with no manual action.
+- [ ] Delete a habit on one device; it disappears on the other within 3 seconds.
+- [ ] Two devices editing different habits simultaneously converges correctly (no data loss).
+- [ ] App works fully offline; changes push automatically when connectivity resumes.
+
+### Out of scope
+- Conflict resolution for the same habit edited on two devices simultaneously (last-write-wins per field is acceptable for now).
+- iOS.
+
+---
+
+## Phase 12 — Android polish + distribution (≈ 2.5 weeks)
+
+**Not started**
+
+**Goal:** bring the Android experience to a shippable state and prepare for distribution outside a personal device.
+
+### Scope
+
+**Android UX**
+- **Android app icon**: design and wire launcher icon (adaptive icon with foreground/background layers).
+- **Swipe gestures on habit rows**: swipe-right → quick edit dialog; swipe-left → archive with undo snackbar. Defined in `input_spec.md` §3.3 but deferred from Phase 9.
+- **Long-press context menu**: same actions as the desktop right-click habit menu (edit, archive, delete).
+- **Haptic feedback**: implement the full matrix from `input_spec.md` §3.5 — light tap on completion toggle, medium on archive, error pattern on destructive confirm.
+- **Inspector as bottom sheet**: re-introduce the habit inspector on mobile as a draggable bottom sheet (was removed in Phase 9). Tap a habit row to open; shows streak, schedule, recent history.
+
+**Health Connect**
+- Wire `[health]` tracking type to Android Health Connect via the `health` package (already in pubspec, currently stub). Steps and sleep duration auto-fill the daily completion value. Requires `health_connect` permission flow and background read scope. Revisit D-007.
+
+**Distribution**
+- **macOS code signing + notarization**: codesign with Developer ID, notarytool submission, stapler. Required before sharing builds outside your own machine. Steps documented in `build_spec.md` §2.
+- **Android release build + signing**: generate upload keystore, configure `key.properties`, `flutter build appbundle --release`. Sign for internal testing track on Google Play (or direct APK distribution).
+
+### Exit criteria
+- [ ] App icon visible on Android home screen (adaptive, no white box).
+- [ ] Swipe-left archives a habit with visible undo snackbar; swipe-right opens edit dialog.
+- [ ] Long-press on a habit row shows the context menu.
+- [ ] `[health]` habit reads step count from Health Connect on a real device.
+- [ ] macOS build passes notarization (`spctl --assess` green).
+- [ ] Android release APK installable on a fresh device without sideload warnings.
+
+### Out of scope
+- iOS App Store submission.
+- CI/CD pipeline (post-1.0).
+
+---
+
+## Phase 13 — Extras & macOS polish (≈ 2 weeks)
+
+**Not started**
+
+**Goal:** fill in quality-of-life features that have been deferred across multiple phases, and bring macOS to feature parity with the spec.
+
+### Scope
+
+**macOS**
+- **Resizable sidebar/inspector splits**: `multi_split_view` package. User can drag the divider between sidebar, main pane, and inspector. Flagged optional in Phase 7 design spec.
+- **Shield UI**: manual apply/remove shield from the daily view (tap the shield count in the header). Earn shields by converting vacation days. Deferred from Phase 8.
+- **Global show/hide hotkey**: `hotkey_manager` package. System-wide shortcut to bring the app to front (D-005 pending revisit).
+
+**Data**
+- **Bulk import/export (`.json`)**: export all habits + completions to a structured JSON file; import from the same format. Useful for backups and migration.
+- **Habit templates**: curated "morning routine", "fitness", "mindfulness" starter packs selectable during onboarding or from settings. Extends the current onboarding starter habits.
+
+**Notifications**
+- **Per-habit reminders** (revisit D-006): opt-in only, per-habit toggle, single daily reminder time. Requires `flutter_local_notifications`, Android notification permission flow, and macOS UNUserNotificationCenter entitlement. Only ship if there is explicit user demand.
+
+### Exit criteria
+- [ ] Sidebar and inspector panes are resizable by dragging on macOS.
+- [ ] User can manually spend or earn a shield from the UI.
+- [ ] Export produces a valid JSON file; import round-trips correctly.
+- [ ] Habit templates selectable in onboarding.
+- [ ] Reminder toggle visible per habit in edit dialog (if notifications shipped).
+
+### Out of scope
+- iOS.
+- CI/CD (tracked separately post-1.0).
+
+---
+
 ## Cross-phase quality gates
 
 Every phase must pass these before being considered complete:
@@ -534,6 +629,7 @@ The week estimates above assume one developer working on this part-time. Treat t
 Ideas that are committed to ship eventually but not yet slotted into a phase. Promote to a numbered phase when prioritized; renumber subsequent phases as needed.
 
 ### Other unphased ideas
-- Bulk import / export (`.json`).
-- Habit templates ("morning routine pack").
-- Per-habit reminders (revisit D-006 — only with explicit opt-in toggle).
+- iOS App Store submission.
+- Android tablets.
+- CI/CD pipeline (GitHub Actions: analyze + test on PR, build artifacts on tag).
+- Windows desktop (D-002).
