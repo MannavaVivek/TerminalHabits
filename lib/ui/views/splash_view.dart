@@ -60,6 +60,7 @@ class _SplashViewState extends ConsumerState<SplashView>
       final email = Supabase.instance.client.auth.currentUser!.email!;
       final db = ref.read(dbProvider);
       await db.ensurePlaceholderUser(email);
+      ref.read(currentViewProvider.notifier).state = 'daily';
       ref.read(currentUserIdProvider.notifier).state = 1;
       if (!mounted) return;
       final seenOnboarding = prefs.getBool('seenOnboarding') ?? false;

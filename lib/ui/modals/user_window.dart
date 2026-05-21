@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import 'package:syncfusion_flutter_datepicker/datepicker.dart';
 import '../../data/database.dart';
+import '../../data/sync_service.dart';
 import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/tokens.dart';
@@ -46,11 +48,22 @@ class _UserWindowDialogState extends ConsumerState<_UserWindowDialog> {
       return;
     }
     await ref.read(dbProvider).updateDisplayName(user.id, name);
+    try {
+      await Supabase.instance.client.auth
+          .updateUser(UserAttributes(data: {'display_name': name}));
+    } catch (_) {}
     setState(() => _editingName = false);
   }
 
   Future<void> _logOut() async {
+    SyncService.stopRealtime();
+    final db = ref.read(dbProvider);
+    await db.clearAllUserData();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('seenOnboarding');
+    await prefs.remove('last_auth_uid');
     try { await Supabase.instance.client.auth.signOut(); } catch (_) {}
+    ref.read(currentViewProvider.notifier).state = 'daily';
     ref.read(currentUserIdProvider.notifier).state = 0;
     if (!mounted) return;
     Navigator.of(context).pop();
@@ -302,6 +315,10 @@ class _UserWindowDialogState extends ConsumerState<_UserWindowDialog> {
                 return !today2.isBefore(s) && !today2.isAfter(e);
               }).toList();
 
+              final accountEmail = Supabase.instance.client.auth
+                      .currentUser?.email ??
+                  user.username;
+
               return Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -330,19 +347,11 @@ class _UserWindowDialogState extends ConsumerState<_UserWindowDialog> {
                       ),
                       const SizedBox(width: TH.s14),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(user.displayName,
-                                style: TextStyle(
-                                    color: col.fg,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600)),
-                            Text('@${user.username}',
-                                style:
-                                    TextStyle(color: col.fgMute, fontSize: 11)),
-                          ],
-                        ),
+                        child: Text(user.displayName,
+                            style: TextStyle(
+                                color: col.fg,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600)),
                       ),
                       GestureDetector(
                         onTap: () => SettingsDialog.show(context),
@@ -376,12 +385,12 @@ class _UserWindowDialogState extends ConsumerState<_UserWindowDialog> {
                             style:
                                 TextStyle(color: col.fgMute, fontSize: 11)),
                         const SizedBox(height: TH.s8),
-                        // Display name (editable)
+                        // Name (editable)
                         Row(
                           children: [
                             SizedBox(
                               width: 96,
-                              child: Text('display name:',
+                              child: Text('name:',
                                   style: TextStyle(
                                       color: col.fgDim, fontSize: 12)),
                             ),
@@ -431,7 +440,7 @@ class _UserWindowDialogState extends ConsumerState<_UserWindowDialog> {
                           ],
                         ),
                         const SizedBox(height: 6),
-                        _InfoRow('username', '@${user.username}', col: col),
+                        _InfoRow('email', accountEmail, col: col),
                         _InfoRow('member since',
                             _fmtDate(user.createdAt.toLocal()), col: col),
                         _InfoRow('streak', '$streak days', col: col),

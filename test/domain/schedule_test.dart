@@ -19,6 +19,8 @@ Habit _habit(String schedule) => Habit(
       createdAt: DateTime(2020),
       startDate: DateTime(2020),
       archivedAt: null,
+      updatedAt: DateTime(2020),
+      deleted: false,
     );
 
 void main() {

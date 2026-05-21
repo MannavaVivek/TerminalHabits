@@ -60,7 +60,14 @@ class _OnboardingViewState extends ConsumerState<OnboardingView> {
 
     final db = ref.read(dbProvider);
     final userId = ref.read(currentUserIdProvider);
-    if (name.isNotEmpty) await db.updateDisplayName(userId, name);
+    if (name.isNotEmpty) {
+      await db.updateDisplayName(userId, name);
+      // Persist in Supabase metadata so other devices pick it up on login.
+      try {
+        await Supabase.instance.client.auth
+            .updateUser(UserAttributes(data: {'display_name': name}));
+      } catch (_) {}
+    }
 
     if (_selectedHabits.isNotEmpty) {
       final existing = await db.getActiveHabits(userId);

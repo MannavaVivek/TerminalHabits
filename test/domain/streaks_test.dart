@@ -24,6 +24,8 @@ Habit _habit({String? schedule, DateTime? createdAt, DateTime? startDate}) =>
       createdAt: createdAt ?? _epoch,
       startDate: startDate ?? createdAt ?? _epoch,
       archivedAt: null,
+      updatedAt: createdAt ?? _epoch,
+      deleted: false,
     );
 
 Completion _done(DateTime localDay, {int habitId = 1}) => Completion(
@@ -32,6 +34,8 @@ Completion _done(DateTime localDay, {int habitId = 1}) => Completion(
       day: localMidnightUtc(localDay),
       value: 1.0,
       createdAt: localMidnightUtc(localDay),
+      updatedAt: localMidnightUtc(localDay),
+      deleted: false,
     );
 
 List<Completion> _range(DateTime from, DateTime to) {

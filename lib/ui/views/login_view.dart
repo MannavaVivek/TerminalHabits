@@ -10,7 +10,6 @@ import '../widgets/auth_widgets.dart';
 import '../widgets/prompt_line.dart';
 import 'app_scaffold.dart';
 import 'forgot_password_view.dart';
-import 'onboarding_view.dart';
 import 'register_view.dart';
 
 class LoginView extends ConsumerStatefulWidget {
@@ -60,7 +59,21 @@ class _LoginViewState extends ConsumerState<LoginView> {
     }
 
     final db = ref.read(dbProvider);
+    final prefs = await SharedPreferences.getInstance();
+    final newUid = Supabase.instance.client.auth.currentUser?.id ?? '';
+    final lastUid = prefs.getString('last_auth_uid');
+    if (lastUid != null && lastUid != newUid) {
+      await db.clearAllUserData();
+      await prefs.remove('seenOnboarding');
+    }
+    await prefs.setString('last_auth_uid', newUid);
     await db.ensurePlaceholderUser(email);
+    // Restore display name from Supabase metadata (set during onboarding).
+    final metaName = Supabase.instance.client.auth.currentUser
+        ?.userMetadata?['display_name'] as String?;
+    if (metaName != null && metaName.isNotEmpty) {
+      await db.updateDisplayName(1, metaName);
+    }
     ref.read(currentUserIdProvider.notifier).state = 1;
 
     bool hadServerData = false;
@@ -70,25 +83,14 @@ class _LoginViewState extends ConsumerState<LoginView> {
     }
 
     if (!mounted) return;
-    final prefs = await SharedPreferences.getInstance();
-    final seenOnboarding = prefs.getBool('seenOnboarding') ?? false;
-
-    Widget dest;
-    if (seenOnboarding) {
-      dest = const AppScaffold();
-    } else {
-      final habits = await db.getActiveHabits(1);
-      if (habits.isNotEmpty) {
-        await prefs.setBool('seenOnboarding', true);
-        dest = const AppScaffold();
-      } else {
-        dest = const OnboardingView();
-      }
-    }
+    // Login always goes to the main app — onboarding is only for new
+    // registrations. Showing onboarding after login would silently overwrite
+    // data if the server happened to be empty (race, first push in-flight, etc).
+    await prefs.setBool('seenOnboarding', true);
 
     if (!mounted) return;
     Navigator.of(context).pushReplacement(PageRouteBuilder<void>(
-      pageBuilder: (_, __, ___) => dest,
+      pageBuilder: (_, __, ___) => const AppScaffold(),
       transitionDuration: Duration.zero,
       reverseTransitionDuration: Duration.zero,
     ));

@@ -121,6 +121,8 @@ final _stubHabit = Habit(
   startDate: DateTime(1970),
   endDate: null,
   archivedAt: null,
+  updatedAt: DateTime(1970),
+  deleted: false,
 );
 
 class _TodaySummary extends StatelessWidget {

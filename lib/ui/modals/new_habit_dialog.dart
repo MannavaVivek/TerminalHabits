@@ -127,9 +127,10 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
               borderRadius: BorderRadius.all(TH.r10)),
           child: SizedBox(
             width: 360,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
                 Padding(
                   padding: const EdgeInsets.symmetric(
                       horizontal: TH.s14, vertical: TH.s8),
@@ -198,6 +199,7 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
                   ),
                 ),
               ],
+            ),
             ),
           ),
         );

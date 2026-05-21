@@ -55,6 +55,12 @@ class Habits extends Table {
       dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get endDate => dateTime().nullable()();
   DateTimeColumn get archivedAt => dateTime().nullable()();
+  // Last-write-wins sync: set to now() on every create/modify/archive/delete.
+  DateTimeColumn get updatedAt =>
+      dateTime().withDefault(currentDateAndTime)();
+  // Soft-delete: true when deleted by user. Row stays so deletions propagate.
+  BoolColumn get deleted =>
+      boolean().withDefault(const Constant(false))();
 }
 
 class HabitScheduleHistory extends Table {
@@ -78,6 +84,12 @@ class Completions extends Table {
       real().withDefault(const Constant(1.0))();
   DateTimeColumn get createdAt =>
       dateTime().withDefault(currentDateAndTime)();
+  // Last-write-wins sync: set to now() on every create/toggle/increment.
+  DateTimeColumn get updatedAt =>
+      dateTime().withDefault(currentDateAndTime)();
+  // Soft-delete: true when unchecked. Row stays so deletions propagate via sync.
+  BoolColumn get deleted =>
+      boolean().withDefault(const Constant(false))();
 
   @override
   List<Set<Column>> get uniqueKeys => [

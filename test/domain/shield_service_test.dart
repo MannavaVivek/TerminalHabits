@@ -20,6 +20,8 @@ Habit _habit({int id = 1, DateTime? startDate, DateTime? createdAt}) => Habit(
       sortIndex: 0,
       createdAt: createdAt ?? startDate ?? _start,
       startDate: startDate ?? _start,
+      updatedAt: createdAt ?? startDate ?? _start,
+      deleted: false,
     );
 
 Completion _done(int habitId, DateTime localDay) => Completion(
@@ -28,6 +30,8 @@ Completion _done(int habitId, DateTime localDay) => Completion(
       day: localMidnightUtc(localDay),
       value: 1.0,
       createdAt: localMidnightUtc(localDay),
+      updatedAt: localMidnightUtc(localDay),
+      deleted: false,
     );
 
 List<Completion> _range(int habitId, DateTime from, DateTime to) {

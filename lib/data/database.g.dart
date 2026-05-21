@@ -1001,6 +1001,33 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _deletedMeta = const VerificationMeta(
+    'deleted',
+  );
+  @override
+  late final GeneratedColumn<bool> deleted = GeneratedColumn<bool>(
+    'deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1021,6 +1048,8 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
     startDate,
     endDate,
     archivedAt,
+    updatedAt,
+    deleted,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1152,6 +1181,18 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
         archivedAt.isAcceptableOrUnknown(data['archived_at']!, _archivedAtMeta),
       );
     }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('deleted')) {
+      context.handle(
+        _deletedMeta,
+        deleted.isAcceptableOrUnknown(data['deleted']!, _deletedMeta),
+      );
+    }
     return context;
   }
 
@@ -1233,6 +1274,14 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}archived_at'],
       ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}deleted'],
+      )!,
     );
   }
 
@@ -1261,6 +1310,8 @@ class Habit extends DataClass implements Insertable<Habit> {
   final DateTime startDate;
   final DateTime? endDate;
   final DateTime? archivedAt;
+  final DateTime updatedAt;
+  final bool deleted;
   const Habit({
     required this.id,
     required this.userId,
@@ -1280,6 +1331,8 @@ class Habit extends DataClass implements Insertable<Habit> {
     required this.startDate,
     this.endDate,
     this.archivedAt,
+    required this.updatedAt,
+    required this.deleted,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1316,6 +1369,8 @@ class Habit extends DataClass implements Insertable<Habit> {
     if (!nullToAbsent || archivedAt != null) {
       map['archived_at'] = Variable<DateTime>(archivedAt);
     }
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['deleted'] = Variable<bool>(deleted);
     return map;
   }
 
@@ -1349,6 +1404,8 @@ class Habit extends DataClass implements Insertable<Habit> {
       archivedAt: archivedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(archivedAt),
+      updatedAt: Value(updatedAt),
+      deleted: Value(deleted),
     );
   }
 
@@ -1376,6 +1433,8 @@ class Habit extends DataClass implements Insertable<Habit> {
       startDate: serializer.fromJson<DateTime>(json['startDate']),
       endDate: serializer.fromJson<DateTime?>(json['endDate']),
       archivedAt: serializer.fromJson<DateTime?>(json['archivedAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deleted: serializer.fromJson<bool>(json['deleted']),
     );
   }
   @override
@@ -1400,6 +1459,8 @@ class Habit extends DataClass implements Insertable<Habit> {
       'startDate': serializer.toJson<DateTime>(startDate),
       'endDate': serializer.toJson<DateTime?>(endDate),
       'archivedAt': serializer.toJson<DateTime?>(archivedAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deleted': serializer.toJson<bool>(deleted),
     };
   }
 
@@ -1422,6 +1483,8 @@ class Habit extends DataClass implements Insertable<Habit> {
     DateTime? startDate,
     Value<DateTime?> endDate = const Value.absent(),
     Value<DateTime?> archivedAt = const Value.absent(),
+    DateTime? updatedAt,
+    bool? deleted,
   }) => Habit(
     id: id ?? this.id,
     userId: userId ?? this.userId,
@@ -1441,6 +1504,8 @@ class Habit extends DataClass implements Insertable<Habit> {
     startDate: startDate ?? this.startDate,
     endDate: endDate.present ? endDate.value : this.endDate,
     archivedAt: archivedAt.present ? archivedAt.value : this.archivedAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deleted: deleted ?? this.deleted,
   );
   Habit copyWithCompanion(HabitsCompanion data) {
     return Habit(
@@ -1468,6 +1533,8 @@ class Habit extends DataClass implements Insertable<Habit> {
       archivedAt: data.archivedAt.present
           ? data.archivedAt.value
           : this.archivedAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deleted: data.deleted.present ? data.deleted.value : this.deleted,
     );
   }
 
@@ -1491,7 +1558,9 @@ class Habit extends DataClass implements Insertable<Habit> {
           ..write('createdAt: $createdAt, ')
           ..write('startDate: $startDate, ')
           ..write('endDate: $endDate, ')
-          ..write('archivedAt: $archivedAt')
+          ..write('archivedAt: $archivedAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted')
           ..write(')'))
         .toString();
   }
@@ -1516,6 +1585,8 @@ class Habit extends DataClass implements Insertable<Habit> {
     startDate,
     endDate,
     archivedAt,
+    updatedAt,
+    deleted,
   );
   @override
   bool operator ==(Object other) =>
@@ -1538,7 +1609,9 @@ class Habit extends DataClass implements Insertable<Habit> {
           other.createdAt == this.createdAt &&
           other.startDate == this.startDate &&
           other.endDate == this.endDate &&
-          other.archivedAt == this.archivedAt);
+          other.archivedAt == this.archivedAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deleted == this.deleted);
 }
 
 class HabitsCompanion extends UpdateCompanion<Habit> {
@@ -1560,6 +1633,8 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
   final Value<DateTime> startDate;
   final Value<DateTime?> endDate;
   final Value<DateTime?> archivedAt;
+  final Value<DateTime> updatedAt;
+  final Value<bool> deleted;
   const HabitsCompanion({
     this.id = const Value.absent(),
     this.userId = const Value.absent(),
@@ -1579,6 +1654,8 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     this.startDate = const Value.absent(),
     this.endDate = const Value.absent(),
     this.archivedAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deleted = const Value.absent(),
   });
   HabitsCompanion.insert({
     this.id = const Value.absent(),
@@ -1599,6 +1676,8 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     this.startDate = const Value.absent(),
     this.endDate = const Value.absent(),
     this.archivedAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deleted = const Value.absent(),
   }) : groupId = Value(groupId),
        name = Value(name),
        tracking = Value(tracking),
@@ -1623,6 +1702,8 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     Expression<DateTime>? startDate,
     Expression<DateTime>? endDate,
     Expression<DateTime>? archivedAt,
+    Expression<DateTime>? updatedAt,
+    Expression<bool>? deleted,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1643,6 +1724,8 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
       if (startDate != null) 'start_date': startDate,
       if (endDate != null) 'end_date': endDate,
       if (archivedAt != null) 'archived_at': archivedAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deleted != null) 'deleted': deleted,
     });
   }
 
@@ -1665,6 +1748,8 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     Value<DateTime>? startDate,
     Value<DateTime?>? endDate,
     Value<DateTime?>? archivedAt,
+    Value<DateTime>? updatedAt,
+    Value<bool>? deleted,
   }) {
     return HabitsCompanion(
       id: id ?? this.id,
@@ -1685,6 +1770,8 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
       archivedAt: archivedAt ?? this.archivedAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deleted: deleted ?? this.deleted,
     );
   }
 
@@ -1745,6 +1832,12 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     if (archivedAt.present) {
       map['archived_at'] = Variable<DateTime>(archivedAt.value);
     }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deleted.present) {
+      map['deleted'] = Variable<bool>(deleted.value);
+    }
     return map;
   }
 
@@ -1768,7 +1861,9 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
           ..write('createdAt: $createdAt, ')
           ..write('startDate: $startDate, ')
           ..write('endDate: $endDate, ')
-          ..write('archivedAt: $archivedAt')
+          ..write('archivedAt: $archivedAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted')
           ..write(')'))
         .toString();
   }
@@ -1838,8 +1933,43 @@ class $CompletionsTable extends Completions
     requiredDuringInsert: false,
     defaultValue: currentDateAndTime,
   );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
   @override
-  List<GeneratedColumn> get $columns => [id, habitId, day, value, createdAt];
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _deletedMeta = const VerificationMeta(
+    'deleted',
+  );
+  @override
+  late final GeneratedColumn<bool> deleted = GeneratedColumn<bool>(
+    'deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    habitId,
+    day,
+    value,
+    createdAt,
+    updatedAt,
+    deleted,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -1883,6 +2013,18 @@ class $CompletionsTable extends Completions
         createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
       );
     }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('deleted')) {
+      context.handle(
+        _deletedMeta,
+        deleted.isAcceptableOrUnknown(data['deleted']!, _deletedMeta),
+      );
+    }
     return context;
   }
 
@@ -1916,6 +2058,14 @@ class $CompletionsTable extends Completions
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
       )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}deleted'],
+      )!,
     );
   }
 
@@ -1931,12 +2081,16 @@ class Completion extends DataClass implements Insertable<Completion> {
   final DateTime day;
   final double value;
   final DateTime createdAt;
+  final DateTime updatedAt;
+  final bool deleted;
   const Completion({
     required this.id,
     required this.habitId,
     required this.day,
     required this.value,
     required this.createdAt,
+    required this.updatedAt,
+    required this.deleted,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1946,6 +2100,8 @@ class Completion extends DataClass implements Insertable<Completion> {
     map['day'] = Variable<DateTime>(day);
     map['value'] = Variable<double>(value);
     map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['deleted'] = Variable<bool>(deleted);
     return map;
   }
 
@@ -1956,6 +2112,8 @@ class Completion extends DataClass implements Insertable<Completion> {
       day: Value(day),
       value: Value(value),
       createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deleted: Value(deleted),
     );
   }
 
@@ -1970,6 +2128,8 @@ class Completion extends DataClass implements Insertable<Completion> {
       day: serializer.fromJson<DateTime>(json['day']),
       value: serializer.fromJson<double>(json['value']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deleted: serializer.fromJson<bool>(json['deleted']),
     );
   }
   @override
@@ -1981,6 +2141,8 @@ class Completion extends DataClass implements Insertable<Completion> {
       'day': serializer.toJson<DateTime>(day),
       'value': serializer.toJson<double>(value),
       'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deleted': serializer.toJson<bool>(deleted),
     };
   }
 
@@ -1990,12 +2152,16 @@ class Completion extends DataClass implements Insertable<Completion> {
     DateTime? day,
     double? value,
     DateTime? createdAt,
+    DateTime? updatedAt,
+    bool? deleted,
   }) => Completion(
     id: id ?? this.id,
     habitId: habitId ?? this.habitId,
     day: day ?? this.day,
     value: value ?? this.value,
     createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deleted: deleted ?? this.deleted,
   );
   Completion copyWithCompanion(CompletionsCompanion data) {
     return Completion(
@@ -2004,6 +2170,8 @@ class Completion extends DataClass implements Insertable<Completion> {
       day: data.day.present ? data.day.value : this.day,
       value: data.value.present ? data.value.value : this.value,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deleted: data.deleted.present ? data.deleted.value : this.deleted,
     );
   }
 
@@ -2014,13 +2182,16 @@ class Completion extends DataClass implements Insertable<Completion> {
           ..write('habitId: $habitId, ')
           ..write('day: $day, ')
           ..write('value: $value, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, habitId, day, value, createdAt);
+  int get hashCode =>
+      Object.hash(id, habitId, day, value, createdAt, updatedAt, deleted);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2029,7 +2200,9 @@ class Completion extends DataClass implements Insertable<Completion> {
           other.habitId == this.habitId &&
           other.day == this.day &&
           other.value == this.value &&
-          other.createdAt == this.createdAt);
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deleted == this.deleted);
 }
 
 class CompletionsCompanion extends UpdateCompanion<Completion> {
@@ -2038,12 +2211,16 @@ class CompletionsCompanion extends UpdateCompanion<Completion> {
   final Value<DateTime> day;
   final Value<double> value;
   final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<bool> deleted;
   const CompletionsCompanion({
     this.id = const Value.absent(),
     this.habitId = const Value.absent(),
     this.day = const Value.absent(),
     this.value = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deleted = const Value.absent(),
   });
   CompletionsCompanion.insert({
     this.id = const Value.absent(),
@@ -2051,6 +2228,8 @@ class CompletionsCompanion extends UpdateCompanion<Completion> {
     required DateTime day,
     this.value = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deleted = const Value.absent(),
   }) : habitId = Value(habitId),
        day = Value(day);
   static Insertable<Completion> custom({
@@ -2059,6 +2238,8 @@ class CompletionsCompanion extends UpdateCompanion<Completion> {
     Expression<DateTime>? day,
     Expression<double>? value,
     Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<bool>? deleted,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2066,6 +2247,8 @@ class CompletionsCompanion extends UpdateCompanion<Completion> {
       if (day != null) 'day': day,
       if (value != null) 'value': value,
       if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deleted != null) 'deleted': deleted,
     });
   }
 
@@ -2075,6 +2258,8 @@ class CompletionsCompanion extends UpdateCompanion<Completion> {
     Value<DateTime>? day,
     Value<double>? value,
     Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<bool>? deleted,
   }) {
     return CompletionsCompanion(
       id: id ?? this.id,
@@ -2082,6 +2267,8 @@ class CompletionsCompanion extends UpdateCompanion<Completion> {
       day: day ?? this.day,
       value: value ?? this.value,
       createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deleted: deleted ?? this.deleted,
     );
   }
 
@@ -2103,6 +2290,12 @@ class CompletionsCompanion extends UpdateCompanion<Completion> {
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deleted.present) {
+      map['deleted'] = Variable<bool>(deleted.value);
+    }
     return map;
   }
 
@@ -2113,7 +2306,9 @@ class CompletionsCompanion extends UpdateCompanion<Completion> {
           ..write('habitId: $habitId, ')
           ..write('day: $day, ')
           ..write('value: $value, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted')
           ..write(')'))
         .toString();
   }
@@ -3940,6 +4135,8 @@ typedef $$HabitsTableCreateCompanionBuilder =
       Value<DateTime> startDate,
       Value<DateTime?> endDate,
       Value<DateTime?> archivedAt,
+      Value<DateTime> updatedAt,
+      Value<bool> deleted,
     });
 typedef $$HabitsTableUpdateCompanionBuilder =
     HabitsCompanion Function({
@@ -3961,6 +4158,8 @@ typedef $$HabitsTableUpdateCompanionBuilder =
       Value<DateTime> startDate,
       Value<DateTime?> endDate,
       Value<DateTime?> archivedAt,
+      Value<DateTime> updatedAt,
+      Value<bool> deleted,
     });
 
 final class $$HabitsTableReferences
@@ -4123,6 +4322,16 @@ class $$HabitsTableFilterComposer
 
   ColumnFilters<DateTime> get archivedAt => $composableBuilder(
     column: $table.archivedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4294,6 +4503,16 @@ class $$HabitsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$GroupsTableOrderingComposer get groupId {
     final $$GroupsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -4383,6 +4602,12 @@ class $$HabitsTableAnnotationComposer
     column: $table.archivedAt,
     builder: (column) => column,
   );
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get deleted =>
+      $composableBuilder(column: $table.deleted, builder: (column) => column);
 
   $$GroupsTableAnnotationComposer get groupId {
     final $$GroupsTableAnnotationComposer composer = $composerBuilder(
@@ -4509,6 +4734,8 @@ class $$HabitsTableTableManager
                 Value<DateTime> startDate = const Value.absent(),
                 Value<DateTime?> endDate = const Value.absent(),
                 Value<DateTime?> archivedAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> deleted = const Value.absent(),
               }) => HabitsCompanion(
                 id: id,
                 userId: userId,
@@ -4528,6 +4755,8 @@ class $$HabitsTableTableManager
                 startDate: startDate,
                 endDate: endDate,
                 archivedAt: archivedAt,
+                updatedAt: updatedAt,
+                deleted: deleted,
               ),
           createCompanionCallback:
               ({
@@ -4549,6 +4778,8 @@ class $$HabitsTableTableManager
                 Value<DateTime> startDate = const Value.absent(),
                 Value<DateTime?> endDate = const Value.absent(),
                 Value<DateTime?> archivedAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> deleted = const Value.absent(),
               }) => HabitsCompanion.insert(
                 id: id,
                 userId: userId,
@@ -4568,6 +4799,8 @@ class $$HabitsTableTableManager
                 startDate: startDate,
                 endDate: endDate,
                 archivedAt: archivedAt,
+                updatedAt: updatedAt,
+                deleted: deleted,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -4696,6 +4929,8 @@ typedef $$CompletionsTableCreateCompanionBuilder =
       required DateTime day,
       Value<double> value,
       Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<bool> deleted,
     });
 typedef $$CompletionsTableUpdateCompanionBuilder =
     CompletionsCompanion Function({
@@ -4704,6 +4939,8 @@ typedef $$CompletionsTableUpdateCompanionBuilder =
       Value<DateTime> day,
       Value<double> value,
       Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<bool> deleted,
     });
 
 final class $$CompletionsTableReferences
@@ -4755,6 +4992,16 @@ class $$CompletionsTableFilterComposer
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4811,6 +5058,16 @@ class $$CompletionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$HabitsTableOrderingComposer get habitId {
     final $$HabitsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -4855,6 +5112,12 @@ class $$CompletionsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get deleted =>
+      $composableBuilder(column: $table.deleted, builder: (column) => column);
 
   $$HabitsTableAnnotationComposer get habitId {
     final $$HabitsTableAnnotationComposer composer = $composerBuilder(
@@ -4913,12 +5176,16 @@ class $$CompletionsTableTableManager
                 Value<DateTime> day = const Value.absent(),
                 Value<double> value = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> deleted = const Value.absent(),
               }) => CompletionsCompanion(
                 id: id,
                 habitId: habitId,
                 day: day,
                 value: value,
                 createdAt: createdAt,
+                updatedAt: updatedAt,
+                deleted: deleted,
               ),
           createCompanionCallback:
               ({
@@ -4927,12 +5194,16 @@ class $$CompletionsTableTableManager
                 required DateTime day,
                 Value<double> value = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> deleted = const Value.absent(),
               }) => CompletionsCompanion.insert(
                 id: id,
                 habitId: habitId,
                 day: day,
                 value: value,
                 createdAt: createdAt,
+                updatedAt: updatedAt,
+                deleted: deleted,
               ),
           withReferenceMapper: (p0) => p0
               .map(

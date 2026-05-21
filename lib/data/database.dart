@@ -13,7 +13,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -74,11 +74,29 @@ class AppDatabase extends _$AppDatabase {
             await _upsertSetting('shieldEarnInterval', '7');
             await _upsertSetting('last_seen_date', '');
           }
+          if (from < 8) {
+            // m.addColumn() fails for non-constant defaults (CURRENT_TIMESTAMP).
+            // Use raw SQL with a constant default, then backfill.
+            await customStatement(
+                'ALTER TABLE completions ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0');
+            await customStatement(
+                'ALTER TABLE completions ADD COLUMN deleted INTEGER NOT NULL DEFAULT 0');
+            await customStatement(
+                'UPDATE completions SET updated_at = created_at');
+          }
+          if (from < 9) {
+            await customStatement(
+                'ALTER TABLE habits ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0');
+            await customStatement(
+                'ALTER TABLE habits ADD COLUMN deleted INTEGER NOT NULL DEFAULT 0');
+            await customStatement(
+                'UPDATE habits SET updated_at = created_at');
+          }
         },
       );
 
   Future<void> _seedDefaults() async {
-    await into(groups).insert(GroupsCompanion.insert(
+    await into(groups).insertOnConflictUpdate(GroupsCompanion.insert(
       id: Value('general'),
       name: 'general',
       sortIndex: 100,
@@ -127,6 +145,22 @@ class AppDatabase extends _$AppDatabase {
       (update(users)..where((u) => u.id.equals(userId)))
           .write(UsersCompanion(displayName: Value(displayName)));
 
+  // Wipes all user-specific local data then re-seeds base structure.
+  // Call on logout and before a new user starts.
+  Future<void> clearAllUserData() async {
+    await transaction(() async {
+      await delete(completions).go();
+      await delete(dayShields).go();
+      await delete(habitScheduleHistory).go();
+      await delete(habits).go();
+      await delete(groups).go();
+      await delete(vacations).go();
+      await delete(appSettings).go();
+      await delete(users).go();
+    });
+    await _seedDefaults();
+  }
+
   // Creates the placeholder local user (id=1) if it doesn't exist, then
   // updates the username to match the Supabase-authenticated email.
   Future<void> ensurePlaceholderUser(String email) async {
@@ -137,7 +171,8 @@ class AppDatabase extends _$AppDatabase {
         variables: [
           Variable.withString(email),
           Variable.withString(email.split('@').first),
-          Variable.withInt(DateTime.now().millisecondsSinceEpoch),
+          // Drift 2.x stores DateTimeColumn as unix seconds, not milliseconds.
+          Variable.withInt(DateTime.now().millisecondsSinceEpoch ~/ 1000),
         ],
       );
       return;
@@ -230,12 +265,16 @@ class AppDatabase extends _$AppDatabase {
 
   Future<List<Completion>> getRecentCompletionsList(DateTime sinceUtc) =>
       (select(completions)
-        ..where((c) => c.day.isBiggerOrEqualValue(sinceUtc))
+        ..where((c) =>
+            c.day.isBiggerOrEqualValue(sinceUtc) & c.deleted.equals(false))
         ..orderBy([(c) => OrderingTerm.asc(c.day)]))
       .get();
 
   Stream<List<Habit>> watchActiveHabits(int userId) => (select(habits)
-        ..where((h) => h.userId.equals(userId) & h.archivedAt.isNull())
+        ..where((h) =>
+            h.userId.equals(userId) &
+            h.archivedAt.isNull() &
+            h.deleted.equals(false))
         ..orderBy([
           (h) => OrderingTerm.asc(h.groupId),
           (h) => OrderingTerm.asc(h.sortIndex),
@@ -243,7 +282,10 @@ class AppDatabase extends _$AppDatabase {
       .watch();
 
   Future<List<Habit>> getActiveHabits(int userId) => (select(habits)
-        ..where((h) => h.userId.equals(userId) & h.archivedAt.isNull())
+        ..where((h) =>
+            h.userId.equals(userId) &
+            h.archivedAt.isNull() &
+            h.deleted.equals(false))
         ..orderBy([
           (h) => OrderingTerm.asc(h.groupId),
           (h) => OrderingTerm.asc(h.sortIndex),
@@ -257,8 +299,9 @@ class AppDatabase extends _$AppDatabase {
     // Always supply createdAt as an integer so Drift can read it back safely.
     // withDefault(currentDateAndTime) writes SQLite's CURRENT_TIMESTAMP (text),
     // which Drift's integer-mode DateTime reader then fails to parse.
+    final now = DateTime.now();
     final id = await into(habits)
-        .insert(companion.copyWith(createdAt: Value(DateTime.now())));
+        .insert(companion.copyWith(createdAt: Value(now), updatedAt: Value(now)));
     final startDate = companion.startDate.value;
     await _insertHistoryRow(
         id, startDate.toUtc(), companion.schedule.value, companion.tracking.value);
@@ -272,29 +315,34 @@ class AppDatabase extends _$AppDatabase {
   // Use this from the edit dialog so we don't overwrite columns the dialog
   // doesn't surface (e.g. completion-related state).
   Future<int> patchHabit(int id, HabitsCompanion companion) =>
-      (update(habits)..where((h) => h.id.equals(id))).write(companion);
+      (update(habits)..where((h) => h.id.equals(id)))
+          .write(companion.copyWith(updatedAt: Value(DateTime.now())));
 
   Future<void> archiveHabit(int id) async {
+    final now = DateTime.now();
     await (update(habits)..where((h) => h.id.equals(id)))
-        .write(HabitsCompanion(archivedAt: Value(DateTime.now())));
+        .write(HabitsCompanion(archivedAt: Value(now), updatedAt: Value(now)));
   }
 
   Future<void> unarchiveHabit(int id) async {
     await (update(habits)..where((h) => h.id.equals(id)))
-        .write(const HabitsCompanion(archivedAt: Value(null)));
+        .write(HabitsCompanion(
+            archivedAt: const Value(null), updatedAt: Value(DateTime.now())));
   }
 
   Stream<List<Habit>> watchArchivedHabits(int userId) => (select(habits)
-        ..where((h) => h.userId.equals(userId) & h.archivedAt.isNotNull())
+        ..where((h) =>
+            h.userId.equals(userId) &
+            h.archivedAt.isNotNull() &
+            h.deleted.equals(false))
         ..orderBy([(h) => OrderingTerm.desc(h.archivedAt)]))
       .watch();
 
   Future<void> deleteHabit(int id) async {
-    await (delete(completions)..where((c) => c.habitId.equals(id))).go();
-    await (delete(habitScheduleHistory)
-          ..where((r) => r.habitId.equals(id)))
-        .go();
-    await (delete(habits)..where((h) => h.id.equals(id))).go();
+    // Soft-delete so the deletion propagates via sync (row stays for LWW diff).
+    await (update(habits)..where((h) => h.id.equals(id)))
+        .write(HabitsCompanion(
+            deleted: const Value(true), updatedAt: Value(DateTime.now())));
   }
 
   // ── Schedule history ────────────────────────────────────────────────────────
@@ -379,16 +427,21 @@ class AppDatabase extends _$AppDatabase {
   // ── Completions ────────────────────────────────────────────────────────────
 
   Stream<List<Completion>> watchCompletionsForDay(DateTime dayUtc) =>
-      (select(completions)..where((c) => c.day.equals(dayUtc))).watch();
+      (select(completions)
+            ..where((c) => c.day.equals(dayUtc) & c.deleted.equals(false)))
+          .watch();
 
   Stream<List<Completion>> watchRecentCompletions(DateTime sinceUtc) =>
       (select(completions)
-            ..where((c) => c.day.isBiggerOrEqualValue(sinceUtc)))
+            ..where((c) =>
+                c.day.isBiggerOrEqualValue(sinceUtc) &
+                c.deleted.equals(false)))
           .watch();
 
   Future<List<Completion>> getCompletionsForHabit(int habitId) =>
       (select(completions)
-            ..where((c) => c.habitId.equals(habitId))
+            ..where((c) =>
+                c.habitId.equals(habitId) & c.deleted.equals(false))
             ..orderBy([(c) => OrderingTerm.asc(c.day)]))
           .get();
 
@@ -397,13 +450,31 @@ class AppDatabase extends _$AppDatabase {
           ..where((c) =>
               c.habitId.equals(habitId) & c.day.equals(dayUtc)))
         .getSingleOrNull();
-    if (existing != null) {
-      await (delete(completions)..where((c) => c.id.equals(existing.id))).go();
+    final now = DateTime.now();
+    if (existing != null && !existing.deleted) {
+      // Uncheck: soft-delete, stamp updatedAt so LWW sync knows this is newer.
+      await (update(completions)..where((c) => c.id.equals(existing.id)))
+          .write(CompletionsCompanion(
+            deleted: const Value(true),
+            updatedAt: Value(now),
+          ));
+    } else if (existing != null) {
+      // Reactivate a previously soft-deleted row.
+      await (update(completions)..where((c) => c.id.equals(existing.id)))
+          .write(CompletionsCompanion(
+            value: const Value(1.0),
+            deleted: const Value(false),
+            updatedAt: Value(now),
+          ));
     } else {
+      // Insert a new completion row.
       await into(completions).insert(CompletionsCompanion.insert(
         habitId: habitId,
         day: dayUtc,
-        createdAt: Value(DateTime.now()),
+        value: const Value(1.0),
+        createdAt: Value(now),
+        updatedAt: Value(now),
+        deleted: const Value(false),
       ));
     }
   }
@@ -412,17 +483,21 @@ class AppDatabase extends _$AppDatabase {
       int habitId, DateTime dayUtc, double value) async {
     final existing = await (select(completions)
           ..where((c) =>
-              c.habitId.equals(habitId) & c.day.equals(dayUtc)))
+              c.habitId.equals(habitId) &
+              c.day.equals(dayUtc) &
+              c.deleted.equals(false)))
         .getSingleOrNull();
+    final now = DateTime.now();
     if (existing != null) {
       await (update(completions)..where((c) => c.id.equals(existing.id)))
-          .write(CompletionsCompanion(value: Value(value)));
+          .write(CompletionsCompanion(value: Value(value), updatedAt: Value(now)));
     } else {
       await into(completions).insert(CompletionsCompanion.insert(
         habitId: habitId,
         day: dayUtc,
         value: Value(value),
-        createdAt: Value(DateTime.now()),
+        createdAt: Value(now),
+        updatedAt: Value(now),
       ));
     }
   }
@@ -471,15 +546,29 @@ class AppDatabase extends _$AppDatabase {
       int habitId, DateTime dayUtc, double delta) async {
     final existing = await (select(completions)
           ..where((c) =>
-              c.habitId.equals(habitId) & c.day.equals(dayUtc)))
+              c.habitId.equals(habitId) &
+              c.day.equals(dayUtc) &
+              c.deleted.equals(false)))
         .getSingleOrNull();
+    final now = DateTime.now();
     final newValue = (existing?.value ?? 0.0) + delta;
-    await into(completions).insertOnConflictUpdate(CompletionsCompanion.insert(
-      habitId: habitId,
-      day: dayUtc,
-      value: Value(newValue),
-      createdAt: Value(DateTime.now()),
-    ));
+    if (existing != null) {
+      await (update(completions)..where((c) => c.id.equals(existing.id)))
+          .write(CompletionsCompanion(
+            value: Value(newValue),
+            deleted: const Value(false),
+            updatedAt: Value(now),
+          ));
+    } else {
+      await into(completions).insert(CompletionsCompanion.insert(
+        habitId: habitId,
+        day: dayUtc,
+        value: Value(newValue),
+        createdAt: Value(now),
+        updatedAt: Value(now),
+        deleted: const Value(false),
+      ));
+    }
   }
 
   // ── Vacations ──────────────────────────────────────────────────────────────
@@ -528,7 +617,8 @@ class AppDatabase extends _$AppDatabase {
           ..where((c) =>
               c.habitId.isIn(habitIds) &
               c.day.isBiggerOrEqualValue(startUtc) &
-              c.day.isSmallerOrEqualValue(endUtc))
+              c.day.isSmallerOrEqualValue(endUtc) &
+              c.deleted.equals(false))
           ..limit(1))
         .getSingleOrNull();
     return result != null;

@@ -87,9 +87,12 @@ class _RegisterViewState extends ConsumerState<RegisterView> {
     }
 
     final db = ref.read(dbProvider);
+    await db.clearAllUserData();
     await db.ensurePlaceholderUser(email);
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('seenOnboarding');
+    final newUid = Supabase.instance.client.auth.currentUser?.id ?? '';
+    await prefs.setString('last_auth_uid', newUid);
     ref.read(currentUserIdProvider.notifier).state = 1;
 
     if (!mounted) return;

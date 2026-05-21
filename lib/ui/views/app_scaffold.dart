@@ -38,11 +38,23 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
   Timer? _syncTimer;
   bool _pulling = false;
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (Supabase.instance.client.auth.currentSession == null) return;
+      final db = ref.read(dbProvider);
+      SyncService.startRealtime(db);
+    });
+  }
+
   void _schedulePush() {
     if (_pulling || SyncService.isPulling) return;
     if (Supabase.instance.client.auth.currentSession == null) return;
     _syncTimer?.cancel();
     _syncTimer = Timer(const Duration(seconds: 2), () {
+      if (SyncService.isPulling) return;
       final db = ref.read(dbProvider);
       SyncService(db).pushAll().catchError((e) => debugPrint('pushAll error: $e'));
     });
@@ -51,6 +63,7 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
   @override
   void dispose() {
     _syncTimer?.cancel();
+    SyncService.stopRealtime();
     super.dispose();
   }
 
