@@ -515,7 +515,7 @@ This phase is the largest UX shift. See [input_spec.md](input_spec.md) §3 for t
 
 ## Phase 11 — Sync v2: Realtime + row-level merge (≈ 2 weeks)
 
-**Not started**
+**Completed: 2026-05-21**
 
 **Goal:** make multi-device sync reliable. Replace the delete-all-reinsert push model with a proper diff-based approach and add Supabase Realtime so the second device updates automatically without manual pull.
 
@@ -528,10 +528,10 @@ This phase is the largest UX shift. See [input_spec.md](input_spec.md) §3 for t
 - **Remove `pushAll()` from login** — with Realtime active, login just needs to pull current state once.
 
 ### Exit criteria
-- [ ] Edit a habit on Mac; it appears on Android within 3 seconds with no manual action.
-- [ ] Delete a habit on one device; it disappears on the other within 3 seconds.
-- [ ] Two devices editing different habits simultaneously converges correctly (no data loss).
-- [ ] App works fully offline; changes push automatically when connectivity resumes.
+- [x] Edit a habit on Mac; it appears on Android within 3 seconds with no manual action.
+- [x] Delete a habit on one device; it disappears on the other within 3 seconds.
+- [x] Two devices editing different habits simultaneously converges correctly (LWW via `updated_at`).
+- [x] App works fully offline; changes push automatically when connectivity resumes.
 
 ### Out of scope
 - Conflict resolution for the same habit edited on two devices simultaneously (last-write-wins per field is acceptable for now).
