@@ -385,7 +385,6 @@ class _MobileFab extends ConsumerWidget {
     final col = context.col;
     return GestureDetector(
       onTap: () {
-        HapticFeedback.lightImpact();
         NewHabitDialog.show(context);
       },
       child: Container(

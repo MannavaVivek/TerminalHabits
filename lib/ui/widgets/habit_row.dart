@@ -45,7 +45,6 @@ class HabitRow extends ConsumerWidget {
       behavior: HitTestBehavior.opaque,
       onTap: focus,
       onLongPress: () {
-        HapticFeedback.mediumImpact();
         showHabitMenu(context, ref, h);
       },
       onSecondaryTapDown: (details) =>
@@ -63,7 +62,6 @@ class HabitRow extends ConsumerWidget {
                   behavior: HitTestBehavior.opaque,
                   onTap: () async {
                     focus();
-                    HapticFeedback.lightImpact();
                     await _handleTap(context, ref, h);
                   },
                   child: Padding(
@@ -161,7 +159,6 @@ class HabitRow extends ConsumerWidget {
       confirmDismiss: (direction) async {
         if (direction == DismissDirection.startToEnd) {
           // Right swipe → open edit dialog, don't remove the row.
-          HapticFeedback.lightImpact();
           await EditHabitDialog.show(context, h);
           return false;
         } else {

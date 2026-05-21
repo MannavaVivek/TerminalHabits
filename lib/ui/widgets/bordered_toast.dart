@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/tokens.dart';
@@ -12,7 +13,14 @@ void showBorderedToast(
   final overlay = Overlay.of(context);
   late OverlayEntry entry;
 
-  entry = OverlayEntry(builder: (_) {
+  entry = OverlayEntry(builder: (ctx) {
+    // On Android, sit above the FAB (52px tall, 20px from content bottom)
+    // plus the system nav bar inset so the toast is never hidden.
+    double bottom = 32;
+    if (Platform.isAndroid) {
+      final sysInset = MediaQuery.of(ctx).padding.bottom;
+      bottom = sysInset + 52 + 20 + 12; // nav bar + FAB height + FAB gap + margin
+    }
     return _BorderedToast(
       message: message,
       undoLabel: undoLabel,
@@ -22,6 +30,7 @@ void showBorderedToast(
       },
       onDismiss: () => entry.remove(),
       duration: duration,
+      bottom: bottom,
     );
   });
 
@@ -34,11 +43,13 @@ class _BorderedToast extends StatefulWidget {
   final VoidCallback? onUndo;
   final VoidCallback onDismiss;
   final Duration duration;
+  final double bottom;
 
   const _BorderedToast({
     required this.message,
     required this.onDismiss,
     required this.duration,
+    required this.bottom,
     this.undoLabel,
     this.onUndo,
   });
@@ -61,7 +72,7 @@ class _BorderedToastState extends State<_BorderedToast> {
     final col = AppColors.of(context);
 
     return Positioned(
-      bottom: 32,
+      bottom: widget.bottom,
       left: TH.s22,
       right: TH.s22,
       child: Material(

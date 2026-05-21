@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/database.dart';
 import '../../state/providers.dart';
@@ -69,11 +70,15 @@ Future<void> _showBottomSheetMenu(
     case 'edit':
       await EditHabitDialog.show(context, habit);
     case 'archive':
+      HapticFeedback.mediumImpact();
       await db.archiveHabit(habit.id);
     case 'delete':
       if (!context.mounted) return;
       final confirmed = await _confirmDelete(context, habit);
-      if (confirmed) await db.deleteHabit(habit.id);
+      if (confirmed) {
+        HapticFeedback.mediumImpact();
+        await db.deleteHabit(habit.id);
+      }
   }
 }
 
@@ -151,11 +156,15 @@ Future<void> _showPopupMenu(
     case 'edit':
       await EditHabitDialog.show(context, habit);
     case 'archive':
+      HapticFeedback.mediumImpact();
       await db.archiveHabit(habit.id);
     case 'delete':
       if (!context.mounted) return;
       final confirmed = await _confirmDelete(context, habit);
-      if (confirmed) await db.deleteHabit(habit.id);
+      if (confirmed) {
+        HapticFeedback.mediumImpact();
+        await db.deleteHabit(habit.id);
+      }
   }
 }
 
