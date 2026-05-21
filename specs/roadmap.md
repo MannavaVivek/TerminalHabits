@@ -547,6 +547,11 @@ This phase is the largest UX shift. See [input_spec.md](input_spec.md) §3 for t
 
 ### Scope
 
+**Group management**
+- **Editable groups**: tap a group header to edit its name, icon, and sort order inline. No restrictions except empty name, which is treated as a delete.
+- **Group deletion rules**: `general` is the default group and cannot be deleted or renamed. Any other group can be deleted; if it has habits, those habits are soft-deleted along with the group (they do not move to `general` — remove the group intentionally removes its habits). Deleting a group by clearing its name follows the same rules.
+- Sync: group edits stamp `updatedAt` and propagate via the existing LWW diff-push/Realtime pipeline.
+
 **Android UX**
 - **Android app icon**: design and wire launcher icon (adaptive icon with foreground/background layers).
 - **Swipe gestures on habit rows**: swipe-right → quick edit dialog; swipe-left → archive with undo snackbar. Defined in `input_spec.md` §3.3 but deferred from Phase 9.
@@ -562,6 +567,9 @@ This phase is the largest UX shift. See [input_spec.md](input_spec.md) §3 for t
 - **Android release build + signing**: generate upload keystore, configure `key.properties`, `flutter build appbundle --release`. Sign for internal testing track on Google Play (or direct APK distribution).
 
 ### Exit criteria
+- [ ] Group name and icon are editable inline; changes sync to the other device.
+- [ ] Deleting a non-general group soft-deletes its habits and removes the group.
+- [ ] `general` group cannot be deleted or given an empty name.
 - [ ] App icon visible on Android home screen (adaptive, no white box).
 - [ ] Swipe-left archives a habit with visible undo snackbar; swipe-right opens edit dialog.
 - [ ] Long-press on a habit row shows the context menu.
