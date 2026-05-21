@@ -539,47 +539,49 @@ This phase is the largest UX shift. See [input_spec.md](input_spec.md) §3 for t
 
 ---
 
-## Phase 12 — Android polish + distribution (≈ 2.5 weeks)
+## Phase 12 — Android polish + Health Connect (≈ 2.5 weeks)
 
 **Not started**
 
-**Goal:** bring the Android experience to a shippable state and prepare for distribution outside a personal device.
+**Goal:** complete the Android habit experience with group management, Health Connect auto-tracking, and remaining UX polish.
 
 ### Scope
 
 **Group management**
 - **Editable groups**: tap a group header to edit its name, icon, and sort order inline. No restrictions except empty name, which is treated as a delete.
-- **Group deletion rules**: `general` is the default group and cannot be deleted or renamed. Any other group can be deleted; if it has habits, those habits are soft-deleted along with the group (they do not move to `general` — remove the group intentionally removes its habits). Deleting a group by clearing its name follows the same rules.
+- **Group deletion rules**: `general` is the default group and cannot be deleted or renamed. Any other group can be deleted; if it has habits, those habits are soft-deleted along with the group (they do not move to `general` — removing the group intentionally removes its habits). Clearing a group name to empty triggers the same deletion path.
 - Sync: group edits stamp `updatedAt` and propagate via the existing LWW diff-push/Realtime pipeline.
 
-**Android UX**
+**Android UX fixes**
+- **Archive snackbar position**: the undo snackbar currently appears below the FAB and is obscured by the bottom nav bar. Move it above the FAB so it is always visible.
+- **Haptic feedback audit**: swipe and long-press are already implemented. Verify and fill in the full desired matrix: light tap on completion toggle, medium on archive/delete confirm, error pattern on destructive actions. Fix any missing sites.
 - **Android app icon**: design and wire launcher icon (adaptive icon with foreground/background layers).
-- **Swipe gestures on habit rows**: swipe-right → quick edit dialog; swipe-left → archive with undo snackbar. Defined in `input_spec.md` §3.3 but deferred from Phase 9.
-- **Long-press context menu**: same actions as the desktop right-click habit menu (edit, archive, delete).
-- **Haptic feedback**: implement the full matrix from `input_spec.md` §3.5 — light tap on completion toggle, medium on archive, error pattern on destructive confirm.
-- **Inspector as bottom sheet**: re-introduce the habit inspector on mobile as a draggable bottom sheet (was removed in Phase 9). Tap a habit row to open; shows streak, schedule, recent history.
 
-**Health Connect**
-- Wire `[health]` tracking type to Android Health Connect via the `health` package (already in pubspec, currently stub). Steps and sleep duration auto-fill the daily completion value. Requires `health_connect` permission flow and background read scope. Revisit D-007.
-
-**Distribution**
-- **macOS code signing + notarization**: codesign with Developer ID, notarytool submission, stapler. Required before sharing builds outside your own machine. Steps documented in `build_spec.md` §2.
-- **Android release build + signing**: generate upload keystore, configure `key.properties`, `flutter build appbundle --release`. Sign for internal testing track on Google Play (or direct APK distribution).
+**Health Connect auto-tracking** *(primary focus)*
+- When creating or editing a habit, `tracking = 'health'` unlocks a **health source** selector.
+- Supported sources (initial set): steps, water (glasses), active calories, exercise sessions (walking, running, biking, etc.), sleep duration. Backed by the `health` package (already in pubspec).
+- User sets a **daily numeric goal** (e.g. 8000 steps, 8 glasses, 30 min biking).
+- On every app open (and on pull-to-refresh), the app reads today's value from Health Connect and compares it to the goal. If the value meets or exceeds the goal, the habit is automatically marked complete for today. If the value drops below the goal (e.g. midnight rollover), the completion is soft-deleted.
+- Requires `health_connect` permission request on first use of a health-backed habit. Read-only scope; no writes to Health Connect.
+- No separate health dashboard — native apps (Samsung Health, Google Fit, etc.) handle that. This is purely a goal-gate that feeds the habit tracker.
+- `healthSource` column already exists on `Habits` table. Store the chosen metric key there (e.g. `'steps'`, `'water_glasses'`, `'biking_minutes'`). `target` column stores the daily goal value.
 
 ### Exit criteria
 - [ ] Group name and icon are editable inline; changes sync to the other device.
-- [ ] Deleting a non-general group soft-deletes its habits and removes the group.
+- [ ] Deleting a non-general group soft-deletes its habits.
 - [ ] `general` group cannot be deleted or given an empty name.
-- [ ] App icon visible on Android home screen (adaptive, no white box).
-- [ ] Swipe-left archives a habit with visible undo snackbar; swipe-right opens edit dialog.
-- [ ] Long-press on a habit row shows the context menu.
-- [ ] `[health]` habit reads step count from Health Connect on a real device.
-- [ ] macOS build passes notarization (`spctl --assess` green).
-- [ ] Android release APK installable on a fresh device without sideload warnings.
+- [ ] Archive undo snackbar appears above the FAB on Android.
+- [ ] Haptic feedback fires on toggle, archive, and destructive confirm on Android.
+- [ ] Android app icon visible on home screen (adaptive, no white box).
+- [ ] Creating a habit with `tracking = health` → steps source → 8000 goal: habit auto-completes when Health Connect reports ≥ 8000 steps for today.
+- [ ] Health Connect permission prompt appears on first health-backed habit open.
+- [ ] Health read runs on every app open; no manual action required.
 
 ### Out of scope
-- iOS App Store submission.
-- CI/CD pipeline (post-1.0).
+- Health dashboard or health data visualisation (use native health apps).
+- Inspector bottom sheet on Android (removed; not planned).
+- App distribution / Play Store / notarization (personal use only; release artifacts published as GitHub releases if needed).
+- iOS.
 
 ---
 
