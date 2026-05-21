@@ -51,11 +51,31 @@ class _SplashViewState extends ConsumerState<SplashView>
   }
 
   Future<void> _proceed() async {
+    // A recovery deep link is being processed — let App's auth listener
+    // handle navigation to ResetPasswordView instead.
+    if (ref.read(passwordRecoveryActiveProvider)) return;
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('seenSplash', true);
     if (!mounted) return;
 
-    final session = Supabase.instance.client.auth.currentSession;
+    var session = Supabase.instance.client.auth.currentSession;
+    if (session != null) {
+      // Validate the refresh token against the server. If a global sign-out
+      // was issued from another device (e.g. after a password reset), the
+      // refresh token is revoked and this call throws. We then clear the
+      // local session and fall through to the login screen.
+      try {
+        final refreshed = await Supabase.instance.client.auth.refreshSession();
+        session = refreshed.session;
+      } on AuthException catch (_) {
+        await Supabase.instance.client.auth.signOut();
+        // The App-level auth listener handles navigation to LoginView.
+        return;
+      } catch (_) {
+        // Network error — proceed with cached session (offline mode).
+      }
+    }
     if (session != null) {
       final email = Supabase.instance.client.auth.currentUser!.email!;
       final db = ref.read(dbProvider);

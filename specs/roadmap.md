@@ -557,6 +557,15 @@ This phase is the largest UX shift. See [input_spec.md](input_spec.md) §3 for t
 - **Haptic feedback audit**: swipe and long-press are already implemented. Verify and fill in the full desired matrix: light tap on completion toggle, medium on archive/delete confirm, error pattern on destructive actions. Fix any missing sites.
 - **Android app icon**: design and wire launcher icon (adaptive icon with foreground/background layers).
 
+**Password recovery (deep-link, app-required)**
+- Password recovery requires the app to be installed on the device where the recovery email link is clicked. This is an accepted limitation — no web fallback.
+- Register custom URL scheme `terminalhabits://` in `macos/Runner/Info.plist` and Android intent filters in `AndroidManifest.xml` (scheme + host), so the link opens from any email client or browser on the device.
+- Add `app_links` package to receive the incoming URL at the Flutter layer.
+- Add the scheme (`terminalhabits://`) to Supabase dashboard → Auth → URL Configuration as an allowed redirect URL. Supabase will redirect to `terminalhabits://login-callback#access_token=…&type=recovery` after verifying the OTP.
+- On receiving the deep link: parse `access_token` + `refresh_token` from the URL fragment, call `supabase.auth.setSession(accessToken, refreshToken)`, then navigate to `ResetPasswordView`.
+- `ResetPasswordView`: new password + confirm fields. The old password remains valid and usable for login until the user explicitly submits. On submit: call `supabase.auth.updateUser(UserAttributes(password: newPassword))`, then `supabase.auth.signOut(scope: SignOutScope.global)` to invalidate all sessions on all devices, then navigate to `LoginView`.
+- All other devices detect session invalidation via `supabase.auth.onAuthStateChange` (fires `signedOut`) and redirect to `LoginView` automatically.
+
 **Health Connect auto-tracking** *(primary focus)*
 - When creating or editing a habit, `tracking = 'health'` unlocks a **health source** selector.
 - Supported sources (initial set): steps, water (glasses), active calories, exercise sessions (walking, running, biking, etc.), sleep duration. Backed by the `health` package (already in pubspec).
@@ -573,6 +582,10 @@ This phase is the largest UX shift. See [input_spec.md](input_spec.md) §3 for t
 - [ ] Archive undo snackbar appears above the FAB on Android.
 - [ ] Haptic feedback fires on toggle, archive, and destructive confirm on Android.
 - [ ] Android app icon visible on home screen (adaptive, no white box).
+- [ ] Clicking the recovery email link on a device with the app installed opens `ResetPasswordView` directly (works from email clients and browsers on Android and macOS).
+- [ ] Old password remains valid for login until the user submits a new one.
+- [ ] Submitting a new password logs out all other active sessions; current device navigates to `LoginView`.
+- [ ] Other logged-in devices are automatically redirected to `LoginView` when their session is invalidated.
 - [ ] Creating a habit with `tracking = health` → steps source → 8000 goal: habit auto-completes when Health Connect reports ≥ 8000 steps for today.
 - [ ] Health Connect permission prompt appears on first health-backed habit open.
 - [ ] Health read runs on every app open; no manual action required.
@@ -639,6 +652,7 @@ The week estimates above assume one developer working on this part-time. Treat t
 Ideas that are committed to ship eventually but not yet slotted into a phase. Promote to a numbered phase when prioritized; renumber subsequent phases as needed.
 
 ### Other unphased ideas
+- **Username/email change**: allow the user to update their login email from the profile screen. Requires Supabase `auth.updateUser(UserAttributes(email: newEmail))` with email confirmation, plus updating the local `users` table. Pair with a "current password" confirmation step.
 - iOS App Store submission.
 - Android tablets.
 - CI/CD pipeline (GitHub Actions: analyze + test on PR, build artifacts on tag).

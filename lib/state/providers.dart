@@ -93,6 +93,10 @@ final currentViewProvider = StateProvider<String>((ref) => 'daily');
 final focusedHabitIdProvider = StateProvider<int?>((ref) => null);
 final selectedDayProvider = StateProvider<DateTime>((ref) => DateTime.now());
 
+// True while a password-recovery deep link is being processed.
+// SplashView checks this to avoid overriding the recovery navigation.
+final passwordRecoveryActiveProvider = StateProvider<bool>((ref) => false);
+
 // ── Domain models ─────────────────────────────────────────────────────────────
 
 class DailyHabit {

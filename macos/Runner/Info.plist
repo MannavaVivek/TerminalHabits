@@ -30,5 +30,16 @@
 	<string>NSApplication</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>terminalhabits</string>
+			</array>
+			<key>CFBundleURLName</key>
+			<string>com.terminalhabits</string>
+		</dict>
+	</array>
 </dict>
 </plist>

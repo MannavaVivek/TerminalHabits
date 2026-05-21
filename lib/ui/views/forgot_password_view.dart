@@ -34,7 +34,10 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
     setState(() { _loading = true; _error = null; });
 
     try {
-      await Supabase.instance.client.auth.resetPasswordForEmail(email);
+      await Supabase.instance.client.auth.resetPasswordForEmail(
+        email,
+        redirectTo: 'terminalhabits://login-callback',
+      );
       if (mounted) setState(() { _loading = false; _sent = true; });
     } on AuthException catch (e) {
       if (mounted) setState(() { _loading = false; _error = e.message; });
