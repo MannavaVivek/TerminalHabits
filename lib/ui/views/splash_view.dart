@@ -81,6 +81,13 @@ class _SplashViewState extends ConsumerState<SplashView>
       final email = Supabase.instance.client.auth.currentUser!.email!;
       final db = ref.read(dbProvider);
       await db.ensurePlaceholderUser(email);
+      // Sync display name from Supabase user metadata so name changes made
+      // on another device propagate after refreshSession returns.
+      final metaName = Supabase.instance.client.auth.currentUser
+          ?.userMetadata?['display_name'] as String?;
+      if (metaName != null && metaName.isNotEmpty) {
+        await db.updateDisplayName(1, metaName);
+      }
       ref.read(currentViewProvider.notifier).state = 'daily';
       ref.read(currentUserIdProvider.notifier).state = 1;
       if (!mounted) return;
