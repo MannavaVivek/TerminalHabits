@@ -31,31 +31,38 @@ class HealthService {
     ];
   }
 
-  /// Returns true if Health Connect permissions have been granted for the
-  /// requested [sources]. Returns false on non-Android or if the answer is
-  /// unknown (treat as "not granted yet").
+  /// Returns true if Health Connect READ permissions have been granted for
+  /// the requested [sources]. Returns false on non-Android or if unknown.
   static Future<bool> hasPermissions(Iterable<String> sources) async {
     if (!Platform.isAndroid) return false;
     final types = _typesFor(sources);
     if (types.isEmpty) return true;
     await _ensureConfigured();
-    final granted = await _health.hasPermissions(types);
+    final perms = List<HealthDataAccess>.filled(types.length, HealthDataAccess.READ);
+    final granted = await _health.hasPermissions(types, permissions: perms);
     return granted ?? false;
   }
 
-  /// Prompts the user to grant Health Connect permissions for [sources].
-  /// Returns true if all were granted.
+  /// Asks the OS to prompt for Health Connect permissions on [sources].
+  /// The plugin's `requestAuthorization` returns false when no UI was shown
+  /// (e.g. the user already granted/denied in a prior session), so we also
+  /// re-check `hasPermissions` afterward and trust the more-recent result.
   static Future<bool> requestPermissions(Iterable<String> sources) async {
     if (!Platform.isAndroid) return false;
     final types = _typesFor(sources);
     if (types.isEmpty) return true;
     await _ensureConfigured();
+    final perms = List<HealthDataAccess>.filled(types.length, HealthDataAccess.READ);
+    if (await hasPermissions(sources)) return true;
     try {
-      return await _health.requestAuthorization(types);
+      final reqResult = await _health.requestAuthorization(types, permissions: perms);
+      if (reqResult) return true;
     } catch (e) {
       debugPrint('Health requestAuthorization error: $e');
-      return false;
     }
+    // Re-check — Health Connect may have granted silently or the user
+    // returned from a manual flow with permission now in place.
+    return hasPermissions(sources);
   }
 
   /// Reads today's accumulated value for [source] (local-day window).

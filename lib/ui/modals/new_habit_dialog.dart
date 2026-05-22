@@ -90,16 +90,14 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
       return;
     }
 
-    // Health Connect permission must be granted before we can read the
-    // source value on every app open. Prompt here so the user knows what
-    // they're agreeing to before the habit is created.
+    // Prompt for Health Connect permission as a best-effort step. The habit
+    // is created regardless — if permission is missing, the next on-open
+    // sync just won't auto-complete it, and the user can grant access in
+    // Health Connect → App permissions whenever they want.
+    bool healthGranted = true;
     if (_tracking == 'health') {
-      final ok = await HealthService.requestPermissions([_healthSource!]);
-      if (!ok) {
-        if (!context.mounted) return;
-        await _showHealthDeniedDialog(context);
-        return;
-      }
+      healthGranted =
+          await HealthService.requestPermissions([_healthSource!]);
     }
 
     setState(() => _saving = true);
@@ -132,6 +130,11 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
       healthSource: Value(_tracking == 'health' ? _healthSource : null),
     ));
 
+    if (!mounted) return;
+    if (_tracking == 'health' && !healthGranted) {
+      // Habit is saved — just warn that auto-sync won't work until they grant.
+      await _showHealthDeniedDialog(context);
+    }
     if (mounted) Navigator.of(context).pop();
   }
 
@@ -653,39 +656,56 @@ Future<void> _showHealthDeniedDialog(BuildContext context) {
       shape: RoundedRectangleBorder(
           borderRadius: const BorderRadius.all(TH.r10)),
       child: SizedBox(
-        width: 320,
+        width: 360,
         child: Padding(
           padding: const EdgeInsets.all(TH.s22),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('health connect denied',
+              Text('health connect permission needed',
                   style: TextStyle(
                       color: col.fg,
                       fontSize: 14,
                       fontWeight: FontWeight.w600)),
               const SizedBox(height: TH.s8),
               Text(
-                'we need read access to your health data to auto-complete this habit.\ngrant the permission in health connect and try again.',
+                'the habit is saved, but auto-completion needs read\n'
+                'access to health connect data. to grant it:',
                 style: TextStyle(color: col.fgDim, fontSize: 12),
               ),
+              const SizedBox(height: TH.s14),
+              Text(
+                '1. open the health connect app\n'
+                '2. tap "app permissions"\n'
+                '3. find "TerminalHabits"\n'
+                '4. toggle on the data you want (steps, etc.)',
+                style: TextStyle(color: col.fg, fontSize: 12),
+              ),
+              const SizedBox(height: TH.s8),
+              Text(
+                "// then reopen this app or pull-to-refresh and the habit\n// will auto-complete when you've hit the goal.",
+                style: TextStyle(color: col.fgFaint, fontSize: 11),
+              ),
               const SizedBox(height: TH.s22),
-              Center(
-                child: GestureDetector(
-                  onTap: () => Navigator.of(ctx).pop(),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: TH.s22, vertical: TH.s8),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: col.green),
-                      borderRadius: const BorderRadius.all(TH.r4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.of(ctx).pop(),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: TH.s22, vertical: TH.s8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: col.green),
+                        borderRadius: const BorderRadius.all(TH.r4),
+                      ),
+                      child: Text('[ got it ]',
+                          style:
+                              TextStyle(color: col.green, fontSize: 13)),
                     ),
-                    child: Text('[ ok ]',
-                        style:
-                            TextStyle(color: col.green, fontSize: 13)),
                   ),
-                ),
+                ],
               ),
             ],
           ),
