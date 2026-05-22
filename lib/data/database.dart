@@ -13,7 +13,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -92,6 +92,27 @@ class AppDatabase extends _$AppDatabase {
             await customStatement(
                 'UPDATE habits SET updated_at = created_at');
           }
+          if (from < 10) {
+            // Groups gain LWW sync columns. No created_at on this table —
+            // backfill updated_at with the current timestamp. Drift v2.x
+            // reads DateTimeColumn as Unix seconds, so write in seconds.
+            await customStatement(
+                'ALTER TABLE groups ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0');
+            await customStatement(
+                'ALTER TABLE groups ADD COLUMN deleted INTEGER NOT NULL DEFAULT 0');
+            final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+            await customStatement(
+                'UPDATE groups SET updated_at = $nowSec WHERE updated_at = 0');
+          }
+          if (from < 11) {
+            // Recovery: an earlier v10 build backfilled groups.updated_at in
+            // milliseconds, which Drift (storing DateTime as Unix seconds)
+            // then read as year-58000 timestamps. Those bogus values always
+            // beat the server in LWW, blocking sync. Reset anything past the
+            // year-3000 threshold so the next pull restores valid timestamps.
+            await customStatement(
+                'UPDATE groups SET updated_at = 0 WHERE updated_at > 32503680000');
+          }
         },
       );
 
@@ -100,6 +121,7 @@ class AppDatabase extends _$AppDatabase {
       id: Value('general'),
       name: 'general',
       sortIndex: 100,
+      updatedAt: Value(DateTime.now()),
     ));
     await _upsertSetting('userName', 'you');
     await _upsertSetting('themeId', 'matrix');
@@ -187,11 +209,20 @@ class AppDatabase extends _$AppDatabase {
 
   Stream<List<Group>> watchGroups(int userId) =>
       (select(groups)
-            ..where((g) => g.userId.equals(userId))
+            ..where((g) => g.userId.equals(userId) & g.deleted.equals(false))
             ..orderBy([(g) => OrderingTerm.asc(g.sortIndex)]))
           .watch();
 
+  // Visible (non-deleted) groups only. Used by UI.
   Future<List<Group>> getGroups(int userId) =>
+      (select(groups)
+            ..where((g) => g.userId.equals(userId) & g.deleted.equals(false))
+            ..orderBy([(g) => OrderingTerm.asc(g.sortIndex)]))
+          .get();
+
+  // All groups including soft-deleted tombstones. Used by sync push so
+  // tombstones propagate to other devices.
+  Future<List<Group>> getAllGroups(int userId) =>
       (select(groups)
             ..where((g) => g.userId.equals(userId))
             ..orderBy([(g) => OrderingTerm.asc(g.sortIndex)]))
@@ -213,44 +244,55 @@ class AppDatabase extends _$AppDatabase {
       sortIndex: nextSort,
       icon: Value(icon),
       note: Value(note),
+      updatedAt: Value(DateTime.now()),
     ));
     return (select(groups)..where((g) => g.id.equals(newId))).getSingle();
   }
 
   Future<void> patchGroup(String groupId, GroupsCompanion companion) =>
-      (update(groups)..where((g) => g.id.equals(groupId))).write(companion);
+      (update(groups)..where((g) => g.id.equals(groupId)))
+          .write(companion.copyWith(updatedAt: Value(DateTime.now())));
 
   Future<void> setGroupCollapsed(String groupId, bool collapsed) async {
     await (update(groups)..where((g) => g.id.equals(groupId)))
-        .write(GroupsCompanion(collapsed: Value(collapsed)));
+        .write(GroupsCompanion(
+            collapsed: Value(collapsed),
+            updatedAt: Value(DateTime.now())));
   }
 
   Future<void> setGroupNote(String groupId, String? note) async {
     await (update(groups)..where((g) => g.id.equals(groupId)))
-        .write(GroupsCompanion(note: Value(note)));
+        .write(GroupsCompanion(
+            note: Value(note), updatedAt: Value(DateTime.now())));
   }
 
   Future<void> renameGroup(String groupId, String name) async {
     await (update(groups)..where((g) => g.id.equals(groupId)))
-        .write(GroupsCompanion(name: Value(name)));
+        .write(GroupsCompanion(
+            name: Value(name), updatedAt: Value(DateTime.now())));
   }
 
-  // Deletes [groupId]. Habits are reassigned to [reassignTo] if non-null;
-  // otherwise the habits and their completions are cascade-deleted.
+  // Soft-deletes [groupId]. Habits are either reassigned to [reassignTo]
+  // (when provided) or cascade soft-deleted alongside the group.
+  // Tombstones propagate via the LWW sync pipeline.
+  // The `general` group is protected and cannot be deleted.
   Future<void> deleteGroup(String groupId, {String? reassignTo}) async {
-    if (reassignTo != null) {
-      await (update(habits)..where((h) => h.groupId.equals(groupId)))
-          .write(HabitsCompanion(groupId: Value(reassignTo)));
-    } else {
-      final affected = await (select(habits)
-            ..where((h) => h.groupId.equals(groupId)))
-          .get();
-      for (final h in affected) {
-        await (delete(completions)..where((c) => c.habitId.equals(h.id))).go();
+    if (groupId == 'general') return;
+    final now = DateTime.now();
+    await transaction(() async {
+      if (reassignTo != null) {
+        await (update(habits)..where((h) => h.groupId.equals(groupId)))
+            .write(HabitsCompanion(
+                groupId: Value(reassignTo), updatedAt: Value(now)));
+      } else {
+        await (update(habits)..where((h) => h.groupId.equals(groupId)))
+            .write(HabitsCompanion(
+                deleted: const Value(true), updatedAt: Value(now)));
       }
-      await (delete(habits)..where((h) => h.groupId.equals(groupId))).go();
-    }
-    await (delete(groups)..where((g) => g.id.equals(groupId))).go();
+      await (update(groups)..where((g) => g.id.equals(groupId)))
+          .write(GroupsCompanion(
+              deleted: const Value(true), updatedAt: Value(now)));
+    });
   }
 
   // ── Habits ─────────────────────────────────────────────────────────────────

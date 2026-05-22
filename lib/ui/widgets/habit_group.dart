@@ -30,7 +30,9 @@ class HabitGroupWidget extends ConsumerWidget {
           onTap: () => ref
               .read(dbProvider)
               .setGroupCollapsed(g.group.id, !collapsed),
-          onLongPress: () => showGroupMenu(context, ref, g.group),
+          onLongPressStart: (details) =>
+              showGroupMenu(context, ref, g.group,
+                  at: details.globalPosition),
           onSecondaryTapDown: (details) =>
               showGroupMenu(context, ref, g.group,
                   at: details.globalPosition),

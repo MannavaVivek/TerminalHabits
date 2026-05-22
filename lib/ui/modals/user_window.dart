@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import 'package:syncfusion_flutter_datepicker/datepicker.dart';
@@ -427,16 +428,33 @@ class _UserWindowDialogState extends ConsumerState<_UserWindowDialog> {
                                       _saveDisplayName(user),
                                 ),
                               )
-                            else
+                            else ...[
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () {
+                                    _nameCtrl.text = user.displayName;
+                                    setState(() => _editingName = true);
+                                  },
+                                  behavior: HitTestBehavior.opaque,
+                                  child: Text(user.displayName,
+                                      style: TextStyle(
+                                          color: col.fg, fontSize: 12)),
+                                ),
+                              ),
                               GestureDetector(
                                 onTap: () {
                                   _nameCtrl.text = user.displayName;
                                   setState(() => _editingName = true);
                                 },
-                                child: Text(user.displayName,
-                                    style: TextStyle(
-                                        color: col.fg, fontSize: 12)),
+                                behavior: HitTestBehavior.opaque,
+                                child: Padding(
+                                  padding:
+                                      const EdgeInsets.only(left: TH.s8),
+                                  child: Icon(LucideIcons.pencil,
+                                      size: 12, color: col.fgMute),
+                                ),
                               ),
+                            ],
                           ],
                         ),
                         const SizedBox(height: 6),

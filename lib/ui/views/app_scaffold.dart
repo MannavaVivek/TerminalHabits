@@ -72,20 +72,36 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
     final daily = ref.read(dailyStateProvider);
     if (!daily.hasValue) return;
     _scanDone = true;
+    _runScanAsync();
+  }
+
+  Future<void> _runScanAsync() async {
+    // Wait for the initial pull to complete so we don't process days with
+    // stale local data (which would set last_seen_date past missed days
+    // before they're actually checked). Fall back to a 5s timeout for
+    // offline mode.
+    if (Supabase.instance.client.auth.currentSession != null) {
+      await Future.any([
+        SyncService.initialPullCompleted,
+        Future<void>.delayed(const Duration(seconds: 5)),
+      ]);
+    }
+    if (!mounted) return;
     final db = ref.read(dbProvider);
     final habits = ref.read(habitsProvider).valueOrNull ?? [];
     final completionMap = ref.read(recentCompletionsProvider).valueOrNull ?? {};
     final vacations = ref.read(vacationsProvider).valueOrNull ?? [];
     final historyMap = ref.read(scheduleHistoryProvider).valueOrNull ?? {};
-    runLaunchScan(
-      db: db,
-      habits: habits,
-      completionMap: completionMap,
-      vacations: vacations,
-      historyMap: historyMap,
-    ).then((_) {
-      if (mounted) _recomputePool();
-    }, onError: (_) {});
+    try {
+      await runLaunchScan(
+        db: db,
+        habits: habits,
+        completionMap: completionMap,
+        vacations: vacations,
+        historyMap: historyMap,
+      );
+    } catch (_) {}
+    if (mounted) _recomputePool();
   }
 
   void _recomputePool() {

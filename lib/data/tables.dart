@@ -23,6 +23,12 @@ class Groups extends Table {
       boolean().withDefault(const Constant(false))();
   TextColumn get note => text().nullable()();
   TextColumn get icon => text().nullable()();
+  // Last-write-wins sync: set to now() on every create/modify/delete.
+  DateTimeColumn get updatedAt =>
+      dateTime().withDefault(currentDateAndTime)();
+  // Soft-delete: true when deleted by user. Row stays so deletions propagate.
+  BoolColumn get deleted =>
+      boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column> get primaryKey => {id};

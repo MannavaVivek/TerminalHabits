@@ -44,8 +44,8 @@ class HabitRow extends ConsumerWidget {
     Widget row = GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: focus,
-      onLongPress: () {
-        showHabitMenu(context, ref, h);
+      onLongPressStart: (details) {
+        showHabitMenu(context, ref, h, at: details.globalPosition);
       },
       onSecondaryTapDown: (details) =>
           showHabitMenu(context, ref, h, at: details.globalPosition),

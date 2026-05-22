@@ -437,6 +437,33 @@ class $GroupsTable extends Groups with TableInfo<$GroupsTable, Group> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _deletedMeta = const VerificationMeta(
+    'deleted',
+  );
+  @override
+  late final GeneratedColumn<bool> deleted = GeneratedColumn<bool>(
+    'deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -446,6 +473,8 @@ class $GroupsTable extends Groups with TableInfo<$GroupsTable, Group> {
     collapsed,
     note,
     icon,
+    updatedAt,
+    deleted,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -502,6 +531,18 @@ class $GroupsTable extends Groups with TableInfo<$GroupsTable, Group> {
         icon.isAcceptableOrUnknown(data['icon']!, _iconMeta),
       );
     }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('deleted')) {
+      context.handle(
+        _deletedMeta,
+        deleted.isAcceptableOrUnknown(data['deleted']!, _deletedMeta),
+      );
+    }
     return context;
   }
 
@@ -539,6 +580,14 @@ class $GroupsTable extends Groups with TableInfo<$GroupsTable, Group> {
         DriftSqlType.string,
         data['${effectivePrefix}icon'],
       ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}deleted'],
+      )!,
     );
   }
 
@@ -556,6 +605,8 @@ class Group extends DataClass implements Insertable<Group> {
   final bool collapsed;
   final String? note;
   final String? icon;
+  final DateTime updatedAt;
+  final bool deleted;
   const Group({
     required this.id,
     required this.userId,
@@ -564,6 +615,8 @@ class Group extends DataClass implements Insertable<Group> {
     required this.collapsed,
     this.note,
     this.icon,
+    required this.updatedAt,
+    required this.deleted,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -579,6 +632,8 @@ class Group extends DataClass implements Insertable<Group> {
     if (!nullToAbsent || icon != null) {
       map['icon'] = Variable<String>(icon);
     }
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['deleted'] = Variable<bool>(deleted);
     return map;
   }
 
@@ -591,6 +646,8 @@ class Group extends DataClass implements Insertable<Group> {
       collapsed: Value(collapsed),
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
       icon: icon == null && nullToAbsent ? const Value.absent() : Value(icon),
+      updatedAt: Value(updatedAt),
+      deleted: Value(deleted),
     );
   }
 
@@ -607,6 +664,8 @@ class Group extends DataClass implements Insertable<Group> {
       collapsed: serializer.fromJson<bool>(json['collapsed']),
       note: serializer.fromJson<String?>(json['note']),
       icon: serializer.fromJson<String?>(json['icon']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deleted: serializer.fromJson<bool>(json['deleted']),
     );
   }
   @override
@@ -620,6 +679,8 @@ class Group extends DataClass implements Insertable<Group> {
       'collapsed': serializer.toJson<bool>(collapsed),
       'note': serializer.toJson<String?>(note),
       'icon': serializer.toJson<String?>(icon),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deleted': serializer.toJson<bool>(deleted),
     };
   }
 
@@ -631,6 +692,8 @@ class Group extends DataClass implements Insertable<Group> {
     bool? collapsed,
     Value<String?> note = const Value.absent(),
     Value<String?> icon = const Value.absent(),
+    DateTime? updatedAt,
+    bool? deleted,
   }) => Group(
     id: id ?? this.id,
     userId: userId ?? this.userId,
@@ -639,6 +702,8 @@ class Group extends DataClass implements Insertable<Group> {
     collapsed: collapsed ?? this.collapsed,
     note: note.present ? note.value : this.note,
     icon: icon.present ? icon.value : this.icon,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deleted: deleted ?? this.deleted,
   );
   Group copyWithCompanion(GroupsCompanion data) {
     return Group(
@@ -649,6 +714,8 @@ class Group extends DataClass implements Insertable<Group> {
       collapsed: data.collapsed.present ? data.collapsed.value : this.collapsed,
       note: data.note.present ? data.note.value : this.note,
       icon: data.icon.present ? data.icon.value : this.icon,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deleted: data.deleted.present ? data.deleted.value : this.deleted,
     );
   }
 
@@ -661,14 +728,25 @@ class Group extends DataClass implements Insertable<Group> {
           ..write('sortIndex: $sortIndex, ')
           ..write('collapsed: $collapsed, ')
           ..write('note: $note, ')
-          ..write('icon: $icon')
+          ..write('icon: $icon, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, userId, name, sortIndex, collapsed, note, icon);
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    name,
+    sortIndex,
+    collapsed,
+    note,
+    icon,
+    updatedAt,
+    deleted,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -679,7 +757,9 @@ class Group extends DataClass implements Insertable<Group> {
           other.sortIndex == this.sortIndex &&
           other.collapsed == this.collapsed &&
           other.note == this.note &&
-          other.icon == this.icon);
+          other.icon == this.icon &&
+          other.updatedAt == this.updatedAt &&
+          other.deleted == this.deleted);
 }
 
 class GroupsCompanion extends UpdateCompanion<Group> {
@@ -690,6 +770,8 @@ class GroupsCompanion extends UpdateCompanion<Group> {
   final Value<bool> collapsed;
   final Value<String?> note;
   final Value<String?> icon;
+  final Value<DateTime> updatedAt;
+  final Value<bool> deleted;
   final Value<int> rowid;
   const GroupsCompanion({
     this.id = const Value.absent(),
@@ -699,6 +781,8 @@ class GroupsCompanion extends UpdateCompanion<Group> {
     this.collapsed = const Value.absent(),
     this.note = const Value.absent(),
     this.icon = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deleted = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   GroupsCompanion.insert({
@@ -709,6 +793,8 @@ class GroupsCompanion extends UpdateCompanion<Group> {
     this.collapsed = const Value.absent(),
     this.note = const Value.absent(),
     this.icon = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deleted = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : name = Value(name),
        sortIndex = Value(sortIndex);
@@ -720,6 +806,8 @@ class GroupsCompanion extends UpdateCompanion<Group> {
     Expression<bool>? collapsed,
     Expression<String>? note,
     Expression<String>? icon,
+    Expression<DateTime>? updatedAt,
+    Expression<bool>? deleted,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -730,6 +818,8 @@ class GroupsCompanion extends UpdateCompanion<Group> {
       if (collapsed != null) 'collapsed': collapsed,
       if (note != null) 'note': note,
       if (icon != null) 'icon': icon,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deleted != null) 'deleted': deleted,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -742,6 +832,8 @@ class GroupsCompanion extends UpdateCompanion<Group> {
     Value<bool>? collapsed,
     Value<String?>? note,
     Value<String?>? icon,
+    Value<DateTime>? updatedAt,
+    Value<bool>? deleted,
     Value<int>? rowid,
   }) {
     return GroupsCompanion(
@@ -752,6 +844,8 @@ class GroupsCompanion extends UpdateCompanion<Group> {
       collapsed: collapsed ?? this.collapsed,
       note: note ?? this.note,
       icon: icon ?? this.icon,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deleted: deleted ?? this.deleted,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -780,6 +874,12 @@ class GroupsCompanion extends UpdateCompanion<Group> {
     if (icon.present) {
       map['icon'] = Variable<String>(icon.value);
     }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deleted.present) {
+      map['deleted'] = Variable<bool>(deleted.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -796,6 +896,8 @@ class GroupsCompanion extends UpdateCompanion<Group> {
           ..write('collapsed: $collapsed, ')
           ..write('note: $note, ')
           ..write('icon: $icon, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3793,6 +3895,8 @@ typedef $$GroupsTableCreateCompanionBuilder =
       Value<bool> collapsed,
       Value<String?> note,
       Value<String?> icon,
+      Value<DateTime> updatedAt,
+      Value<bool> deleted,
       Value<int> rowid,
     });
 typedef $$GroupsTableUpdateCompanionBuilder =
@@ -3804,6 +3908,8 @@ typedef $$GroupsTableUpdateCompanionBuilder =
       Value<bool> collapsed,
       Value<String?> note,
       Value<String?> icon,
+      Value<DateTime> updatedAt,
+      Value<bool> deleted,
       Value<int> rowid,
     });
 
@@ -3872,6 +3978,16 @@ class $$GroupsTableFilterComposer
 
   ColumnFilters<String> get icon => $composableBuilder(
     column: $table.icon,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3944,6 +4060,16 @@ class $$GroupsTableOrderingComposer
     column: $table.icon,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$GroupsTableAnnotationComposer
@@ -3975,6 +4101,12 @@ class $$GroupsTableAnnotationComposer
 
   GeneratedColumn<String> get icon =>
       $composableBuilder(column: $table.icon, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get deleted =>
+      $composableBuilder(column: $table.deleted, builder: (column) => column);
 
   Expression<T> habitsRefs<T extends Object>(
     Expression<T> Function($$HabitsTableAnnotationComposer a) f,
@@ -4037,6 +4169,8 @@ class $$GroupsTableTableManager
                 Value<bool> collapsed = const Value.absent(),
                 Value<String?> note = const Value.absent(),
                 Value<String?> icon = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> deleted = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => GroupsCompanion(
                 id: id,
@@ -4046,6 +4180,8 @@ class $$GroupsTableTableManager
                 collapsed: collapsed,
                 note: note,
                 icon: icon,
+                updatedAt: updatedAt,
+                deleted: deleted,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -4057,6 +4193,8 @@ class $$GroupsTableTableManager
                 Value<bool> collapsed = const Value.absent(),
                 Value<String?> note = const Value.absent(),
                 Value<String?> icon = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> deleted = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => GroupsCompanion.insert(
                 id: id,
@@ -4066,6 +4204,8 @@ class $$GroupsTableTableManager
                 collapsed: collapsed,
                 note: note,
                 icon: icon,
+                updatedAt: updatedAt,
+                deleted: deleted,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

@@ -548,14 +548,19 @@ This phase is the largest UX shift. See [input_spec.md](input_spec.md) §3 for t
 ### Scope
 
 **Group management**
-- **Editable groups**: tap a group header to edit its name, icon, and sort order inline. No restrictions except empty name, which is treated as a delete.
-- **Group deletion rules**: `general` is the default group and cannot be deleted or renamed. Any other group can be deleted; if it has habits, those habits are soft-deleted along with the group (they do not move to `general` — removing the group intentionally removes its habits). Clearing a group name to empty triggers the same deletion path.
-- Sync: group edits stamp `updatedAt` and propagate via the existing LWW diff-push/Realtime pipeline.
+- **Editable groups**: long-press / right-click a group header opens a menu with `rename`, `edit icon`, `edit note`, and `delete`. Clearing the rename field to empty triggers the delete flow.
+- **Group deletion**: `general` is the default group and cannot be deleted or renamed. For other groups, the delete dialog asks how to handle their habits: reassign to another group, or cascade soft-delete the habits along with the group. Default selection is reassign to the first non-deleted group (typically `general`).
+- Sync: group edits stamp `updatedAt` and propagate via LWW diff-push/Realtime. Tombstones (`deleted=true`) persist locally so removals propagate to other devices.
 
 **Android UX fixes**
 - **Archive snackbar position**: the undo snackbar currently appears below the FAB and is obscured by the bottom nav bar. Move it above the FAB so it is always visible.
 - **Haptic feedback audit**: swipe and long-press are already implemented. Verify and fill in the full desired matrix: light tap on completion toggle, medium on archive/delete confirm, error pattern on destructive actions. Fix any missing sites.
 - **Android app icon**: design and wire launcher icon (adaptive icon with foreground/background layers).
+
+**Display name change**
+- Allow the user to update their display name (the name shown in the profile header and the daily view prompt line) from the profile screen.
+- UI: an edit button or tap-to-edit inline field in `UserWindow` for the name row. Saves to both the local `users` table and Supabase user metadata (`data['display_name']`) so it persists across devices.
+- No password confirmation required — display name is non-sensitive.
 
 **Password recovery (deep-link, app-required)**
 - Password recovery requires the app to be installed on the device where the recovery email link is clicked. This is an accepted limitation — no web fallback.
@@ -576,12 +581,13 @@ This phase is the largest UX shift. See [input_spec.md](input_spec.md) §3 for t
 - `healthSource` column already exists on `Habits` table. Store the chosen metric key there (e.g. `'steps'`, `'water_glasses'`, `'biking_minutes'`). `target` column stores the daily goal value.
 
 ### Exit criteria
-- [ ] Group name and icon are editable inline; changes sync to the other device.
-- [ ] Deleting a non-general group soft-deletes its habits.
-- [ ] `general` group cannot be deleted or given an empty name.
+- [ ] Group name and icon are editable from the long-press menu; changes sync to the other device.
+- [ ] Deleting a non-general group prompts for reassign-or-cascade; either option syncs to the other device.
+- [ ] `general` group cannot be deleted or renamed.
 - [ ] Archive undo snackbar appears above the FAB on Android.
 - [ ] Haptic feedback fires on toggle, archive, and destructive confirm on Android.
 - [ ] Android app icon visible on home screen (adaptive, no white box).
+- [ ] Display name is editable from the profile screen; change persists across devices via Supabase metadata.
 - [ ] Clicking the recovery email link on a device with the app installed opens `ResetPasswordView` directly (works from email clients and browsers on Android and macOS).
 - [ ] Old password remains valid for login until the user submits a new one.
 - [ ] Submitting a new password logs out all other active sessions; current device navigates to `LoginView`.
@@ -652,7 +658,6 @@ The week estimates above assume one developer working on this part-time. Treat t
 Ideas that are committed to ship eventually but not yet slotted into a phase. Promote to a numbered phase when prioritized; renumber subsequent phases as needed.
 
 ### Other unphased ideas
-- **Username/email change**: allow the user to update their login email from the profile screen. Requires Supabase `auth.updateUser(UserAttributes(email: newEmail))` with email confirmation, plus updating the local `users` table. Pair with a "current password" confirmation step.
 - iOS App Store submission.
 - Android tablets.
 - CI/CD pipeline (GitHub Actions: analyze + test on PR, build artifacts on tag).

@@ -18,12 +18,19 @@ class SyncService {
 
   static RealtimeChannel? _channel;
 
+  // Completes after the first post-login pullAll finishes (success or failure).
+  // The launch shield scan awaits this so it doesn't operate on stale local
+  // data. Reset by stopRealtime() on logout.
+  static Completer<void>? _initialPullCompleter;
+  static Future<void> get initialPullCompleted async =>
+      _initialPullCompleter?.future ?? Future<void>.value();
+
   // ── Push (local → Supabase) ────────────────────────────────────────────────
   // Diff-based: upserts all local rows and deletes server rows absent locally.
   // No table wipes — safe against concurrent pushes from another device.
 
   Future<void> pushAll() async {
-    final localGroups      = await _db.getGroups(1);
+    final localGroups      = await _db.getAllGroups(1);
     final localHabits      = await _db.getAllHabits(1);
     final localHistMap     = await _db.getAllScheduleHistory();
     final localHistory     = localHistMap.values.expand((v) => v).toList();
@@ -32,37 +39,42 @@ class SyncService {
     final localShields     = await _db.getAllDayShields();
 
     // Fetch server ID sets (lightweight — id column only).
-    final sGroupIds    = await _serverTextIds('groups');
     final sHistoryIds  = await _serverIntIds('habit_schedule_history');
     final sVacationIds = await _serverIntIds('vacations');
     final sShieldIds   = await _serverIntIds('day_shields');
-    // Habits and completions use LWW — fetch id+updated_at.
+    // Habits, completions, and groups use LWW — fetch id+updated_at.
     final sHabitTs      = await _serverHabitTimestamps();
     final sCompletionTs = await _serverCompletionTimestamps();
+    final sGroupTs      = await _serverGroupTimestamps();
 
-    // Rows on server but not local = hard-deleted by user (groups, history,
-    // vacations, shields). Habits and completions use soft-delete so they stay
-    // in local; diff only fires for hard-deletes (e.g. schedule changes).
+    // Rows on server but not local = hard-deleted by user (history, vacations,
+    // shields). Habits, completions, and groups use soft-delete so tombstones
+    // stay in local; diff only fires for hard-deletes (e.g. schedule changes).
     final delCompletions = sCompletionTs.keys.toSet().difference(localCompletions.map((c) => c.id).toSet());
     final delShields     = sShieldIds.difference(localShields.map((s) => s.id).toSet());
     final delHistory     = sHistoryIds.difference(localHistory.map((r) => r.id).toSet());
     final delHabits      = sHabitTs.keys.toSet().difference(localHabits.map((h) => h.id).toSet());
-    final delGroups      = sGroupIds.difference(localGroups.map((g) => g.id).toSet());
     final delVacations   = sVacationIds.difference(localVacations.map((v) => v.id).toSet());
 
     if (delCompletions.isNotEmpty) await _c.from('completions').delete().inFilter('id', delCompletions.toList());
     if (delShields.isNotEmpty)     await _c.from('day_shields').delete().inFilter('id', delShields.toList());
     if (delHistory.isNotEmpty)     await _c.from('habit_schedule_history').delete().inFilter('id', delHistory.toList());
     if (delHabits.isNotEmpty)      await _c.from('habits').delete().inFilter('id', delHabits.toList());
-    if (delGroups.isNotEmpty)      await _c.from('groups').delete().inFilter('id', delGroups.toList());
     if (delVacations.isNotEmpty)   await _c.from('vacations').delete().inFilter('id', delVacations.toList());
 
-    // Upsert local rows (parents first).
-    if (localGroups.isNotEmpty) {
-      await _c.from('groups').upsert(localGroups.map((g) => {
+    // Upsert local groups (LWW — only push rows newer than server).
+    final groupsToUpsert = localGroups.where((g) {
+      final serverTs = sGroupTs[g.id];
+      if (serverTs == null) return true;
+      return g.updatedAt.isAfter(serverTs);
+    }).toList();
+    if (groupsToUpsert.isNotEmpty) {
+      await _c.from('groups').upsert(groupsToUpsert.map((g) => {
         'id': g.id, 'user_id': _uid, 'name': g.name,
         'sort_index': g.sortIndex, 'collapsed': g.collapsed,
         'note': g.note, 'icon': g.icon,
+        'updated_at': g.updatedAt.millisecondsSinceEpoch,
+        'deleted': g.deleted,
       }).toList());
     }
     // Only push habits where local updatedAt is newer than server (LWW).
@@ -156,7 +168,6 @@ class SyncService {
     // snapshot would destroy data.
     if (serverHabits.isEmpty) return false;
 
-    final sGroupIds      = serverGroups.map((r) => r['id'] as String).toSet();
     final sHabitIds      = serverHabits.map((r) => (r['id'] as num).toInt()).toSet();
     final sHistoryIds    = serverHistory.map((r) => (r['id'] as num).toInt()).toSet();
     final sCompletionIds = serverCompletions.map((r) => (r['id'] as num).toInt()).toSet();
@@ -182,24 +193,35 @@ class SyncService {
       final delHa = lHabits.where((h) => !sHabitIds.contains(h.id)).map((h) => h.id).toList();
       if (delHa.isNotEmpty) await (_db.delete(_db.habits)..where((h) => h.id.isIn(delHa))).go();
 
-      final lGroups = await _db.getGroups(1);
-      final delG = lGroups.where((g) => !sGroupIds.contains(g.id)).map((g) => g.id).toList();
-      if (delG.isNotEmpty) await (_db.delete(_db.groups)..where((g) => g.id.isIn(delG))).go();
+      // Groups use soft-delete — don't hard-delete local groups missing from
+      // server (the server's deleted=true tombstone arrives via the upsert
+      // step below).
 
       final lVacations = await _db.getVacations(1);
       final delV = lVacations.where((v) => !sVacationIds.contains(v.id)).map((v) => v.id).toList();
       if (delV.isNotEmpty) await (_db.delete(_db.vacations)..where((v) => v.id.isIn(delV))).go();
 
-      // Upsert server rows (parents first).
+      // Upsert server rows (parents first). LWW for groups: skip server rows
+      // older than local.
+      final lGroupsAll = await _db.getAllGroups(1);
+      final lGroupTs = { for (final g in lGroupsAll) g.id: g.updatedAt };
       for (final r in serverGroups) {
+        final gid = r['id'] as String;
+        final serverUpdatedAt = _safeUpdatedAt(r['updated_at']);
+        final localUpdatedAt = lGroupTs[gid];
+        if (localUpdatedAt != null && localUpdatedAt.isAfter(serverUpdatedAt)) {
+          continue;
+        }
         await _db.into(_db.groups).insertOnConflictUpdate(GroupsCompanion(
-          id: Value(r['id'] as String),
+          id: Value(gid),
           userId: const Value(1),
           name: Value(r['name'] as String),
           sortIndex: Value(r['sort_index'] as int),
           collapsed: Value(r['collapsed'] as bool? ?? false),
           note: Value(r['note'] as String?),
           icon: Value(r['icon'] as String?),
+          updatedAt: Value(serverUpdatedAt),
+          deleted: Value(r['deleted'] as bool? ?? false),
         ));
       }
       // Build local updatedAt map for LWW comparison.
@@ -311,6 +333,7 @@ class SyncService {
     if (uid == null) return;
     stopRealtime();
 
+    _initialPullCompleter = Completer<void>();
     _channel = Supabase.instance.client.channel('habit-sync-$uid');
 
     for (final table in ['habits', 'completions', 'groups', 'vacations',
@@ -332,15 +355,27 @@ class SyncService {
       debugPrint('Realtime $status ${error ?? ''}');
       // On (re)connect, do a catch-up pull in case events were missed.
       if (status == RealtimeSubscribeStatus.subscribed) {
-        SyncService(db).pullAll()
-            .catchError((Object e) { debugPrint('catch-up pull: $e'); return false; });
+        SyncService(db).pullAll().then((_) {
+          _completeInitialPull();
+        }).catchError((Object e) {
+          debugPrint('catch-up pull: $e');
+          _completeInitialPull();
+          return false;
+        });
       }
     });
+  }
+
+  static void _completeInitialPull() {
+    final c = _initialPullCompleter;
+    if (c != null && !c.isCompleted) c.complete();
   }
 
   static void stopRealtime() {
     _channel?.unsubscribe();
     _channel = null;
+    // Reset so the next login waits afresh.
+    _initialPullCompleter = null;
   }
 
   static void _applyChange(AppDatabase db, String table, PostgresChangePayload p) {
@@ -359,14 +394,22 @@ class SyncService {
   static Future<void> _upsertLocalRow(AppDatabase db, String table, Map<String, dynamic> r) async {
     switch (table) {
       case 'groups':
+        final gid = r['id'] as String;
+        final gServerTs = _safeUpdatedAtStatic(r['updated_at']);
+        final gExisting = await (db.select(db.groups)
+              ..where((g) => g.id.equals(gid)))
+            .getSingleOrNull();
+        if (gExisting != null && gExisting.updatedAt.isAfter(gServerTs)) break;
         await db.into(db.groups).insertOnConflictUpdate(GroupsCompanion(
-          id: Value(r['id'] as String),
+          id: Value(gid),
           userId: const Value(1),
           name: Value(r['name'] as String),
           sortIndex: Value(r['sort_index'] as int),
           collapsed: Value(r['collapsed'] as bool? ?? false),
           note: Value(r['note'] as String?),
           icon: Value(r['icon'] as String?),
+          updatedAt: Value(gServerTs),
+          deleted: Value(r['deleted'] as bool? ?? false),
         ));
       case 'habits':
         final hId = (r['id'] as num).toInt();
@@ -474,11 +517,6 @@ class SyncService {
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
 
-  Future<Set<String>> _serverTextIds(String table) async {
-    final rows = await _c.from(table).select('id').eq('user_id', _uid) as List<dynamic>;
-    return rows.map((r) => r['id'] as String).toSet();
-  }
-
   Future<Set<int>> _serverIntIds(String table) async {
     final rows = await _c.from(table).select('id').eq('user_id', _uid) as List<dynamic>;
     return rows.map((r) => (r['id'] as num).toInt()).toSet();
@@ -492,6 +530,15 @@ class SyncService {
         (r['id'] as num).toInt(): r['updated_at'] != null
             ? _ms(r['updated_at'])
             : _ms(r['created_at']),
+    };
+  }
+
+  /// Returns {id → updatedAt} for groups. Used for LWW conflict resolution.
+  Future<Map<String, DateTime>> _serverGroupTimestamps() async {
+    final rows = await _c.from('groups').select('id, updated_at').eq('user_id', _uid) as List<dynamic>;
+    return {
+      for (final r in rows)
+        r['id'] as String: _safeUpdatedAt(r['updated_at']),
     };
   }
 
@@ -511,4 +558,31 @@ class SyncService {
 
   static DateTime _msStatic(dynamic ms) =>
       DateTime.fromMillisecondsSinceEpoch((ms as num).toInt(), isUtc: true);
+
+  // Clamp the year-58000 corruption from an earlier groups-migration bug.
+  // Anything past year ~3000 (32503680000000 ms) is treated as epoch so LWW
+  // resyncs cleanly once the bug is fixed on the writer side.
+  static const _kBogusUpdatedAtMs = 32503680000000;
+
+  DateTime _safeUpdatedAt(dynamic ms) {
+    if (ms == null) {
+      return DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+    }
+    final v = (ms as num).toInt();
+    if (v > _kBogusUpdatedAtMs) {
+      return DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+    }
+    return DateTime.fromMillisecondsSinceEpoch(v, isUtc: true);
+  }
+
+  static DateTime _safeUpdatedAtStatic(dynamic ms) {
+    if (ms == null) {
+      return DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+    }
+    final v = (ms as num).toInt();
+    if (v > _kBogusUpdatedAtMs) {
+      return DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+    }
+    return DateTime.fromMillisecondsSinceEpoch(v, isUtc: true);
+  }
 }

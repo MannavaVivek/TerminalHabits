@@ -19,6 +19,7 @@ Future<void> showGroupMenu(
       Overlay.of(context).context.findRenderObject() as RenderBox?;
   final position = at ?? overlay?.localToGlobal(Offset.zero) ?? Offset.zero;
   final size = overlay?.size ?? Size.zero;
+  final isGeneral = group.id == 'general';
 
   final selected = await showMenu<String>(
     context: context,
@@ -30,10 +31,11 @@ Future<void> showGroupMenu(
       size.height - position.dy,
     ),
     items: [
-      PopupMenuItem(
-        value: 'rename',
-        child: Text('rename', style: TextStyle(color: col.fg, fontSize: 13)),
-      ),
+      if (!isGeneral)
+        PopupMenuItem(
+          value: 'rename',
+          child: Text('rename', style: TextStyle(color: col.fg, fontSize: 13)),
+        ),
       PopupMenuItem(
         value: 'icon',
         child: Text('edit icon', style: TextStyle(color: col.fg, fontSize: 13)),
@@ -42,10 +44,11 @@ Future<void> showGroupMenu(
         value: 'note',
         child: Text('edit note', style: TextStyle(color: col.fg, fontSize: 13)),
       ),
-      PopupMenuItem(
-        value: 'delete',
-        child: Text('delete', style: TextStyle(color: col.red, fontSize: 13)),
-      ),
+      if (!isGeneral)
+        PopupMenuItem(
+          value: 'delete',
+          child: Text('delete', style: TextStyle(color: col.red, fontSize: 13)),
+        ),
     ],
   );
 
@@ -62,8 +65,14 @@ Future<void> showGroupMenu(
         initial: group.name,
         maxLength: 40,
       );
-      if (name != null && name.isNotEmpty) {
-        await db.renameGroup(group.id, name);
+      if (name == null) return;
+      final trimmed = name.trim();
+      if (trimmed.isEmpty) {
+        // Empty name = treat as delete, per Phase 12 spec.
+        if (!context.mounted) return;
+        await _confirmDelete(context, ref, group);
+      } else if (trimmed != group.name) {
+        await db.renameGroup(group.id, trimmed);
       }
     case 'icon':
       if (!context.mounted) return;
@@ -91,18 +100,23 @@ Future<void> showGroupMenu(
 
 Future<void> _confirmDelete(
     BuildContext context, WidgetRef ref, Group group) async {
+  if (group.id == 'general') return;
   final col = AppColors.of(context);
   final db = ref.read(dbProvider);
   final userId = ref.read(currentUserIdProvider);
   final allGroups = await db.getGroups(userId);
   final reassignTargets =
       allGroups.where((g) => g.id != group.id).toList();
-  final habitsInGroup = await db.getActiveHabits(userId);
-  final affected =
-      habitsInGroup.where((h) => h.groupId == group.id).length;
+  // Count all non-deleted habits (active + archived) — they all get
+  // affected when the group is removed.
+  final allHabits = await db.getAllHabits(userId);
+  final affected = allHabits
+      .where((h) => h.groupId == group.id && !h.deleted)
+      .length;
 
   if (!context.mounted) return;
 
+  // Default choice: reassign to first available group (usually general).
   String? choice = reassignTargets.isNotEmpty
       ? reassignTargets.first.id
       : 'cascade';
@@ -134,20 +148,21 @@ Future<void> _confirmDelete(
                       style:
                           TextStyle(color: col.fgDim, fontSize: 12))
                 else
-                  Text('$affected habit${affected == 1 ? '' : 's'} in this group.',
-                      style: TextStyle(
-                          color: col.fgDim, fontSize: 12)),
+                  Text(
+                      '$affected habit${affected == 1 ? '' : 's'} in this group.',
+                      style:
+                          TextStyle(color: col.fgDim, fontSize: 12)),
                 if (affected > 0) ...[
                   const SizedBox(height: TH.s14),
                   for (final t in reassignTargets)
                     _RadioRow(
-                      label: 'reassign to "${t.name}"',
+                      label: 'move to "${t.name}"',
                       selected: choice == t.id,
                       col: col,
                       onTap: () => setState(() => choice = t.id),
                     ),
                   _RadioRow(
-                    label: 'delete habits + completions',
+                    label: 'delete habits',
                     danger: true,
                     selected: choice == 'cascade',
                     col: col,
@@ -191,7 +206,7 @@ Future<void> _confirmDelete(
   );
 
   if (confirmed != true) return;
-  if (choice == 'cascade') {
+  if (choice == 'cascade' || affected == 0) {
     await db.deleteGroup(group.id);
   } else {
     await db.deleteGroup(group.id, reassignTo: choice);
