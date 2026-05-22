@@ -43,16 +43,18 @@ Future<void> runHealthSync(AppDatabase db, List<Habit> habits) async {
       // Leave any existing completion alone — don't clobber prior progress.
       continue;
     }
+    if (value <= 0) continue; // nothing to record yet today
 
-    if (value <= 0) {
-      // Zero steps so far today — remove any stale completion row.
-      await db.softDeleteCompletionIfPresent(h.id, todayUtc);
+    final existing = await db.getCompletionForDay(h.id, todayUtc);
+    if (existing == null) {
+      await db.setCompletionValue(h.id, todayUtc, value.toDouble());
+    } else if (existing.deleted) {
+      // User explicitly undid today's completion — respect that.
       continue;
+    } else if (value > existing.value) {
+      // Only advance the value; never overwrite a manual entry downward.
+      await db.setCompletionValue(h.id, todayUtc, value.toDouble());
     }
-
-    // Always store the current value so the daily view shows "v/target"
-    // progress. "Done" is decided by isDoneToday (value >= target).
-    await db.setCompletionValue(h.id, todayUtc, value.toDouble());
     debugPrint('health: ${h.name} $value/${h.target}');
   }
 }

@@ -548,6 +548,15 @@ class AppDatabase extends _$AppDatabase {
     }
   }
 
+  // Returns the (habitId, day) completion row regardless of soft-delete
+  // state. Used by health sync to decide whether to update or skip.
+  Future<Completion?> getCompletionForDay(int habitId, DateTime dayUtc) async {
+    return (select(completions)
+          ..where((c) =>
+              c.habitId.equals(habitId) & c.day.equals(dayUtc)))
+        .getSingleOrNull();
+  }
+
   // Soft-deletes the (habitId, day) completion if one exists and isn't
   // already deleted. No-op otherwise. Used by health sync to retract a
   // previously-auto-applied completion when today's value drops below goal.

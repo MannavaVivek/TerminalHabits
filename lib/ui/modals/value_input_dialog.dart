@@ -37,13 +37,29 @@ class _ValueInputDialogState extends State<ValueInputDialog> {
   bool _overflowWarning = false;
 
   bool get _isDuration => widget.habit.tracking == 'duration';
-  String get _unit => _isDuration ? 'min' : '';
-  int get _step => 1;
+  bool get _isHealth => widget.habit.tracking == 'health';
+  String get _unit => _isDuration
+      ? 'min'
+      : (_isHealth ? (widget.habit.unit ?? '') : '');
+
+  // Larger types (health) get a larger step + max so the +/− buttons and
+  // text field can handle realistic ranges (steps, calories, etc.).
+  int get _max => _isHealth ? 999999 : 999;
+  int get _maxDigits => _isHealth ? 6 : 3;
+  int get _step {
+    if (_isHealth) {
+      final target = widget.habit.target ?? 8000;
+      // Round-ish quarter-target step, clamped to a sane range.
+      final s = (target / 20).round();
+      return s.clamp(50, 1000);
+    }
+    return 1;
+  }
 
   @override
   void initState() {
     super.initState();
-    _value = widget.currentValue.clamp(0, 999).toDouble();
+    _value = widget.currentValue.clamp(0, _max).toDouble();
     _ctrl = TextEditingController(
         text: _value > 0 ? _value.toInt().toString() : '');
     _ctrl.addListener(_onTextChanged);
@@ -58,12 +74,13 @@ class _ValueInputDialogState extends State<ValueInputDialog> {
 
   void _onTextChanged() {
     final parsed = double.tryParse(_ctrl.text.trim());
-    if (parsed != null && parsed > 999) {
+    if (parsed != null && parsed > _max) {
+      final clamped = _max.toString();
       _ctrl
-        ..text = '999'
-        ..selection = const TextSelection.collapsed(offset: 3);
+        ..text = clamped
+        ..selection = TextSelection.collapsed(offset: clamped.length);
       setState(() {
-        _value = 999;
+        _value = _max.toDouble();
         _overflowWarning = true;
       });
       Future.delayed(const Duration(seconds: 2), () {
@@ -75,14 +92,14 @@ class _ValueInputDialogState extends State<ValueInputDialog> {
   void _applyText() {
     final parsed = double.tryParse(_ctrl.text.trim());
     if (parsed != null && parsed >= 0) {
-      setState(() => _value = parsed.clamp(0, 999).toDouble());
+      setState(() => _value = parsed.clamp(0, _max).toDouble());
     }
   }
 
   void _increment() {
     _applyText();
     setState(() {
-      _value = (_value + _step).clamp(0, 999).toDouble();
+      _value = (_value + _step).clamp(0, _max).toDouble();
       _ctrl.text = _value.toInt().toString();
       _ctrl.selection = TextSelection.collapsed(offset: _ctrl.text.length);
     });
@@ -91,7 +108,7 @@ class _ValueInputDialogState extends State<ValueInputDialog> {
   void _decrement() {
     _applyText();
     setState(() {
-      _value = (_value - _step).clamp(0, 999).toDouble();
+      _value = (_value - _step).clamp(0, _max).toDouble();
       _ctrl.text = _value > 0 ? _value.toInt().toString() : '';
       _ctrl.selection = TextSelection.collapsed(offset: _ctrl.text.length);
     });
@@ -176,7 +193,7 @@ class _ValueInputDialogState extends State<ValueInputDialog> {
                         keyboardType: TextInputType.number,
                         inputFormatters: [
                           FilteringTextInputFormatter.digitsOnly,
-                          LengthLimitingTextInputFormatter(3),
+                          LengthLimitingTextInputFormatter(_maxDigits),
                         ],
                         style: TextStyle(
                             color: col.fg,
@@ -218,7 +235,7 @@ class _ValueInputDialogState extends State<ValueInputDialog> {
               ),
               if (_overflowWarning) ...[
                 const SizedBox(height: TH.s4),
-                Text('// max is 999',
+                Text('// max is $_max',
                     style: TextStyle(color: col.red, fontSize: 11)),
               ],
               const SizedBox(height: TH.s14),

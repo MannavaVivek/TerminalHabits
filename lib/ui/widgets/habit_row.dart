@@ -203,6 +203,7 @@ class HabitRow extends ConsumerWidget {
     switch (h.tracking) {
       case 'counter':
       case 'duration':
+      case 'health':
         if (!context.mounted) return;
         final result = await ValueInputDialog.show(
           context,
@@ -211,7 +212,7 @@ class HabitRow extends ConsumerWidget {
         );
         if (result == null) return;
         if (result <= 0) {
-          await db.clearCompletion(h.id, dayUtc);
+          await db.softDeleteCompletionIfPresent(h.id, dayUtc);
         } else {
           await db.setCompletionValue(h.id, dayUtc, result);
         }
