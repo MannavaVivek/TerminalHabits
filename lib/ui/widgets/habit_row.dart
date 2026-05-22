@@ -221,13 +221,26 @@ class HabitRow extends ConsumerWidget {
   }
 
   static String _progressLabel(Habit h, double value) {
-    final v = value.toInt().clamp(0, 999);
     if (h.tracking == 'duration') {
+      final v = value.toInt().clamp(0, 999);
       final t = (h.target ?? 0).clamp(0, 999);
       return t > 0 ? '$v/${t}m' : '${v}m';
     }
+    if (h.tracking == 'health') {
+      final v = _fmtK(value.toInt());
+      final t = h.target != null ? _fmtK(h.target!) : null;
+      return t != null ? '$v/$t' : v;
+    }
+    final v = value.toInt().clamp(0, 999);
     final t = (h.target ?? 0).clamp(0, 999);
     return t > 0 ? '$v/$t' : '$v';
+  }
+
+  static String _fmtK(int n) {
+    if (n < 1000) return '$n';
+    final k = n / 1000;
+    if (k < 10) return '${k.toStringAsFixed(1)}k';
+    return '${k.round()}k';
   }
 
   static bool _isToday(DateTime day) {

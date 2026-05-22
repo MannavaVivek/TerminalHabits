@@ -66,12 +66,20 @@ Rules:
 | `hotkey_manager` | Global show/hide hotkey (Phase 9+, optional) |
 | `multi_split_view` | Resizable sidebar/inspector (optional, Phase 7 polish) |
 
-### Mobile only (Phase 10)
+### Cloud sync (Phase 10 / 11 — shipped)
 
 | Package | Purpose |
 |---|---|
-| `health` (Android variant via `health_connect`) | Step/sleep import for `[health]` habits |
-| `flutter_haptic` *or* `HapticFeedback` from `services` | Tactile click on button presses |
+| `supabase_flutter` | Email/password auth, Postgres-backed sync, Realtime channels |
+| `app_links` | Receives the password-recovery deep link (`terminalhabits://login-callback`) on Android + macOS |
+
+### Mobile only (Phase 9 / 12)
+
+| Package | Purpose |
+|---|---|
+| `health` | Health Connect bridge (Android only). Read-only access to steps (Phase 12 vertical slice); sleep / calories / exercise sessions to follow. |
+| `permission_handler` | Runtime permission flow on Android (used alongside `health`). |
+| `HapticFeedback` from `flutter/services` | Tactile feedback on archive + delete (Phase 12 audit limited to these two destructive actions). |
 
 ### Charts & paint
 
@@ -90,7 +98,7 @@ Most charts (sparkline, contribution grid, day-of-week bars) are **custom-painte
 | `flutter_local_notifications` | No notifications in v1 (D-006). |
 | `firebase_*` | Use drift; Supabase is the eventual sync option, not Firebase. |
 | `provider`, `bloc`, `get`, `mobx` | Pick one state lib (Riverpod). |
-| `flutter_secure_storage` | No secrets to store in v1. Reintroduce with sync (Phase 10). |
+| `flutter_secure_storage` | Supabase SDK ships its own secure session storage; no manual usage required. |
 
 ---
 

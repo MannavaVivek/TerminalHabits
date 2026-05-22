@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -5,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:syncfusion_flutter_datepicker/datepicker.dart';
 import '../../data/database.dart';
+import '../../domain/health_service.dart';
 import '../../domain/schedule.dart';
 import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
@@ -42,6 +44,7 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
   late DateTime _startDate =
       widget.defaultStartDate ?? DateTime.now();
   String _tracking = 'checkbox';
+  String? _healthSource; // only set when _tracking == 'health'
   String? _iconKey;
   DateTime? _endDate;
   bool _saving = false;
@@ -72,12 +75,31 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
     } else if (_tracking == 'duration') {
       target = int.tryParse(_targetCtrl.text.trim());
       unit = 'min';
+    } else if (_tracking == 'health') {
+      target = int.tryParse(_targetCtrl.text.trim());
+      if (_healthSource == null || target == null || target <= 0) {
+        // Missing source or invalid goal — bail silently; UI shows hints.
+        return;
+      }
+      unit = _healthSource == 'steps' ? 'steps' : null;
     }
 
-    if (target != null && target > 999) {
+    if (target != null && target > 999999) {
       if (!context.mounted) return;
       await _showTargetOverflowDialog(context);
       return;
+    }
+
+    // Health Connect permission must be granted before we can read the
+    // source value on every app open. Prompt here so the user knows what
+    // they're agreeing to before the habit is created.
+    if (_tracking == 'health') {
+      final ok = await HealthService.requestPermissions([_healthSource!]);
+      if (!ok) {
+        if (!context.mounted) return;
+        await _showHealthDeniedDialog(context);
+        return;
+      }
     }
 
     setState(() => _saving = true);
@@ -107,6 +129,7 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
       sortIndex: habits.length,
       startDate: Value(_startDate),
       endDate: Value(_endDate),
+      healthSource: Value(_tracking == 'health' ? _healthSource : null),
     ));
 
     if (mounted) Navigator.of(context).pop();
@@ -424,7 +447,8 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
                         for (final t in [
                           'checkbox',
                           'counter',
-                          'duration'
+                          'duration',
+                          if (Platform.isAndroid) 'health',
                         ])
                           _Pill(
                             label: t,
@@ -433,10 +457,57 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
                             onTap: () => setState(() {
                               _tracking = t;
                               _targetCtrl.clear();
+                              if (t != 'health') _healthSource = null;
+                              if (t == 'health') _healthSource ??= 'steps';
                             }),
                           ),
                       ],
                     ),
+                    if (_tracking == 'health') ...[
+                      const SizedBox(height: TH.s8),
+                      Text('// source',
+                          style: TextStyle(
+                              color: col.fgMute, fontSize: 11)),
+                      const SizedBox(height: 4),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: [
+                          for (final s in const ['steps'])
+                            _Pill(
+                              label: s,
+                              selected: _healthSource == s,
+                              col: col,
+                              onTap: () =>
+                                  setState(() => _healthSource = s),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: TH.s8),
+                      Row(
+                        children: [
+                          SizedBox(
+                            width: 96,
+                            child: TextField(
+                              controller: _targetCtrl,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                                LengthLimitingTextInputFormatter(6),
+                              ],
+                              style: TextStyle(
+                                  color: col.fg, fontSize: 13),
+                              decoration: _fieldDeco('8000', col),
+                              onSubmitted: (_) => _save(),
+                            ),
+                          ),
+                          const SizedBox(width: TH.s8),
+                          Text('daily goal (steps)',
+                              style: TextStyle(
+                                  color: col.fgMute, fontSize: 12)),
+                        ],
+                      ),
+                    ],
                     if (_tracking == 'counter' ||
                         _tracking == 'duration') ...[
                       const SizedBox(height: TH.s8),
@@ -543,7 +614,7 @@ Future<void> _showTargetOverflowDialog(BuildContext context) {
                       fontSize: 14,
                       fontWeight: FontWeight.w600)),
               const SizedBox(height: TH.s8),
-              Text('target must be 999 or less.',
+              Text('target must be 999999 or less.',
                   style:
                       TextStyle(color: col.fgDim, fontSize: 12)),
               const SizedBox(height: TH.s22),
@@ -561,6 +632,58 @@ Future<void> _showTargetOverflowDialog(BuildContext context) {
                     child: Text('[ understood ]',
                         style: TextStyle(
                             color: col.green, fontSize: 13)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+Future<void> _showHealthDeniedDialog(BuildContext context) {
+  final col = AppColors.of(context);
+  return showDialog<void>(
+    context: context,
+    barrierColor: Colors.black54,
+    builder: (ctx) => Dialog(
+      backgroundColor: col.bg2,
+      shape: RoundedRectangleBorder(
+          borderRadius: const BorderRadius.all(TH.r10)),
+      child: SizedBox(
+        width: 320,
+        child: Padding(
+          padding: const EdgeInsets.all(TH.s22),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('health connect denied',
+                  style: TextStyle(
+                      color: col.fg,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600)),
+              const SizedBox(height: TH.s8),
+              Text(
+                'we need read access to your health data to auto-complete this habit.\ngrant the permission in health connect and try again.',
+                style: TextStyle(color: col.fgDim, fontSize: 12),
+              ),
+              const SizedBox(height: TH.s22),
+              Center(
+                child: GestureDetector(
+                  onTap: () => Navigator.of(ctx).pop(),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: TH.s22, vertical: TH.s8),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: col.green),
+                      borderRadius: const BorderRadius.all(TH.r4),
+                    ),
+                    child: Text('[ ok ]',
+                        style:
+                            TextStyle(color: col.green, fontSize: 13)),
                   ),
                 ),
               ),

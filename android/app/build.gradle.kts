@@ -24,7 +24,9 @@ android {
         applicationId = "com.vivekmannava.terminalhabits"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // Health Connect requires API 26+ (Android 8.0). The flutter
+        // default minSdk is 21; override here.
+        minSdk = 26
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

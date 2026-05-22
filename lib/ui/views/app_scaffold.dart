@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/sync_service.dart';
+import '../../domain/health_sync.dart';
 import '../../domain/shield_service.dart';
 import '../../domain/streaks.dart';
 import '../../shortcuts/intents.dart';
@@ -92,6 +93,11 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
     final completionMap = ref.read(recentCompletionsProvider).valueOrNull ?? {};
     final vacations = ref.read(vacationsProvider).valueOrNull ?? [];
     final historyMap = ref.read(scheduleHistoryProvider).valueOrNull ?? {};
+    // Read Health Connect first so health-backed habits get their
+    // auto-completion before the streak / shield calculations run.
+    try {
+      await runHealthSync(db, habits);
+    } catch (_) {}
     try {
       await runLaunchScan(
         db: db,

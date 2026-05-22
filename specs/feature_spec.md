@@ -29,10 +29,10 @@
 | Command palette (desktop) | Phase 7 | `Cmd+K` / `:` (basic palette stubbed in Phase 1). |
 | Count tracking | Phase 7 | "did N times today." |
 | Number tracking | Phase 7 | "logged N units" with unit string. |
-| Health tracking | Phase 10 | Auto-fill from Health Connect (Android). Manual entry on desktop. |
-| Mobile command grid | Phase 10 | Touch replacement for command palette. |
+| Health tracking | Phase 12 (Android only) | Auto-complete a habit on every app open / pull-to-refresh when today's Health Connect value ≥ daily goal. Steps shipped in the vertical slice; sleep / calories / water / exercise sessions to follow. Read-only access — the app never writes to Health Connect. |
+| Mobile command grid | Phase 9 (shipped) | Touch replacement for command palette. |
 | Tray icon | Phase 9 (Linux) | Show/hide window. |
-| Cloud sync | Phase 10 | Opt-in Supabase sync. |
+| Cloud sync | Phase 10 / 11 (shipped) | Supabase auth, Realtime, and row-level LWW merge. |
 
 ---
 
@@ -85,10 +85,10 @@ Anatomy (left-to-right, monospace, 14sp):
  │  │       │                      │              streak
  │  │       label                 meta (optional)
  │  icon (single character)
- checkbox (`[ ]` empty, `[✓]` done, `[~]` partial for count/number, `[!]` overdue today)
+ checkbox (`[ ]` empty, `[✓]` done, `[~]` partial for counter/duration, `[!]` overdue today)
 ```
 
-- **Tap** → toggle for checkbox; open inline counter for count/number.
+- **Tap** → toggle for checkbox; open value-input dialog for counter/duration; toggle (manual override) for health.
 - **Long-press** → context menu: edit, archive, delete (with confirm).
 - **Swipe-right** (mobile only) → quick-edit dialog.
 - **Focused (desktop, j/k navigation)** → row gets `border` color `TH.line2`. `space` toggles.
@@ -127,13 +127,13 @@ Opened via `Cmd+N`, `:new`, or the `+` button (mobile).
 | Group | dropdown / new | yes | Falls back to "general" if not set. |
 | Icon | single char text | no | Defaults to `●`. Validated as 1 visible character. |
 | Color | enum | no | one of {green, amber, blue, purple, teal, red}. Default green. |
-| Tracking type | radio | yes | checkbox / count / number / health. (count/number Phase 7; health Phase 10.) |
-| Target | int | conditional | required for count and number. |
-| Unit | text | conditional | shown only for number; e.g. "min", "pages", "ml". |
+| Tracking type | pill row | yes | `checkbox` / `counter` / `duration` / `health` (`health` Android only, Phase 12). |
+| Target | int | conditional | required for counter (count), duration (minutes), and health (daily goal). |
+| Unit | text | conditional | inferred from type: `min` for duration, `steps` for `health` + `steps` source. |
 | Schedule | toggle group | yes | Daily (default), Weekdays, Weekends, Custom (7 day toggles). |
 | Note | text (multiline) | no | Up to 280 chars. Shown in inspector when habit is focused. |
 
-For `health`: an additional source-tree picker shows category → field (Steps, Sleep duration, etc.). On macOS/Linux the picker is shown but disabled with the message `health import: android only in v1`.
+For `health` (Phase 12, Android only): an additional source picker is shown — initially just `steps` (other sources to follow). The daily goal field is required and used as the threshold for auto-completion. On Mac the `health` pill is hidden entirely. Permission to read the chosen Health Connect data type is requested when the habit is created; denial blocks the save with a "health connect denied" dialog.
 
 ### 4.2 Schedule semantics
 
@@ -264,7 +264,7 @@ Two-pane modal. Left: section list. Right: section body.
    - Version, build number, Flutter version.
    - Link to repo (URL — opens via `url_launcher`).
 
-No "sign in" section until Phase 10.
+Email + log-out controls live in the profile section since Phase 10 (Supabase auth). Password recovery via deep link added in Phase 12.
 
 ---
 

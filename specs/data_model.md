@@ -7,12 +7,29 @@
 ## 1. Tables (drift)
 
 ```dart
+// Users — local row for the logged-in Supabase user (id=1 always).
+class Users extends Table {
+  IntColumn      get id          => integer().autoIncrement()();
+  TextColumn     get username    => text().unique()();    // = Supabase email
+  TextColumn     get displayName => text()();
+  // Legacy plaintext column kept for the Drift schema; Supabase auth replaced
+  // local passwords in Phase 10 so this field is never read for auth now.
+  TextColumn     get password    => text()();
+  DateTimeColumn get createdAt   => dateTime().withDefault(currentDateAndTime)();
+}
+
 // Groups
 class Groups extends Table {
-  TextColumn  get id        => text().clientDefault(_uuid)();   // uuid v4
-  TextColumn  get name      => text()();
-  IntColumn   get sortIndex => integer()();
-  BoolColumn  get collapsed => boolean().withDefault(const Constant(false))();
+  TextColumn     get id        => text().clientDefault(_uuid)();
+  IntColumn      get userId    => integer().withDefault(const Constant(1))();
+  TextColumn     get name      => text()();
+  IntColumn      get sortIndex => integer()();
+  BoolColumn     get collapsed => boolean().withDefault(const Constant(false))();
+  TextColumn     get note      => text().nullable()();
+  TextColumn     get icon      => text().nullable()();
+  // LWW sync columns (Phase 12).
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+  BoolColumn     get deleted   => boolean().withDefault(const Constant(false))();
 
   @override Set<Column> get primaryKey => {id};
 }
@@ -20,76 +37,102 @@ class Groups extends Table {
 // Habits
 class Habits extends Table {
   IntColumn      get id         => integer().autoIncrement()();
+  IntColumn      get userId     => integer().withDefault(const Constant(1))();
   TextColumn     get groupId    => text().references(Groups, #id)();
   TextColumn     get name       => text()();
   TextColumn     get icon       => text().withDefault(const Constant('●'))();
   TextColumn     get color      => text().withDefault(const Constant('green'))();
-  TextColumn     get tracking   => text()();   // 'checkbox' | 'count' | 'number' | 'health'
-  IntColumn      get target     => integer().nullable()();   // for count/number
-  TextColumn     get unit       => text().nullable()();      // for number, e.g. "min"
+  TextColumn     get tracking   => text()();   // 'checkbox' | 'counter' | 'duration' | 'health'
+  IntColumn      get target     => integer().nullable()();    // for counter/duration/health
+  TextColumn     get unit       => text().nullable()();       // e.g. 'min', 'steps'
   TextColumn     get schedule   => text()();   // JSON: {"days":[0..6]}
   TextColumn     get note       => text().nullable()();
+  TextColumn     get targetTime => text().nullable()();       // "HH:mm" 24h
   IntColumn      get sortIndex  => integer()();
-  TextColumn     get healthSource => text().nullable()();    // for tracking='health'
+  TextColumn     get healthSource => text().nullable()();     // 'steps', etc. (Phase 12)
   DateTimeColumn get createdAt    => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get startDate    => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get endDate      => dateTime().nullable()();
   DateTimeColumn get archivedAt   => dateTime().nullable()();
+  // LWW sync + soft-delete tombstone (Phase 11).
+  DateTimeColumn get updatedAt    => dateTime().withDefault(currentDateAndTime)();
+  BoolColumn     get deleted      => boolean().withDefault(const Constant(false))();
 }
 
-// Completions — one row per (habit, day) when nonzero
+// Completions — one row per (habit, day). Soft-delete via `deleted=true`
+// when unchecked, so deletions propagate via sync.
 class Completions extends Table {
   IntColumn      get id        => integer().autoIncrement()();
   IntColumn      get habitId   => integer().references(Habits, #id)();
-  DateTimeColumn get day       => dateTime()();   // local-midnight UTC
+  DateTimeColumn get day       => dateTime()();
   RealColumn     get value     => real().withDefault(const Constant(1.0))();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  // LWW sync + soft-delete tombstone (Phase 11).
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+  BoolColumn     get deleted   => boolean().withDefault(const Constant(false))();
 
   @override List<Set<Column>> get uniqueKeys => [{habitId, day}];
 }
 
-// Vacations — one active at a time, plus history
+// HabitScheduleHistory — append-only log of (schedule, tracking) changes.
+// Each habit's effective schedule for a given day is the most recent row
+// with effective_from <= day. Backfilled at habit creation.
+class HabitScheduleHistory extends Table {
+  IntColumn      get id            => integer().autoIncrement()();
+  IntColumn      get habitId       => integer().references(Habits, #id)();
+  DateTimeColumn get effectiveFrom => dateTime()();   // UTC midnight of local day
+  TextColumn     get schedule      => text()();
+  TextColumn     get tracking      => text()();
+  DateTimeColumn get createdAt     => dateTime().withDefault(currentDateAndTime)();
+}
+
+// Vacations — one active at a time, plus history.
 class Vacations extends Table {
   IntColumn      get id      => integer().autoIncrement()();
+  IntColumn      get userId  => integer().withDefault(const Constant(1))();
   DateTimeColumn get start   => dateTime()();
   DateTimeColumn get end     => dateTime()();
   TextColumn     get note    => text().nullable()();
   BoolColumn     get active  => boolean().withDefault(const Constant(false))();
 }
 
-// Day shields — one row per calendar day where the overall streak was preserved
-// by consuming a shield instead of recording a miss.
+// DayShields — one row per calendar day where the overall streak was
+// preserved by consuming a shield instead of recording a miss.
 class DayShields extends Table {
   IntColumn      get id        => integer().autoIncrement()();
-  DateTimeColumn get day       => dateTime()();   // UTC midnight of local day (same convention as completions.day)
+  DateTimeColumn get day       => dateTime()();   // UTC midnight of local day
   DateTimeColumn get appliedAt => dateTime().withDefault(currentDateAndTime)();
 
   @override List<Set<Column>> get uniqueKeys => [{day}];
 }
 
-// Settings — single-row "key/value" sidecar
-class Settings extends Table {
+// AppSettings — key/value sidecar. Device-local (not synced).
+class AppSettings extends Table {
   TextColumn get key   => text()();
-  TextColumn get value => text()();   // JSON-encoded
+  TextColumn get value => text()();
 
   @override Set<Column> get primaryKey => {key};
 }
 ```
 
-### Settings keys (canonical)
+### Settings keys (canonical, in `app_settings`)
 
 | Key | Value type | Default |
 |---|---|---|
-| `userName` | string | `"you"` |
-| `themeId` | enum | `"matrix"` |
-| `fontSize` | enum xs/sm/md/lg | `"md"` |
-| `fontFamily` | string | `"JetBrainsMono"` |
-| `defaultGroupId` | string | first-created group id |
-| `seenSplash` | bool | `false` |
+| `userName` | string | `"you"` (legacy; profile name now comes from `users.display_name`) |
+| `themeId` | enum (matrix / hacker / nord / solarized / monokai / gruvbox) | `"matrix"` |
+| `fontSize` | enum sm/md/lg | `"md"` |
+| `fontFamily` | string | `"JetBrains Mono"` |
 | `lastView` | enum daily/stats/profile | `"daily"` |
+| `allowFutureMarking` | bool string | `"false"` |
+| `confirmDestructive` | bool string | `"true"` |
 | `available_shields` | int string | `"0"` |
 | `shieldEarnInterval` | int string | `"7"` |
 | `last_seen_date` | ISO date string `"YYYY-MM-DD"` | `""` (triggers first-run scan) |
 
-`shared_preferences` is used **only** for `seenSplash` (because it must be readable before the DB opens). Everything else lives in `Settings`.
+`shared_preferences` is used for cross-launch flags that must be readable before the DB opens or that are intentionally non-synced: `seenSplash`, `seenOnboarding`, `last_auth_uid`. Everything else lives in `app_settings`.
+
+`app_settings` is **device-local** — it is not pushed to Supabase. Each device computes its own shield pool / theme / font scale.
 
 ---
 
@@ -185,8 +228,14 @@ These are committed in scope; column-level details get fleshed out here in the P
 |---|---|---|
 | v2 | Phase 2 | `groups.note TEXT NULL`; `habits.target_time TEXT NULL` (HH:mm 24h). |
 | v3 | Phase 3 | `habits.start_date DATETIME NOT NULL` (backfilled from `created_at`). |
-| v4 | Phase 4 | `groups.icon TEXT NULL` (backfilled `'▸'`). `habits.icon` reused for the curated picker — no schema change there. |
-| v5 | Phase 5 | `habit_schedule_history(id, habit_id, effective_from, schedule, tracking, created_at)` with `(habit_id, effective_from DESC)` index. Backfills one row per habit. After v5, `habits.schedule` and `habits.tracking` mirror the most-recent history row. |
+| v4 | Phase 4 | `groups.icon TEXT NULL` (backfilled `'▸'`). |
+| v5 | Phase 5 | `habit_schedule_history(id, habit_id, effective_from, schedule, tracking, created_at)` with `(habit_id, effective_from DESC)` index. `habits.end_date DATETIME NULL`. Backfills one history row per habit. |
+| v6 | Phase 6a | `users(id, username, display_name, password, created_at)` (plaintext password until Phase 10 replaced this with Supabase auth). `user_id` columns added to `habits`, `groups`, `vacations`. |
+| v7 | Phase 8 | `day_shields(id, day UNIQUE, applied_at)` + `idx_day_shields_day`. New settings keys `available_shields`, `shieldEarnInterval`, `last_seen_date`. |
+| v8 | Phase 11 | `completions.updated_at`, `completions.deleted` — LWW + tombstone columns. Backfilled `updated_at = created_at`. |
+| v9 | Phase 11 | `habits.updated_at`, `habits.deleted` — LWW + tombstone columns. Backfilled `updated_at = created_at`. |
+| v10 | Phase 12 | `groups.updated_at`, `groups.deleted` — LWW + tombstone columns. Updated_at backfilled to now-in-seconds (Drift's `DateTime` storage convention). |
+| v11 | Phase 12 | Recovery for a v10 bug that backfilled `groups.updated_at` in milliseconds (Drift reads as seconds → year-58000). Resets values > year-3000 threshold to 0 so the next pull restores valid timestamps from the server. |
 
 ---
 

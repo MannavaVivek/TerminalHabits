@@ -5,6 +5,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/database.dart' show Completion;
 import '../../data/sync_service.dart';
+import '../../domain/health_sync.dart';
 import '../../domain/shield_service.dart';
 import '../../domain/streaks.dart' show localMidnightUtc;
 import '../../state/providers.dart';
@@ -58,6 +59,8 @@ class DailyView extends ConsumerWidget {
           // Recompute shield pool from fresh DB reads.
           final habits = await db.getActiveHabits(1);
           if (habits.isEmpty) return;
+          // Refresh health-backed habits from Health Connect on every pull.
+          try { await runHealthSync(db, habits); } catch (_) {}
           final vacations = await db.getVacations(1);
           final sinceUtc = localMidnightUtc(
               DateTime.now().subtract(const Duration(days: 90)));

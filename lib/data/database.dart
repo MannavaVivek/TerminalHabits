@@ -523,16 +523,20 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> setCompletionValue(
       int habitId, DateTime dayUtc, double value) async {
+    // Look up any row (including soft-deleted) so we reactivate instead of
+    // inserting and hitting the (habit_id, day) UNIQUE constraint.
     final existing = await (select(completions)
           ..where((c) =>
-              c.habitId.equals(habitId) &
-              c.day.equals(dayUtc) &
-              c.deleted.equals(false)))
+              c.habitId.equals(habitId) & c.day.equals(dayUtc)))
         .getSingleOrNull();
     final now = DateTime.now();
     if (existing != null) {
       await (update(completions)..where((c) => c.id.equals(existing.id)))
-          .write(CompletionsCompanion(value: Value(value), updatedAt: Value(now)));
+          .write(CompletionsCompanion(
+            value: Value(value),
+            deleted: const Value(false),
+            updatedAt: Value(now),
+          ));
     } else {
       await into(completions).insert(CompletionsCompanion.insert(
         habitId: habitId,
@@ -542,6 +546,25 @@ class AppDatabase extends _$AppDatabase {
         updatedAt: Value(now),
       ));
     }
+  }
+
+  // Soft-deletes the (habitId, day) completion if one exists and isn't
+  // already deleted. No-op otherwise. Used by health sync to retract a
+  // previously-auto-applied completion when today's value drops below goal.
+  Future<void> softDeleteCompletionIfPresent(
+      int habitId, DateTime dayUtc) async {
+    final existing = await (select(completions)
+          ..where((c) =>
+              c.habitId.equals(habitId) &
+              c.day.equals(dayUtc) &
+              c.deleted.equals(false)))
+        .getSingleOrNull();
+    if (existing == null) return;
+    await (update(completions)..where((c) => c.id.equals(existing.id)))
+        .write(CompletionsCompanion(
+          deleted: const Value(true),
+          updatedAt: Value(DateTime.now()),
+        ));
   }
 
   Future<void> clearCompletion(int habitId, DateTime dayUtc) async {
