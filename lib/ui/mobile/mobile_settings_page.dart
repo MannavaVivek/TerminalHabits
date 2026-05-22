@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../app_info.dart';
 import '../../data/database.dart';
 import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/tokens.dart';
+import '../modals/change_name_dialog.dart';
 import 'mobile_sub_page.dart';
 
 const _kThemes = [
@@ -64,6 +66,27 @@ class MobileSettingsPage extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: TH.s22),
+          // ── account ────────────────────────────────────────────────────
+          _SectionLabel('account', col),
+          const SizedBox(height: TH.s8),
+          _SettingRow(
+            label: 'name',
+            col: col,
+            child: GestureDetector(
+              onTap: () => showChangeNameDialog(context),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: TH.s8, vertical: 4),
+                decoration: BoxDecoration(
+                  border: Border.all(color: col.line2),
+                  borderRadius: const BorderRadius.all(TH.r4),
+                ),
+                child: Text('[ change name ]',
+                    style: TextStyle(color: col.fgDim, fontSize: 12)),
+              ),
+            ),
+          ),
+          const SizedBox(height: TH.s22),
           // ── behavior ────────────────────────────────────────────────────
           _SectionLabel('behavior', col),
           const SizedBox(height: TH.s8),
@@ -91,8 +114,8 @@ class MobileSettingsPage extends ConsumerWidget {
           // ── about ───────────────────────────────────────────────────────
           _SectionLabel('about', col),
           const SizedBox(height: TH.s8),
-          _AboutRow('version', '0.3.0', col: col),
-          _AboutRow('storage', 'local sqlite', col: col),
+          _AboutRow('version', kAppVersion, col: col),
+          _AboutRow('storage', kAppStorage, col: col),
         ],
       ),
     );

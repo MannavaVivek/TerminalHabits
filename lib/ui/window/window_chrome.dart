@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
+import '../../app_info.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/tokens.dart';
 
@@ -49,7 +50,7 @@ class _VersionMeta extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Text(
-      'v0.3.0 · matrix',
+      'v$kAppVersion · matrix',
       style: TextStyle(fontSize: 11, color: col.fgMute),
     );
   }

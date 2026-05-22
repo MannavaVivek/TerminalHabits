@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../app_info.dart';
 import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/tokens.dart';
+import 'change_name_dialog.dart';
 
 const _kThemes = [
   (id: 'matrix',    label: 'matrix',    accent: Color(0xFF5CE39A), bg: Color(0xFF0B1014)),
@@ -161,6 +163,27 @@ class SettingsDialog extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: TH.s22),
+                    _sectionLabel('account', col),
+                    const SizedBox(height: TH.s14),
+                    _SettingRow(
+                      label: 'name',
+                      col: col,
+                      child: GestureDetector(
+                        onTap: () => showChangeNameDialog(context),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: TH.s8, vertical: 4),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: col.line2),
+                            borderRadius: const BorderRadius.all(TH.r4),
+                          ),
+                          child: Text('[ change name ]',
+                              style:
+                                  TextStyle(color: col.fgDim, fontSize: 12)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: TH.s22),
                     _sectionLabel('behavior', col),
                     const SizedBox(height: TH.s14),
                     _SettingRow(
@@ -187,14 +210,8 @@ class SettingsDialog extends ConsumerWidget {
                     const SizedBox(height: TH.s22),
                     _sectionLabel('about', col),
                     const SizedBox(height: TH.s14),
-                    _AboutRow('version', '0.3.0', col: col),
-                    _AboutRow('storage', 'local sqlite', col: col),
-                    const SizedBox(height: TH.s8),
-                    Text(
-                      '// passwords are stored in plaintext — Phase 11\n'
-                      '// replaces this with hashed storage + email recovery.',
-                      style: TextStyle(color: col.fgFaint, fontSize: 10),
-                    ),
+                    _AboutRow('version', kAppVersion, col: col),
+                    _AboutRow('storage', kAppStorage, col: col),
                   ],
                 ),
               ),

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../app_info.dart';
 import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/tokens.dart';
@@ -198,7 +199,7 @@ class _SystemInfoBox extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _InfoRow(label: 'platform', value: platform),
-            _InfoRow(label: 'version ', value: 'v0.3.0'),
+            _InfoRow(label: 'version ', value: 'v$kAppVersion'),
             _InfoRow(
               label: 'build   ',
               value: const bool.fromEnvironment('dart.vm.product')

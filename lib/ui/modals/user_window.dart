@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import 'package:syncfusion_flutter_datepicker/datepicker.dart';
@@ -27,35 +26,6 @@ class _UserWindowDialog extends ConsumerStatefulWidget {
 }
 
 class _UserWindowDialogState extends ConsumerState<_UserWindowDialog> {
-  late final TextEditingController _nameCtrl;
-  bool _editingName = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _nameCtrl = TextEditingController();
-  }
-
-  @override
-  void dispose() {
-    _nameCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _saveDisplayName(User user) async {
-    final name = _nameCtrl.text.trim();
-    if (name.isEmpty || name == user.displayName) {
-      setState(() => _editingName = false);
-      return;
-    }
-    await ref.read(dbProvider).updateDisplayName(user.id, name);
-    try {
-      await Supabase.instance.client.auth
-          .updateUser(UserAttributes(data: {'display_name': name}));
-    } catch (_) {}
-    setState(() => _editingName = false);
-  }
-
   Future<void> _logOut() async {
     SyncService.stopRealtime();
     final db = ref.read(dbProvider);
@@ -295,9 +265,6 @@ class _UserWindowDialogState extends ConsumerState<_UserWindowDialog> {
                 Text('error: $e', style: TextStyle(color: col.red, fontSize: 12)),
             data: (user) {
               if (user == null) return const SizedBox();
-              if (_nameCtrl.text.isEmpty && !_editingName) {
-                _nameCtrl.text = user.displayName;
-              }
 
               final streak =
                   dailyAV.valueOrNull?.overallStreak.displayStreak ?? 0;
@@ -386,77 +353,8 @@ class _UserWindowDialogState extends ConsumerState<_UserWindowDialog> {
                             style:
                                 TextStyle(color: col.fgMute, fontSize: 11)),
                         const SizedBox(height: TH.s8),
-                        // Name (editable)
-                        Row(
-                          children: [
-                            SizedBox(
-                              width: 96,
-                              child: Text('name:',
-                                  style: TextStyle(
-                                      color: col.fgDim, fontSize: 12)),
-                            ),
-                            if (_editingName)
-                              Expanded(
-                                child: TextField(
-                                  controller: _nameCtrl,
-                                  autofocus: true,
-                                  style: TextStyle(
-                                      color: col.fg, fontSize: 12),
-                                  onSubmitted: (_) =>
-                                      _saveDisplayName(user),
-                                  decoration: InputDecoration(
-                                    isDense: true,
-                                    contentPadding:
-                                        const EdgeInsets.symmetric(
-                                            horizontal: 6, vertical: 4),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderSide:
-                                          BorderSide(color: col.line2),
-                                      borderRadius:
-                                          const BorderRadius.all(TH.r4),
-                                    ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderSide:
-                                          BorderSide(color: col.green),
-                                      borderRadius:
-                                          const BorderRadius.all(TH.r4),
-                                    ),
-                                    fillColor: col.bg,
-                                    filled: true,
-                                  ),
-                                  onTapOutside: (_) =>
-                                      _saveDisplayName(user),
-                                ),
-                              )
-                            else ...[
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: () {
-                                    _nameCtrl.text = user.displayName;
-                                    setState(() => _editingName = true);
-                                  },
-                                  behavior: HitTestBehavior.opaque,
-                                  child: Text(user.displayName,
-                                      style: TextStyle(
-                                          color: col.fg, fontSize: 12)),
-                                ),
-                              ),
-                              GestureDetector(
-                                onTap: () {
-                                  _nameCtrl.text = user.displayName;
-                                  setState(() => _editingName = true);
-                                },
-                                behavior: HitTestBehavior.opaque,
-                                child: Padding(
-                                  padding:
-                                      const EdgeInsets.only(left: TH.s8),
-                                  child: Icon(LucideIcons.pencil,
-                                      size: 12, color: col.fgMute),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
+                        // Name (read-only — edit via settings → change name).
+                        _InfoRow('name', user.displayName, col: col),
                         const SizedBox(height: 6),
                         _InfoRow('email', accountEmail, col: col),
                         _InfoRow('member since',
