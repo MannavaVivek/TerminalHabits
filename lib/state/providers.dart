@@ -113,7 +113,7 @@ class DailyHabit {
   bool get isDoneToday {
     if (todayCompletion == null) return false;
     final t = habit.tracking;
-    if (t == 'counter' || t == 'duration') {
+    if (t == 'counter' || t == 'duration' || t == 'health') {
       final target = habit.target ?? 1;
       return todayCompletion!.value >= target;
     }

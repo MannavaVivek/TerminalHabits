@@ -258,9 +258,10 @@ StreakResult computeOverallStreak(
 Set<DateTime> _buildCompletedDaySet(
     Habit habit, List<Completion> completions) {
   final double threshold;
-  if (habit.tracking == 'checkbox' || habit.tracking == 'health') {
+  if (habit.tracking == 'checkbox') {
     threshold = 0.5;
   } else {
+    // counter, duration, and health all gate "done" on value >= target.
     threshold = (habit.target ?? 1).toDouble();
   }
   return {

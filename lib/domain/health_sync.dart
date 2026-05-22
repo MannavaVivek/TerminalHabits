@@ -38,16 +38,21 @@ Future<void> runHealthSync(AppDatabase db, List<Habit> habits) async {
       value = await HealthService.readTodayValue(source);
       cache[source] = value;
     }
-    if (value == null) continue;
-
-    final target = h.target!;
-    if (value >= target) {
-      // Goal met — ensure completion exists.
-      await db.setCompletionValue(h.id, todayUtc, value.toDouble());
-      debugPrint('health: ${h.name} goal met ($value/$target)');
-    } else {
-      // Below goal — remove any prior auto-completion.
-      await db.softDeleteCompletionIfPresent(h.id, todayUtc);
+    if (value == null) {
+      // Either Health Connect denied us, hasn't synced, or the read failed.
+      // Leave any existing completion alone — don't clobber prior progress.
+      continue;
     }
+
+    if (value <= 0) {
+      // Zero steps so far today — remove any stale completion row.
+      await db.softDeleteCompletionIfPresent(h.id, todayUtc);
+      continue;
+    }
+
+    // Always store the current value so the daily view shows "v/target"
+    // progress. "Done" is decided by isDoneToday (value >= target).
+    await db.setCompletionValue(h.id, todayUtc, value.toDouble());
+    debugPrint('health: ${h.name} $value/${h.target}');
   }
 }

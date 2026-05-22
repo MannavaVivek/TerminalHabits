@@ -1,9 +1,11 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/database.dart';
+import '../../domain/health_service.dart';
 import '../../domain/schedule.dart';
 import '../../domain/streaks.dart' show localMidnightUtc;
 import '../../state/providers.dart';
@@ -36,6 +38,7 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
   late String _groupId;
   late DateTime _startDate;
   late String _tracking;
+  String? _healthSource;
   DateTime? _endDate;
   String? _iconKey;
   bool _saving = false;
@@ -56,6 +59,7 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
     _groupId = h.groupId;
     _startDate = h.startDate;
     _tracking = h.tracking;
+    _healthSource = h.healthSource;
     _endDate = h.endDate;
     _loadCompletionFlag();
   }
@@ -161,12 +165,26 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
     } else if (_tracking == 'duration') {
       target = int.tryParse(_targetCtrl.text.trim());
       unit = 'min';
+    } else if (_tracking == 'health') {
+      target = int.tryParse(_targetCtrl.text.trim());
+      if (_healthSource == null || target == null || target <= 0) return;
+      unit = _healthSource == 'steps' ? 'steps' : null;
     }
 
-    if (target != null && target > 999) {
+    final maxTarget = _tracking == 'health' ? 999999 : 999;
+    if (target != null && target > maxTarget) {
       if (!mounted) return;
       await _showTargetTooLarge(context);
       return;
+    }
+
+    // Best-effort Health Connect permission request when switching to health.
+    bool healthGranted = true;
+    if (_tracking == 'health' &&
+        (widget.habit.tracking != 'health' ||
+         widget.habit.healthSource != _healthSource)) {
+      healthGranted =
+          await HealthService.requestPermissions([_healthSource!]);
     }
 
     setState(() => _saving = true);
@@ -208,9 +226,14 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
         groupId: Value(_groupId),
         startDate: Value(_startDate),
         endDate: Value(_endDate),
+        healthSource: Value(_tracking == 'health' ? _healthSource : null),
       ),
     );
 
+    if (!mounted) return;
+    if (_tracking == 'health' && !healthGranted) {
+      await _showHealthDeniedHelp(context);
+    }
     if (mounted) Navigator.of(context).pop();
   }
 
@@ -364,24 +387,29 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
               ),
               const SizedBox(height: TH.s14),
               _Label('type', col: col),
-              Row(
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
                 children: [
-                  for (final t in const [
+                  for (final t in [
                     'checkbox',
                     'counter',
-                    'duration'
+                    'duration',
+                    if (Platform.isAndroid) 'health',
                   ])
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: _Pill(
-                        label: t,
-                        selected: _tracking == t,
-                        col: col,
-                        onTap: () => setState(() {
-                          _tracking = t;
-                          _targetCtrl.clear();
-                        }),
-                      ),
+                    _Pill(
+                      label: t,
+                      selected: _tracking == t,
+                      col: col,
+                      onTap: () => setState(() {
+                        _tracking = t;
+                        _targetCtrl.clear();
+                        if (t != 'health') {
+                          _healthSource = null;
+                        } else {
+                          _healthSource ??= 'steps';
+                        }
+                      }),
                     ),
                 ],
               ),
@@ -424,6 +452,45 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
                     ),
                     const SizedBox(width: TH.s8),
                     Text('target min',
+                        style: TextStyle(
+                            color: col.fgMute, fontSize: 12)),
+                  ],
+                ),
+              ],
+              if (_tracking == 'health') ...[
+                const SizedBox(height: TH.s8),
+                Text('// source',
+                    style: TextStyle(color: col.fgMute, fontSize: 11)),
+                const SizedBox(height: 4),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    for (final s in const ['steps'])
+                      _Pill(
+                        label: s,
+                        selected: _healthSource == s,
+                        col: col,
+                        onTap: () => setState(() => _healthSource = s),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: TH.s8),
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 96,
+                      child: _StyledField(
+                        controller: _targetCtrl,
+                        hint: '8000',
+                        col: col,
+                        keyboardType: TextInputType.number,
+                        digitsOnly: true,
+                        maxLength: 6,
+                      ),
+                    ),
+                    const SizedBox(width: TH.s8),
+                    Text('daily goal (steps)',
                         style: TextStyle(
                             color: col.fgMute, fontSize: 12)),
                   ],
@@ -698,7 +765,7 @@ Future<void> _showTargetTooLarge(BuildContext context) {
                       fontSize: 14,
                       fontWeight: FontWeight.w600)),
               const SizedBox(height: TH.s8),
-              Text('Target must be 999 or less.',
+              Text('Target is too large for this tracking type.',
                   style: TextStyle(
                       color: col.fgDim, fontSize: 12)),
               const SizedBox(height: TH.s22),
@@ -869,4 +936,68 @@ class _ColorDot extends StatelessWidget {
       ),
     );
   }
+}
+
+Future<void> _showHealthDeniedHelp(BuildContext context) {
+  final col = AppColors.of(context);
+  return showDialog<void>(
+    context: context,
+    barrierColor: Colors.black54,
+    builder: (ctx) => Dialog(
+      backgroundColor: col.bg2,
+      shape: RoundedRectangleBorder(
+          borderRadius: const BorderRadius.all(TH.r10)),
+      child: SizedBox(
+        width: 360,
+        child: Padding(
+          padding: const EdgeInsets.all(TH.s22),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('health connect permission needed',
+                  style: TextStyle(
+                      color: col.fg,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600)),
+              const SizedBox(height: TH.s8),
+              Text(
+                'changes saved, but auto-completion needs read access\n'
+                'to health connect data. to grant it:',
+                style: TextStyle(color: col.fgDim, fontSize: 12),
+              ),
+              const SizedBox(height: TH.s14),
+              Text(
+                '1. open the health connect app\n'
+                '2. tap "app permissions"\n'
+                '3. find "TerminalHabits"\n'
+                '4. toggle on the data you want (steps, etc.)',
+                style: TextStyle(color: col.fg, fontSize: 12),
+              ),
+              const SizedBox(height: TH.s22),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.of(ctx).pop(),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: TH.s22, vertical: TH.s8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: col.green),
+                        borderRadius: const BorderRadius.all(TH.r4),
+                      ),
+                      child: Text('[ got it ]',
+                          style:
+                              TextStyle(color: col.green, fontSize: 13)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
 }
