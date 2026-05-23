@@ -47,13 +47,14 @@ Future<void> runHealthSync(AppDatabase db, List<Habit> habits) async {
     if (value <= 0) continue; // nothing to record yet today
 
     final existing = await db.getCompletionForDay(h.id, todayUtc);
-    if (existing == null) {
+    if (existing == null || existing.deleted) {
+      // No row, or the user cleared it via the value-input dialog — write
+      // the current Health Connect value fresh. Treating a cleared row as
+      // "resume auto-tracking" lets the user undo a manual override.
       await db.setCompletionValue(h.id, todayUtc, value.toDouble());
-    } else if (existing.deleted) {
-      // User explicitly undid today's completion — respect that.
-      continue;
     } else if (value > existing.value) {
-      // Only advance the value; never overwrite a manual entry downward.
+      // Existing row is a higher manual entry — only advance, never
+      // overwrite a manual override downward.
       await db.setCompletionValue(h.id, todayUtc, value.toDouble());
     }
     debugPrint('health: ${h.name} $value/${h.target}');

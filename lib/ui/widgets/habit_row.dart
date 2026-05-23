@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../data/database.dart';
+import '../../domain/health_sync.dart';
 import '../../domain/streaks.dart';
 import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
@@ -213,6 +214,12 @@ class HabitRow extends ConsumerWidget {
         if (result == null) return;
         if (result <= 0) {
           await db.softDeleteCompletionIfPresent(h.id, dayUtc);
+          // For health, treat clear as "resume auto-tracking" — refresh
+          // immediately so the row picks up the current Health Connect
+          // value instead of sitting at 0 until the next pull/restart.
+          if (h.tracking == 'health') {
+            try { await runHealthSync(db, [h]); } catch (_) {}
+          }
         } else {
           await db.setCompletionValue(h.id, dayUtc, result);
         }
