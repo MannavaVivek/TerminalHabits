@@ -188,8 +188,9 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
     }
 
     // Best-effort Health Connect permission request when switching to health.
+    // Only meaningful on Android; Mac just edits the habit metadata.
     bool healthGranted = true;
-    if (_tracking == 'health' &&
+    if (_tracking == 'health' && Platform.isAndroid &&
         (widget.habit.tracking != 'health' ||
          widget.habit.healthSource != _healthSource)) {
       healthGranted =
@@ -240,7 +241,7 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
     );
 
     if (!mounted) return;
-    if (_tracking == 'health' && !healthGranted) {
+    if (_tracking == 'health' && !healthGranted && Platform.isAndroid) {
       await _showHealthDeniedHelp(context);
     }
     if (mounted) Navigator.of(context).pop();
@@ -400,11 +401,11 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
                 spacing: 8,
                 runSpacing: 6,
                 children: [
-                  for (final t in [
+                  for (final t in const [
                     'checkbox',
                     'counter',
                     'duration',
-                    if (Platform.isAndroid) 'health',
+                    'health',
                   ])
                     _Pill(
                       label: t,

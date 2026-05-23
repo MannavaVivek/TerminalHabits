@@ -12,6 +12,7 @@ import '../../shortcuts/intents.dart';
 import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
 import '../inspector/inspector_pane.dart';
+import '../widgets/bordered_toast.dart';
 import '../mobile/mobile_top_bar.dart';
 import '../modals/command_palette.dart';
 import '../modals/edit_habit_dialog.dart';
@@ -98,8 +99,9 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
     try {
       await runHealthSync(db, habits);
     } catch (_) {}
+    LaunchScanResult scanResult = LaunchScanResult.empty;
     try {
-      await runLaunchScan(
+      scanResult = await runLaunchScan(
         db: db,
         habits: habits,
         completionMap: completionMap,
@@ -108,6 +110,23 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
       );
     } catch (_) {}
     if (mounted) _recomputePool();
+    if (mounted && scanResult.hasNotableActivity) {
+      _showScanSummaryToast(scanResult);
+    }
+  }
+
+  void _showScanSummaryToast(LaunchScanResult r) {
+    final parts = <String>[];
+    if (r.daysShielded > 0) {
+      parts.add('${r.daysShielded} day${r.daysShielded == 1 ? '' : 's'} '
+          'shielded');
+    }
+    if (r.daysMissed > 0) {
+      parts.add('${r.daysMissed} day${r.daysMissed == 1 ? '' : 's'} missed');
+    }
+    final msg = 'while you were away: ${parts.join(', ')}';
+    showBorderedToast(context, msg,
+        duration: const Duration(milliseconds: 4500));
   }
 
   void _recomputePool() {

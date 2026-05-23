@@ -13,7 +13,33 @@ import '../domain/streaks.dart';
 /// every milestone crossed in the full streak history.
 ///
 /// Sets last_seen_date = yesterday so the next launch picks up from today.
-Future<void> runLaunchScan({
+class LaunchScanResult {
+  /// Days the scan walked (from `last_seen_date + 1` through yesterday).
+  /// Zero when the app was opened yesterday too — nothing to surface.
+  final int daysScanned;
+
+  /// Days during the scan window where a shield was consumed to preserve
+  /// the overall streak. Each entry came from this scan, not a previous one.
+  final int daysShielded;
+
+  /// Days during the scan window where outcome was a miss AND no shield
+  /// was available (or streak was already broken). The streak broke here.
+  final int daysMissed;
+
+  const LaunchScanResult({
+    required this.daysScanned,
+    required this.daysShielded,
+    required this.daysMissed,
+  });
+
+  /// True when there's something worth surfacing in a toast.
+  bool get hasNotableActivity => daysShielded > 0 || daysMissed > 0;
+
+  static const empty =
+      LaunchScanResult(daysScanned: 0, daysShielded: 0, daysMissed: 0);
+}
+
+Future<LaunchScanResult> runLaunchScan({
   required AppDatabase db,
   required List<Habit> habits,
   required Map<int, List<Completion>> completionMap,
@@ -23,7 +49,7 @@ Future<void> runLaunchScan({
   if (habits.isEmpty) {
     for (final s in await db.getAllDayShields()) await db.deleteDayShield(s.day);
     await db.setAvailableShields(0);
-    return;
+    return LaunchScanResult.empty;
   }
 
   final now = DateTime.now();
@@ -63,7 +89,7 @@ Future<void> runLaunchScan({
         completionMap: completionMap,
         vacations: vacations,
         historyMap: historyMap);
-    return;
+    return LaunchScanResult.empty;
   }
 
   // ── Pass 1: SPENDING ───────────────────────────────────────────────────────
@@ -91,8 +117,13 @@ Future<void> runLaunchScan({
       habits, completionMap, vacations, historyMap, scanFrom, shieldedDays);
   var spendingStreak = preScan.pending;
 
+  int daysScanned = 0;
+  int daysShielded = 0;
+  int daysMissed = 0;
+
   var d = scanFrom;
   while (!d.isAfter(yesterday)) {
+    daysScanned++;
     final dUtc = localMidnightUtc(d);
     if (vacationDays.contains(dUtc)) {
       // neutral day — streak unaffected
@@ -109,8 +140,10 @@ Future<void> runLaunchScan({
           shieldedDays.add(dUtc);
           shields--;
           spendingStreak++; // shielded miss keeps the streak alive
+          daysShielded++;
         } else {
           spendingStreak = 0;
+          daysMissed++;
         }
       }
       // outcome == 0 (no habits due): neutral, streak unchanged
@@ -128,6 +161,12 @@ Future<void> runLaunchScan({
       completionMap: completionMap,
       vacations: vacations,
       historyMap: historyMap);
+
+  return LaunchScanResult(
+    daysScanned: daysScanned,
+    daysShielded: daysShielded,
+    daysMissed: daysMissed,
+  );
 }
 
 /// Recomputes available_shields = totalMilestonesEarned − shieldedDaysCount.

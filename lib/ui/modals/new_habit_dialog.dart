@@ -93,12 +93,10 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
       return;
     }
 
-    // Prompt for Health Connect permission as a best-effort step. The habit
-    // is created regardless — if permission is missing, the next on-open
-    // sync just won't auto-complete it, and the user can grant access in
-    // Health Connect → App permissions whenever they want.
+    // Health Connect permission is only relevant on Android (Mac just
+    // configures the habit; auto-tracking happens after sync to Android).
     bool healthGranted = true;
-    if (_tracking == 'health') {
+    if (_tracking == 'health' && Platform.isAndroid) {
       healthGranted =
           await HealthService.requestPermissions([_healthSource!]);
     }
@@ -134,7 +132,7 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
     ));
 
     if (!mounted) return;
-    if (_tracking == 'health' && !healthGranted) {
+    if (_tracking == 'health' && !healthGranted && Platform.isAndroid) {
       // Habit is saved — just warn that auto-sync won't work until they grant.
       await _showHealthDeniedDialog(context);
     }
@@ -450,11 +448,14 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
                       spacing: 8,
                       runSpacing: 6,
                       children: [
-                        for (final t in [
+                        for (final t in const [
                           'checkbox',
                           'counter',
                           'duration',
-                          if (Platform.isAndroid) 'health',
+                          // Allowed on Mac too — Mac configures the habit
+                          // and syncs it to Android, which does the actual
+                          // Health Connect reading.
+                          'health',
                         ])
                           _Pill(
                             label: t,

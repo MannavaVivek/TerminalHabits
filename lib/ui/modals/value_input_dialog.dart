@@ -33,20 +33,38 @@ class ValueInputDialog extends StatefulWidget {
 
 class _ValueInputDialogState extends State<ValueInputDialog> {
   late final TextEditingController _ctrl;
-  late double _value;
+  late double _value; // in DISPLAY units throughout the dialog
   bool _overflowWarning = false;
 
   bool get _isDuration => widget.habit.tracking == 'duration';
   bool get _isHealth => widget.habit.tracking == 'health';
-  String get _unit => _isDuration
-      ? 'min'
-      : (_isHealth ? (widget.habit.unit ?? '') : '');
+  bool get _isSleep =>
+      _isHealth && widget.habit.healthSource == 'sleep';
 
-  // Larger types (health) get a larger step + max so the +/− buttons and
-  // text field can handle realistic ranges (steps, calories, etc.).
-  int get _max => _isHealth ? 999999 : 999;
-  int get _maxDigits => _isHealth ? 6 : 3;
+  // Conversion factor from display units to internal (stored) units.
+  // Sleep is stored in minutes but displayed in hours; everything else is 1:1.
+  int get _displayFactor => _isSleep ? 60 : 1;
+
+  String get _unit {
+    if (_isSleep) return 'h';
+    if (_isDuration) return 'min';
+    if (_isHealth) return widget.habit.unit ?? '';
+    return '';
+  }
+
+  // _max / _maxDigits / _step are all in DISPLAY units.
+  int get _max {
+    if (_isSleep) return 24;
+    if (_isHealth) return 999999;
+    return 999;
+  }
+  int get _maxDigits {
+    if (_isSleep) return 2;
+    if (_isHealth) return 6;
+    return 3;
+  }
   int get _step {
+    if (_isSleep) return 1; // 1 hour
     if (_isHealth) {
       final target = widget.habit.target ?? 8000;
       // Round-ish quarter-target step, clamped to a sane range.
@@ -59,7 +77,10 @@ class _ValueInputDialogState extends State<ValueInputDialog> {
   @override
   void initState() {
     super.initState();
-    _value = widget.currentValue.clamp(0, _max).toDouble();
+    // Convert incoming internal value → display.
+    final displayValue =
+        (widget.currentValue / _displayFactor).clamp(0, _max).toDouble();
+    _value = displayValue;
     _ctrl = TextEditingController(
         text: _value > 0 ? _value.toInt().toString() : '');
     _ctrl.addListener(_onTextChanged);
@@ -116,15 +137,21 @@ class _ValueInputDialogState extends State<ValueInputDialog> {
 
   void _confirm() {
     _applyText();
-    Navigator.of(context).pop(_value);
+    // Convert display units → internal before returning.
+    Navigator.of(context).pop(_value * _displayFactor);
   }
 
   @override
   Widget build(BuildContext context) {
     final col = context.col;
-    final target = widget.habit.target;
-    final subtitle = target != null
-        ? '${widget.habit.tracking} · target $target$_unit'
+    // Target is stored in internal units; convert to display for the
+    // subtitle and quick-value chips so sleep shows "7h" not "420h".
+    final targetInternal = widget.habit.target;
+    final targetDisplay = targetInternal != null
+        ? (targetInternal / _displayFactor).round()
+        : null;
+    final subtitle = targetDisplay != null
+        ? '${widget.habit.tracking} · target $targetDisplay$_unit'
         : widget.habit.tracking;
 
     return Dialog(
@@ -239,10 +266,10 @@ class _ValueInputDialogState extends State<ValueInputDialog> {
                     style: TextStyle(color: col.red, fontSize: 11)),
               ],
               const SizedBox(height: TH.s14),
-              if (target != null) ...[
+              if (targetDisplay != null) ...[
                 Wrap(
                   spacing: 6,
-                  children: _quickValues(target)
+                  children: _quickValues(targetDisplay)
                       .map((v) => _QuickChip(
                             label: '$v$_unit',
                             col: col,
