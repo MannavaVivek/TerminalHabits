@@ -5,13 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/database.dart';
+import '../../data/sync_service.dart';
 import '../../domain/data_export.dart';
 import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/tokens.dart';
 
 /// Asks the user where to save a JSON snapshot of the local DB, runs the
-/// export, writes the file. Returns silently on cancel or error.
+/// export, writes the file.
 Future<void> handleExportBackup(BuildContext context, WidgetRef ref) async {
   final db = ref.read(dbProvider);
   final col = AppColors.of(context);
@@ -32,11 +33,8 @@ Future<void> handleExportBackup(BuildContext context, WidgetRef ref) async {
   final bytes = utf8.encode(jsonStr);
   String? path;
   try {
-    // Don't pass `bytes` — macOS file_picker rejects it ("unsupported
-    // operation"). Get the path the user picked, then write manually.
-    // Android needs `bytes` to actually persist the file through the
-    // platform-provided save UI, so the path won't be a writable file
-    // location there; pass bytes only on Android.
+    // file_picker on macOS rejects the `bytes` argument; on Android it
+    // requires bytes for the platform save UI to actually persist a file.
     path = await FilePicker.platform.saveFile(
       dialogTitle: 'save terminal_habits backup',
       fileName: defaultName,
@@ -54,8 +52,6 @@ Future<void> handleExportBackup(BuildContext context, WidgetRef ref) async {
 
   if (path == null) return; // user cancelled
 
-  // On Mac/Linux we need to write the file ourselves. Android's saveFile
-  // already persisted via the platform save dialog (bytes passed above).
   if (!Platform.isAndroid) {
     try {
       await File(path).writeAsBytes(bytes, flush: true);
@@ -74,87 +70,14 @@ Future<void> handleExportBackup(BuildContext context, WidgetRef ref) async {
   }
 }
 
-/// Confirms with the user, picks a JSON file, validates schema, replaces
-/// local data. Blocks when signed in (the next pull would overwrite the
-/// import — the user must sign out first to avoid that surprise).
+/// Confirms, picks file, detects habit-name conflicts, asks for resolution,
+/// merges into local data. Pushes to Supabase afterwards if signed in.
 Future<void> handleImportBackup(BuildContext context, WidgetRef ref) async {
   final col = AppColors.of(context);
   final db = ref.read(dbProvider);
+  final loggedIn = Supabase.instance.client.auth.currentSession != null;
 
-  if (Supabase.instance.client.auth.currentSession != null) {
-    await _showInfoDialog(
-        context,
-        'sign out first',
-        'import replaces local data. while signed in, your cloud account '
-            'would re-sync after import and undo it. sign out, import, then '
-            "sign back in if you want the import to be 'the' state.",
-        col);
-    return;
-  }
-
-  // Confirm the wipe.
-  final go = await showDialog<bool>(
-    context: context,
-    barrierColor: Colors.black54,
-    builder: (ctx) => Dialog(
-      backgroundColor: col.bg2,
-      shape:
-          RoundedRectangleBorder(borderRadius: const BorderRadius.all(TH.r10)),
-      child: SizedBox(
-        width: 360,
-        child: Padding(
-          padding: const EdgeInsets.all(TH.s22),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('import backup?',
-                  style: TextStyle(
-                      color: col.fg,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600)),
-              const SizedBox(height: TH.s8),
-              Text(
-                'this will erase all local data and replace it with the\n'
-                'contents of the chosen file. this cannot be undone.',
-                style: TextStyle(color: col.fgDim, fontSize: 12),
-              ),
-              const SizedBox(height: TH.s22),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.of(ctx).pop(false),
-                    child: Text('[ cancel ]',
-                        style:
-                            TextStyle(color: col.fgMute, fontSize: 12)),
-                  ),
-                  const SizedBox(width: TH.s14),
-                  GestureDetector(
-                    onTap: () => Navigator.of(ctx).pop(true),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: TH.s14, vertical: TH.s8),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: col.red),
-                        borderRadius: const BorderRadius.all(TH.r4),
-                      ),
-                      child: Text('[ replace ]',
-                          style:
-                              TextStyle(color: col.red, fontSize: 12)),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    ),
-  );
-  if (go != true || !context.mounted) return;
-
-  // Pick the file.
+  // ── Pick the file first; no commitment yet. ─────────────────────────
   FilePickerResult? picked;
   try {
     picked = await FilePicker.platform.pickFiles(
@@ -194,9 +117,34 @@ Future<void> handleImportBackup(BuildContext context, WidgetRef ref) async {
     return;
   }
 
+  // ── Detect name conflicts before doing anything destructive. ────────
+  List<String> conflicts;
+  try {
+    conflicts = await peekImportConflicts(db, jsonStr);
+  } on ImportError catch (e) {
+    if (context.mounted) {
+      await _showInfoDialog(context, 'import failed', e.message, col);
+    }
+    return;
+  }
+
+  ImportConflictResolution? resolution =
+      ImportConflictResolution.keepLocal; // default if no conflicts
+  if (conflicts.isNotEmpty) {
+    if (!context.mounted) return;
+    resolution = await _askConflictResolution(context, conflicts, col);
+    if (resolution == null) return; // user cancelled
+  } else {
+    if (!context.mounted) return;
+    final go = await _confirmMerge(context, loggedIn: loggedIn, col: col);
+    if (go != true) return;
+  }
+
+  // ── Run the import. ─────────────────────────────────────────────────
   ImportResult result;
   try {
-    result = await importFromJson(db, jsonStr);
+    result = await importFromJson(db, jsonStr,
+        conflictResolution: resolution);
   } on ImportError catch (e) {
     if (context.mounted) {
       await _showInfoDialog(context, 'import failed', e.message, col);
@@ -209,15 +157,207 @@ Future<void> handleImportBackup(BuildContext context, WidgetRef ref) async {
     return;
   }
 
-  if (context.mounted) {
-    await _showInfoDialog(
-        context,
-        'import complete',
-        'restored ${result.habits} habit(s), ${result.completions} '
-            'completion(s), ${result.groups} group(s).\n'
-            '\nrestart the app to refresh the daily view.',
-        col);
+  // ── Push so the imported data survives the next pull. ───────────────
+  String pushNote = '';
+  if (loggedIn) {
+    try {
+      await SyncService(db).pushAll();
+      pushNote = '\npushed to cloud.';
+    } catch (e) {
+      pushNote = '\nlocal merge succeeded but cloud push failed: $e';
+    }
   }
+
+  if (context.mounted) {
+    final lines = <String>[
+      'added: ${result.habitsAdded} habit(s), '
+          '${result.completionsAdded} completion(s), '
+          '${result.groupsAdded} group(s)',
+      if (result.habitsReplaced > 0)
+        'replaced: ${result.habitsReplaced} habit(s) (old completions cleared)',
+      if (result.habitsSkipped > 0)
+        'kept local: ${result.habitsSkipped} habit(s)',
+      if (result.vacationsAdded > 0)
+        'added: ${result.vacationsAdded} vacation(s)',
+      if (result.shieldsAdded > 0)
+        'added: ${result.shieldsAdded} shield(s)',
+    ];
+    await _showInfoDialog(
+        context, 'import complete', '${lines.join('\n')}$pushNote', col);
+  }
+}
+
+Future<bool?> _confirmMerge(
+  BuildContext context, {
+  required bool loggedIn,
+  required AppColors col,
+}) {
+  return showDialog<bool>(
+    context: context,
+    barrierColor: Colors.black54,
+    builder: (ctx) => Dialog(
+      backgroundColor: col.bg2,
+      shape: RoundedRectangleBorder(
+          borderRadius: const BorderRadius.all(TH.r10)),
+      child: SizedBox(
+        width: 360,
+        child: Padding(
+          padding: const EdgeInsets.all(TH.s22),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('merge backup?',
+                  style: TextStyle(
+                      color: col.fg,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600)),
+              const SizedBox(height: TH.s8),
+              Text(
+                'this will add habits, completions, and groups from the\n'
+                'file to your existing data. groups with the same name\n'
+                'will be merged.',
+                style: TextStyle(color: col.fgDim, fontSize: 12),
+              ),
+              if (loggedIn) ...[
+                const SizedBox(height: TH.s8),
+                Text(
+                  '// signed in — the merged data will also be pushed to\n'
+                  '// supabase.',
+                  style: TextStyle(color: col.fgFaint, fontSize: 11),
+                ),
+              ],
+              const SizedBox(height: TH.s22),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.of(ctx).pop(false),
+                    child: Text('[ cancel ]',
+                        style:
+                            TextStyle(color: col.fgMute, fontSize: 12)),
+                  ),
+                  const SizedBox(width: TH.s14),
+                  GestureDetector(
+                    onTap: () => Navigator.of(ctx).pop(true),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: TH.s14, vertical: TH.s8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: col.green),
+                        borderRadius: const BorderRadius.all(TH.r4),
+                      ),
+                      child: Text('[ merge ]',
+                          style:
+                              TextStyle(color: col.green, fontSize: 12)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+Future<ImportConflictResolution?> _askConflictResolution(
+  BuildContext context,
+  List<String> conflicts,
+  AppColors col,
+) {
+  final preview = conflicts.length <= 5
+      ? conflicts.map((n) => '• $n').join('\n')
+      : '${conflicts.take(5).map((n) => '• $n').join('\n')}\n'
+          '… and ${conflicts.length - 5} more';
+  return showDialog<ImportConflictResolution>(
+    context: context,
+    barrierColor: Colors.black54,
+    builder: (ctx) => Dialog(
+      backgroundColor: col.bg2,
+      shape: RoundedRectangleBorder(
+          borderRadius: const BorderRadius.all(TH.r10)),
+      child: SizedBox(
+        width: 400,
+        child: Padding(
+          padding: const EdgeInsets.all(TH.s22),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('habit name conflicts',
+                  style: TextStyle(
+                      color: col.fg,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600)),
+              const SizedBox(height: TH.s8),
+              Text(
+                '${conflicts.length} habit${conflicts.length == 1 ? '' : 's'} '
+                'in the file share a name with an existing habit:',
+                style: TextStyle(color: col.fgDim, fontSize: 12),
+              ),
+              const SizedBox(height: TH.s8),
+              Text(preview,
+                  style: TextStyle(color: col.fg, fontSize: 12)),
+              const SizedBox(height: TH.s14),
+              Text(
+                '// replace: discards the local habit + its history,\n'
+                '// uses the imported version instead.\n'
+                '// keep: leaves your local habits untouched and skips\n'
+                '// these from the file.',
+                style: TextStyle(color: col.fgFaint, fontSize: 11),
+              ),
+              const SizedBox(height: TH.s22),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.of(ctx).pop(null),
+                    child: Text('[ cancel ]',
+                        style:
+                            TextStyle(color: col.fgMute, fontSize: 12)),
+                  ),
+                  const SizedBox(width: TH.s14),
+                  GestureDetector(
+                    onTap: () => Navigator.of(ctx)
+                        .pop(ImportConflictResolution.keepLocal),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: TH.s14, vertical: TH.s8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: col.line2),
+                        borderRadius: const BorderRadius.all(TH.r4),
+                      ),
+                      child: Text('[ keep local ]',
+                          style: TextStyle(
+                              color: col.fgDim, fontSize: 12)),
+                    ),
+                  ),
+                  const SizedBox(width: TH.s8),
+                  GestureDetector(
+                    onTap: () => Navigator.of(ctx)
+                        .pop(ImportConflictResolution.replace),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: TH.s14, vertical: TH.s8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: col.amber),
+                        borderRadius: const BorderRadius.all(TH.r4),
+                      ),
+                      child: Text('[ replace ]',
+                          style: TextStyle(
+                              color: col.amber, fontSize: 12)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 Future<void> _showInfoDialog(
