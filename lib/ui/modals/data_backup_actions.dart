@@ -32,32 +32,40 @@ Future<void> handleExportBackup(BuildContext context, WidgetRef ref) async {
   final bytes = utf8.encode(jsonStr);
   String? path;
   try {
+    // Don't pass `bytes` — macOS file_picker rejects it ("unsupported
+    // operation"). Get the path the user picked, then write manually.
+    // Android needs `bytes` to actually persist the file through the
+    // platform-provided save UI, so the path won't be a writable file
+    // location there; pass bytes only on Android.
     path = await FilePicker.platform.saveFile(
       dialogTitle: 'save terminal_habits backup',
       fileName: defaultName,
       type: FileType.custom,
       allowedExtensions: const ['json'],
-      bytes: bytes,
+      bytes: Platform.isAndroid ? bytes : null,
     );
   } catch (e) {
     if (context.mounted) {
       await _showInfoDialog(
-          context, 'export failed', 'could not write file: $e', col);
+          context, 'export failed', 'could not pick save location: $e', col);
     }
     return;
   }
 
   if (path == null) return; // user cancelled
 
-  // On some platforms file_picker doesn't actually write the bytes for us
-  // (it just returns the chosen path). Fall back to writing manually.
-  try {
-    final f = File(path);
-    if (!await f.exists() || (await f.length()) == 0) {
-      await f.writeAsBytes(bytes, flush: true);
+  // On Mac/Linux we need to write the file ourselves. Android's saveFile
+  // already persisted via the platform save dialog (bytes passed above).
+  if (!Platform.isAndroid) {
+    try {
+      await File(path).writeAsBytes(bytes, flush: true);
+    } catch (e) {
+      if (context.mounted) {
+        await _showInfoDialog(
+            context, 'export failed', 'could not write file: $e', col);
+      }
+      return;
     }
-  } catch (_) {
-    // saveFile already wrote it on platforms that handle bytes natively.
   }
 
   if (context.mounted) {
