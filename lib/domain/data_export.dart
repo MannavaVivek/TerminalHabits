@@ -1,7 +1,10 @@
 import 'dart:convert';
 import 'package:drift/drift.dart' show Value, Insertable, TableInfo, Table;
+import 'package:uuid/uuid.dart';
 import '../data/database.dart';
 import '../app_info.dart';
+
+const _uuid = Uuid();
 
 /// Local backup format. Versioned by the Drift `schemaVersion` so an import
 /// against a mismatched schema fails fast instead of silently corrupting
@@ -142,7 +145,7 @@ Future<ImportResult> importFromJson(
       }
       // No name conflict — insert the JSON group. Keep its id unless it
       // happens to collide with an unrelated local group id.
-      final useId = localGroupById.containsKey(jsonId) ? newUuid() : jsonId;
+      final useId = localGroupById.containsKey(jsonId) ? _uuid.v4() : jsonId;
       jg['id'] = useId;
       jg['updatedAt'] = nowIso;
       await db.into(db.groups).insertOnConflictUpdate(
