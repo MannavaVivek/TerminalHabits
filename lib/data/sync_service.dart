@@ -63,19 +63,32 @@ class SyncService {
     if (delVacations.isNotEmpty)   await _c.from('vacations').delete().inFilter('id', delVacations.toList());
 
     // Upsert local groups (LWW — only push rows newer than server).
+    // Skip the seeded `general` group: it has a deterministic id shared
+    // across users, which means the server-side row may belong to another
+    // account from prior testing. Hitting that row with an upsert triggers
+    // RLS USING-policy rejection. The default group is auto-created in
+    // _seedDefaults on every device anyway, so syncing it adds no value.
     final groupsToUpsert = localGroups.where((g) {
+      if (g.id == 'general') return false;
       final serverTs = sGroupTs[g.id];
       if (serverTs == null) return true;
       return g.updatedAt.isAfter(serverTs);
     }).toList();
     if (groupsToUpsert.isNotEmpty) {
-      await _c.from('groups').upsert(groupsToUpsert.map((g) => {
-        'id': g.id, 'user_id': _uid, 'name': g.name,
-        'sort_index': g.sortIndex, 'collapsed': g.collapsed,
-        'note': g.note, 'icon': g.icon,
-        'updated_at': g.updatedAt.millisecondsSinceEpoch,
-        'deleted': g.deleted,
-      }).toList());
+      try {
+        await _c.from('groups').upsert(groupsToUpsert.map((g) => {
+          'id': g.id, 'user_id': _uid, 'name': g.name,
+          'sort_index': g.sortIndex, 'collapsed': g.collapsed,
+          'note': g.note, 'icon': g.icon,
+          'updated_at': g.updatedAt.millisecondsSinceEpoch,
+          'deleted': g.deleted,
+        }).toList());
+      } catch (e) {
+        // Don't block the rest of the push on a single-table failure
+        // (e.g. RLS rejection on a row that collided with another user's
+        // data from previous testing).
+        debugPrint('pushAll groups error: $e');
+      }
     }
     // Only push habits where local updatedAt is newer than server (LWW).
     final habitsToUpsert = localHabits.where((h) {
@@ -84,27 +97,35 @@ class SyncService {
       return h.updatedAt.isAfter(serverTs);
     }).toList();
     if (habitsToUpsert.isNotEmpty) {
-      await _c.from('habits').upsert(habitsToUpsert.map((h) => {
-        'id': h.id, 'user_id': _uid, 'group_id': h.groupId,
-        'name': h.name, 'icon': h.icon, 'color': h.color,
-        'tracking': h.tracking, 'target': h.target, 'unit': h.unit,
-        'schedule': h.schedule, 'note': h.note, 'target_time': h.targetTime,
-        'sort_index': h.sortIndex, 'health_source': h.healthSource,
-        'created_at': h.createdAt.millisecondsSinceEpoch,
-        'start_date': h.startDate.millisecondsSinceEpoch,
-        'end_date': h.endDate?.millisecondsSinceEpoch,
-        'archived_at': h.archivedAt?.millisecondsSinceEpoch,
-        'updated_at': h.updatedAt.millisecondsSinceEpoch,
-        'deleted': h.deleted,
-      }).toList());
+      try {
+        await _c.from('habits').upsert(habitsToUpsert.map((h) => {
+          'id': h.id, 'user_id': _uid, 'group_id': h.groupId,
+          'name': h.name, 'icon': h.icon, 'color': h.color,
+          'tracking': h.tracking, 'target': h.target, 'unit': h.unit,
+          'schedule': h.schedule, 'note': h.note, 'target_time': h.targetTime,
+          'sort_index': h.sortIndex, 'health_source': h.healthSource,
+          'created_at': h.createdAt.millisecondsSinceEpoch,
+          'start_date': h.startDate.millisecondsSinceEpoch,
+          'end_date': h.endDate?.millisecondsSinceEpoch,
+          'archived_at': h.archivedAt?.millisecondsSinceEpoch,
+          'updated_at': h.updatedAt.millisecondsSinceEpoch,
+          'deleted': h.deleted,
+        }).toList());
+      } catch (e) {
+        debugPrint('pushAll habits error: $e');
+      }
     }
     if (localHistory.isNotEmpty) {
-      await _c.from('habit_schedule_history').upsert(localHistory.map((r) => {
-        'id': r.id, 'user_id': _uid, 'habit_id': r.habitId,
-        'effective_from': r.effectiveFrom.millisecondsSinceEpoch,
-        'schedule': r.schedule, 'tracking': r.tracking,
-        'created_at': r.createdAt.millisecondsSinceEpoch,
-      }).toList());
+      try {
+        await _c.from('habit_schedule_history').upsert(localHistory.map((r) => {
+          'id': r.id, 'user_id': _uid, 'habit_id': r.habitId,
+          'effective_from': r.effectiveFrom.millisecondsSinceEpoch,
+          'schedule': r.schedule, 'tracking': r.tracking,
+          'created_at': r.createdAt.millisecondsSinceEpoch,
+        }).toList());
+      } catch (e) {
+        debugPrint('pushAll history error: $e');
+      }
     }
     // Only push completions where local updatedAt is newer than server (LWW).
     final compsToUpsert = localCompletions.where((c) {
@@ -113,31 +134,43 @@ class SyncService {
       return c.updatedAt.isAfter(serverTs);
     }).toList();
     if (compsToUpsert.isNotEmpty) {
-      for (var i = 0; i < compsToUpsert.length; i += 500) {
-        final batch = compsToUpsert.sublist(i, (i + 500).clamp(0, compsToUpsert.length));
-        await _c.from('completions').upsert(batch.map((c) => {
-          'id': c.id, 'user_id': _uid, 'habit_id': c.habitId,
-          'day': c.day.millisecondsSinceEpoch, 'value': c.value,
-          'created_at': c.createdAt.millisecondsSinceEpoch,
-          'updated_at': c.updatedAt.millisecondsSinceEpoch,
-          'deleted': c.deleted,
-        }).toList());
+      try {
+        for (var i = 0; i < compsToUpsert.length; i += 500) {
+          final batch = compsToUpsert.sublist(i, (i + 500).clamp(0, compsToUpsert.length));
+          await _c.from('completions').upsert(batch.map((c) => {
+            'id': c.id, 'user_id': _uid, 'habit_id': c.habitId,
+            'day': c.day.millisecondsSinceEpoch, 'value': c.value,
+            'created_at': c.createdAt.millisecondsSinceEpoch,
+            'updated_at': c.updatedAt.millisecondsSinceEpoch,
+            'deleted': c.deleted,
+          }).toList());
+        }
+      } catch (e) {
+        debugPrint('pushAll completions error: $e');
       }
     }
     if (localVacations.isNotEmpty) {
-      await _c.from('vacations').upsert(localVacations.map((v) => {
-        'id': v.id, 'user_id': _uid,
-        'start_ts': v.start.millisecondsSinceEpoch,
-        'end_ts': v.end.millisecondsSinceEpoch,
-        'active': v.active, 'note': v.note,
-      }).toList());
+      try {
+        await _c.from('vacations').upsert(localVacations.map((v) => {
+          'id': v.id, 'user_id': _uid,
+          'start_ts': v.start.millisecondsSinceEpoch,
+          'end_ts': v.end.millisecondsSinceEpoch,
+          'active': v.active, 'note': v.note,
+        }).toList());
+      } catch (e) {
+        debugPrint('pushAll vacations error: $e');
+      }
     }
     if (localShields.isNotEmpty) {
-      await _c.from('day_shields').upsert(localShields.map((s) => {
-        'id': s.id, 'user_id': _uid,
-        'day': s.day.millisecondsSinceEpoch,
-        'applied_at': s.appliedAt.millisecondsSinceEpoch,
-      }).toList());
+      try {
+        await _c.from('day_shields').upsert(localShields.map((s) => {
+          'id': s.id, 'user_id': _uid,
+          'day': s.day.millisecondsSinceEpoch,
+          'applied_at': s.appliedAt.millisecondsSinceEpoch,
+        }).toList());
+      } catch (e) {
+        debugPrint('pushAll shields error: $e');
+      }
     }
   }
 
