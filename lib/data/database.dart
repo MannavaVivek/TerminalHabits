@@ -767,6 +767,9 @@ class AppDatabase extends _$AppDatabase {
         ..where((s) => s.key.equals(key)))
       .watchSingleOrNull()
       .map((row) => row?.value);
+
+  // Returns every row in app_settings. Used by the JSON export.
+  Future<List<AppSetting>> allSettings() => select(appSettings).get();
 }
 
 // Opens the database at the platform-appropriate path.

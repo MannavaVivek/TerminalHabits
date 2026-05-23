@@ -5,6 +5,7 @@ import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/tokens.dart';
 import 'change_name_dialog.dart';
+import 'data_backup_actions.dart';
 
 const _kThemes = [
   (id: 'matrix',    label: 'matrix',    accent: Color(0xFF5CE39A), bg: Color(0xFF0B1014)),
@@ -205,6 +206,52 @@ class SettingsDialog extends ConsumerWidget {
                         col: col,
                         onToggle: (v) => db.setSetting(
                             'confirmDestructive', v.toString()),
+                      ),
+                    ),
+                    const SizedBox(height: TH.s22),
+                    _sectionLabel('data', col),
+                    const SizedBox(height: TH.s14),
+                    _SettingRow(
+                      label: 'backup',
+                      col: col,
+                      child: Row(
+                        children: [
+                          Consumer(builder: (ctx, r, _) {
+                            return GestureDetector(
+                              onTap: () => handleExportBackup(ctx, r),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: TH.s8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: col.line2),
+                                  borderRadius:
+                                      const BorderRadius.all(TH.r4),
+                                ),
+                                child: Text('[ export ]',
+                                    style: TextStyle(
+                                        color: col.fgDim, fontSize: 12)),
+                              ),
+                            );
+                          }),
+                          const SizedBox(width: TH.s8),
+                          Consumer(builder: (ctx, r, _) {
+                            return GestureDetector(
+                              onTap: () => handleImportBackup(ctx, r),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: TH.s8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: col.line2),
+                                  borderRadius:
+                                      const BorderRadius.all(TH.r4),
+                                ),
+                                child: Text('[ import ]',
+                                    style: TextStyle(
+                                        color: col.fgDim, fontSize: 12)),
+                              ),
+                            );
+                          }),
+                        ],
                       ),
                     ),
                     const SizedBox(height: TH.s22),
