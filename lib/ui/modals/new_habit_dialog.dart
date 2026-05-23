@@ -510,6 +510,73 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
                                   color: col.fgMute, fontSize: 12)),
                         ],
                       ),
+                      const SizedBox(height: TH.s8),
+                      GestureDetector(
+                        onTap: () async {
+                          final source = _healthSource;
+                          if (source == null) return;
+                          final msg = await HealthService.diagnose(source);
+                          if (!context.mounted) return;
+                          await showDialog<void>(
+                            context: context,
+                            barrierColor: Colors.black54,
+                            builder: (ctx) => Dialog(
+                              backgroundColor: col.bg2,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius:
+                                      const BorderRadius.all(TH.r10)),
+                              child: SizedBox(
+                                width: 360,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(TH.s22),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text('health connect — $source',
+                                          style: TextStyle(
+                                              color: col.fg,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600)),
+                                      const SizedBox(height: TH.s8),
+                                      Text(msg,
+                                          style: TextStyle(
+                                              color: col.fg, fontSize: 12)),
+                                      const SizedBox(height: TH.s22),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.end,
+                                        children: [
+                                          GestureDetector(
+                                            onTap: () =>
+                                                Navigator.of(ctx).pop(),
+                                            child: Text('[ ok ]',
+                                                style: TextStyle(
+                                                    color: col.green,
+                                                    fontSize: 13)),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: TH.s8, vertical: 4),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: col.line2),
+                            borderRadius: const BorderRadius.all(TH.r4),
+                          ),
+                          child: Text('[ test health connect ]',
+                              style: TextStyle(
+                                  color: col.fgDim, fontSize: 11)),
+                        ),
+                      ),
                     ],
                     if (_tracking == 'counter' ||
                         _tracking == 'duration') ...[
