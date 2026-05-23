@@ -133,7 +133,7 @@ Opened via `Cmd+N`, `:new`, or the `+` button (mobile).
 | Schedule | toggle group | yes | Daily (default), Weekdays, Weekends, Custom (7 day toggles). |
 | Note | text (multiline) | no | Up to 280 chars. Shown in inspector when habit is focused. |
 
-For `health` (Phase 12, Android only): an additional source picker is shown — initially just `steps` (other sources to follow). The daily goal field is required and used as the threshold for auto-completion. On Mac the `health` pill is hidden entirely. Permission to read the chosen Health Connect data type is requested when the habit is created; denial blocks the save with a "health connect denied" dialog.
+For `health` (Phase 12, Android only): an additional source picker is shown. Supported sources: `steps` (goal in step count, e.g. 8000), `sleep` (goal in hours; internal value stored in minutes), `exercise` (goal in minutes; sums all exercise-session durations whose end falls in today's local day, regardless of session type). The daily goal field is required. On macOS the `health` pill is hidden entirely. Permission to read the chosen Health Connect data type is requested when the habit is created; denial saves the habit anyway and surfaces a help dialog with manual-grant instructions.
 
 ### 4.2 Schedule semantics
 

@@ -228,9 +228,21 @@ class HabitRow extends ConsumerWidget {
       return t > 0 ? '$v/${t}m' : '${v}m';
     }
     if (h.tracking == 'health') {
-      final v = _fmtK(value.toInt());
-      final t = h.target != null ? _fmtK(h.target!) : null;
-      return t != null ? '$v/$t' : v;
+      final v = value.toInt();
+      final t = h.target;
+      switch (h.healthSource) {
+        case 'sleep':
+          // Internal unit = minutes; display as hours with one decimal.
+          final h1 = (v / 60).toStringAsFixed(1);
+          final h2 = t != null ? (t / 60).toStringAsFixed(0) : null;
+          return h2 != null ? '${h1}h/${h2}h' : '${h1}h';
+        case 'exercise':
+          return t != null ? '${v}m/${t}m' : '${v}m';
+        default: // steps + any future numeric source
+          final vs = _fmtK(v);
+          final ts = t != null ? _fmtK(t) : null;
+          return ts != null ? '$vs/$ts' : vs;
+      }
     }
     final v = value.toInt().clamp(0, 999);
     final t = (h.target ?? 0).clamp(0, 999);

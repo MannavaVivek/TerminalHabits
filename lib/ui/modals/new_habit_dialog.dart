@@ -77,12 +77,14 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
       target = int.tryParse(_targetCtrl.text.trim());
       unit = 'min';
     } else if (_tracking == 'health') {
-      target = int.tryParse(_targetCtrl.text.trim());
-      if (_healthSource == null || target == null || target <= 0) {
+      final raw = int.tryParse(_targetCtrl.text.trim());
+      final cfg = _healthSource != null ? kHealthSources[_healthSource!] : null;
+      if (cfg == null || raw == null || raw <= 0) {
         // Missing source or invalid goal — bail silently; UI shows hints.
         return;
       }
-      unit = _healthSource == 'steps' ? 'steps' : null;
+      target = cfg.goalToInternal(raw);
+      unit = cfg.storedUnit;
     }
 
     if (target != null && target > 999999) {
@@ -477,13 +479,15 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
                         spacing: 8,
                         runSpacing: 6,
                         children: [
-                          for (final s in const ['steps'])
+                          for (final s in kHealthSources.keys)
                             _Pill(
                               label: s,
                               selected: _healthSource == s,
                               col: col,
-                              onTap: () =>
-                                  setState(() => _healthSource = s),
+                              onTap: () => setState(() {
+                                _healthSource = s;
+                                _targetCtrl.clear();
+                              }),
                             ),
                         ],
                       ),
@@ -501,14 +505,22 @@ class _NewHabitDialogState extends ConsumerState<NewHabitDialog> {
                               ],
                               style: TextStyle(
                                   color: col.fg, fontSize: 13),
-                              decoration: _fieldDeco('8000', col),
+                              decoration: _fieldDeco(
+                                _healthSource != null
+                                    ? kHealthSources[_healthSource!]!.hint
+                                    : '',
+                                col,
+                              ),
                               onSubmitted: (_) => _save(),
                             ),
                           ),
                           const SizedBox(width: TH.s8),
-                          Text('daily goal (steps)',
-                              style: TextStyle(
-                                  color: col.fgMute, fontSize: 12)),
+                          Text(
+                            _healthSource != null
+                                ? 'daily goal (${kHealthSources[_healthSource!]!.goalUnitLabel})'
+                                : 'daily goal',
+                            style: TextStyle(
+                                color: col.fgMute, fontSize: 12)),
                         ],
                       ),
                       const SizedBox(height: TH.s8),

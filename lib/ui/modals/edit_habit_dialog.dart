@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/database.dart';
-import '../../domain/health_service.dart';
+import '../../domain/health_service.dart' show HealthService, kHealthSources;
 import '../../domain/schedule.dart';
 import '../../domain/streaks.dart' show localMidnightUtc;
 import '../../state/providers.dart';
@@ -51,8 +51,15 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
     final h = widget.habit;
     _nameCtrl = TextEditingController(text: h.name);
     _noteCtrl = TextEditingController(text: h.note ?? '');
+    // For health habits we store the goal in internal units (e.g. minutes
+    // for sleep) but display it in user units (hours). Convert back.
+    int? displayTarget = h.target;
+    if (h.tracking == 'health' && h.healthSource != null && h.target != null) {
+      final cfg = kHealthSources[h.healthSource];
+      if (cfg != null) displayTarget = cfg.internalToGoal(h.target!);
+    }
     _targetCtrl = TextEditingController(
-        text: h.target != null ? '${h.target}' : '');
+        text: displayTarget != null ? '$displayTarget' : '');
     _iconKey = lucideIconData(h.icon) != null ? h.icon : null;
     _scheduleKey = _scheduleKeyFromJson(h.schedule);
     _color = h.color;
@@ -166,9 +173,11 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
       target = int.tryParse(_targetCtrl.text.trim());
       unit = 'min';
     } else if (_tracking == 'health') {
-      target = int.tryParse(_targetCtrl.text.trim());
-      if (_healthSource == null || target == null || target <= 0) return;
-      unit = _healthSource == 'steps' ? 'steps' : null;
+      final raw = int.tryParse(_targetCtrl.text.trim());
+      final cfg = _healthSource != null ? kHealthSources[_healthSource!] : null;
+      if (cfg == null || raw == null || raw <= 0) return;
+      target = cfg.goalToInternal(raw);
+      unit = cfg.storedUnit;
     }
 
     final maxTarget = _tracking == 'health' ? 999999 : 999;
@@ -466,12 +475,15 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
                   spacing: 8,
                   runSpacing: 6,
                   children: [
-                    for (final s in const ['steps'])
+                    for (final s in kHealthSources.keys)
                       _Pill(
                         label: s,
                         selected: _healthSource == s,
                         col: col,
-                        onTap: () => setState(() => _healthSource = s),
+                        onTap: () => setState(() {
+                          _healthSource = s;
+                          _targetCtrl.clear();
+                        }),
                       ),
                   ],
                 ),
@@ -482,7 +494,9 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
                       width: 96,
                       child: _StyledField(
                         controller: _targetCtrl,
-                        hint: '8000',
+                        hint: _healthSource != null
+                            ? kHealthSources[_healthSource!]!.hint
+                            : '',
                         col: col,
                         keyboardType: TextInputType.number,
                         digitsOnly: true,
@@ -490,7 +504,10 @@ class _EditHabitDialogState extends ConsumerState<EditHabitDialog> {
                       ),
                     ),
                     const SizedBox(width: TH.s8),
-                    Text('daily goal (steps)',
+                    Text(
+                        _healthSource != null
+                            ? 'daily goal (${kHealthSources[_healthSource!]!.goalUnitLabel})'
+                            : 'daily goal',
                         style: TextStyle(
                             color: col.fgMute, fontSize: 12)),
                   ],
