@@ -7,6 +7,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:syncfusion_flutter_datepicker/datepicker.dart';
 import '../../data/database.dart';
 import '../../domain/health_service.dart';
+import '../../domain/health_sync.dart';
 import '../../domain/schedule.dart';
 import '../../state/providers.dart';
 import '../../theme/app_colors.dart';

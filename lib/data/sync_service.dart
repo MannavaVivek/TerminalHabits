@@ -274,18 +274,36 @@ class SyncService {
       final lCompsAll = await _db.getAllCompletions();
       final lCompTs = { for (final c in lCompsAll) c.id: c.updatedAt };
 
+      // Build a (habit_id, day) → local row map so we can detect dup rows
+      // with different ids (each device's autoincrement is independent).
+      final lByDay = <(int, DateTime), Completion>{
+        for (final c in lCompsAll) (c.habitId, c.day): c,
+      };
       for (final r in serverCompletions) {
         final id = (r['id'] as num).toInt();
+        final habitId = (r['habit_id'] as num).toInt();
+        final dayUtc = _ms(r['day']);
         final serverUpdatedAt = r['updated_at'] != null
             ? _ms(r['updated_at'])
             : _ms(r['created_at']);
         final localUpdatedAt = lCompTs[id];
-        // Skip if local is newer — this device's change wins.
         if (localUpdatedAt != null && localUpdatedAt.isAfter(serverUpdatedAt)) continue;
+        // Different-id duplicate for the same (habit, day) — UNIQUE constraint
+        // would otherwise reject the upsert. Drop the local dup if server is
+        // newer; skip if local is newer.
+        if (localUpdatedAt == null) {
+          final dup = lByDay[(habitId, dayUtc)];
+          if (dup != null && dup.id != id) {
+            if (dup.updatedAt.isAfter(serverUpdatedAt)) continue;
+            await (_db.delete(_db.completions)
+                  ..where((c) => c.id.equals(dup.id)))
+                .go();
+          }
+        }
         await _db.into(_db.completions).insertOnConflictUpdate(CompletionsCompanion(
           id: Value(id),
-          habitId: Value((r['habit_id'] as num).toInt()),
-          day: Value(_ms(r['day'])),
+          habitId: Value(habitId),
+          day: Value(dayUtc),
           value: Value((r['value'] as num).toDouble()),
           createdAt: Value(_ms(r['created_at'])),
           updatedAt: Value(serverUpdatedAt),
@@ -444,18 +462,36 @@ class SyncService {
         ));
       case 'completions':
         final id = (r['id'] as num).toInt();
+        final habitId = (r['habit_id'] as num).toInt();
+        final dayUtc = _msStatic(r['day']);
         final serverUpdatedAt = r['updated_at'] != null
             ? _msStatic(r['updated_at'])
             : _msStatic(r['created_at']);
         // LWW: only apply if this Realtime event is newer than local.
-        final existing = await (db.select(db.completions)
+        final byId = await (db.select(db.completions)
               ..where((c) => c.id.equals(id)))
             .getSingleOrNull();
-        if (existing != null && existing.updatedAt.isAfter(serverUpdatedAt)) break;
+        if (byId != null && byId.updatedAt.isAfter(serverUpdatedAt)) break;
+        // Different-id duplicate for the same (habit, day) — UNIQUE constraint
+        // would otherwise reject the insert. Resolve via LWW: keep whichever
+        // row is newer; if server wins, drop the local dup so the insert can
+        // proceed.
+        if (byId == null) {
+          final byDay = await (db.select(db.completions)
+                ..where((c) =>
+                    c.habitId.equals(habitId) & c.day.equals(dayUtc)))
+              .getSingleOrNull();
+          if (byDay != null) {
+            if (byDay.updatedAt.isAfter(serverUpdatedAt)) break;
+            await (db.delete(db.completions)
+                  ..where((c) => c.id.equals(byDay.id)))
+                .go();
+          }
+        }
         await db.into(db.completions).insertOnConflictUpdate(CompletionsCompanion(
           id: Value(id),
-          habitId: Value((r['habit_id'] as num).toInt()),
-          day: Value(_msStatic(r['day'])),
+          habitId: Value(habitId),
+          day: Value(dayUtc),
           value: Value((r['value'] as num).toDouble()),
           createdAt: Value(_msStatic(r['created_at'])),
           updatedAt: Value(serverUpdatedAt),
