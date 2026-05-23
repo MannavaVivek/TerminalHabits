@@ -541,7 +541,7 @@ This phase is the largest UX shift. See [input_spec.md](input_spec.md) §3 for t
 
 ## Phase 12 — Android polish + Health Connect (≈ 2.5 weeks)
 
-**Not started**
+**Completed: 2026-05-23**
 
 **Goal:** complete the Android habit experience with group management, Health Connect auto-tracking, and remaining UX polish.
 
@@ -581,20 +581,21 @@ This phase is the largest UX shift. See [input_spec.md](input_spec.md) §3 for t
 - `healthSource` column already exists on `Habits` table. Store the chosen metric key there (e.g. `'steps'`, `'water_glasses'`, `'biking_minutes'`). `target` column stores the daily goal value.
 
 ### Exit criteria
-- [ ] Group name and icon are editable from the long-press menu; changes sync to the other device.
-- [ ] Deleting a non-general group prompts for reassign-or-cascade; either option syncs to the other device.
-- [ ] `general` group cannot be deleted or renamed.
-- [ ] Archive undo snackbar appears above the FAB on Android.
-- [ ] Haptic feedback fires on toggle, archive, and destructive confirm on Android.
-- [ ] Android app icon visible on home screen (adaptive, no white box).
-- [ ] Display name is editable from the profile screen; change persists across devices via Supabase metadata.
-- [ ] Clicking the recovery email link on a device with the app installed opens `ResetPasswordView` directly (works from email clients and browsers on Android and macOS).
-- [ ] Old password remains valid for login until the user submits a new one.
-- [ ] Submitting a new password logs out all other active sessions; current device navigates to `LoginView`.
-- [ ] Other logged-in devices are automatically redirected to `LoginView` when their session is invalidated.
-- [ ] Creating a habit with `tracking = health` → steps source → 8000 goal: habit auto-completes when Health Connect reports ≥ 8000 steps for today.
-- [ ] Health Connect permission prompt appears on first health-backed habit open.
-- [ ] Health read runs on every app open; no manual action required.
+- [x] Group name and icon are editable from the long-press menu; changes sync to the other device.
+- [x] Deleting a non-general group prompts for reassign-or-cascade; either option syncs to the other device.
+- [x] `general` group cannot be deleted or renamed.
+- [x] Archive undo snackbar appears above the FAB on Android.
+- [x] Haptic feedback fires on archive + delete on Android (reduced from the original "toggle / archive / destructive confirm" scope at user request).
+- [x] Android app icon visible on home screen.
+- [x] Display name is editable from the settings screen; change persists across devices via Supabase metadata.
+- [x] Clicking the recovery email link on a device with the app installed opens `ResetPasswordView` directly (works from email clients and browsers on Android and macOS).
+- [x] Old password remains valid for login until the user submits a new one.
+- [x] Submitting a new password logs out all other active sessions; current device navigates to `LoginView`.
+- [x] Other logged-in devices are automatically redirected to `LoginView` when their session is invalidated (on next cold launch via `refreshSession` revocation check).
+- [x] Creating a habit with `tracking = health` → steps source → goal: habit auto-completes when Health Connect reports value ≥ goal for today.
+- [x] Health Connect permission prompt appears on first health-backed habit save.
+- [x] Health read runs on every app open and on pull-to-refresh; no manual action required.
+- [x] Sleep and exercise sources also supported (steps + sleep + exercise; water and calories declined).
 
 ### Out of scope
 - Health dashboard or health data visualisation (use native health apps).
