@@ -605,36 +605,29 @@ This phase is the largest UX shift. See [input_spec.md](input_spec.md) §3 for t
 
 ---
 
-## Phase 13 — Extras & macOS polish (≈ 2 weeks)
+## Phase 13 — Backup, polish, and Phase 12 follow-ups
 
 **Not started**
 
-**Goal:** fill in quality-of-life features that have been deferred across multiple phases, and bring macOS to feature parity with the spec.
+**Goal:** four self-iteration items — a few targeted fixes from Phase 12 (sleep input ergonomics, server-side dedupe, launch-scan visibility) plus local JSON backup/restore. Personal-use scope; no features added for hypothetical other users.
 
 ### Scope
 
-**macOS**
-- **Resizable sidebar/inspector splits**: `multi_split_view` package. User can drag the divider between sidebar, main pane, and inspector. Flagged optional in Phase 7 design spec.
-- **Shield UI**: manual apply/remove shield from the daily view (tap the shield count in the header). Earn shields by converting vacation days. Deferred from Phase 8.
-- **Global show/hide hotkey**: `hotkey_manager` package. System-wide shortcut to bring the app to front (D-005 pending revisit).
-
-**Data**
-- **Bulk import/export (`.json`)**: export all habits + completions to a structured JSON file; import from the same format. Useful for backups and migration.
-- **Habit templates**: curated "morning routine", "fitness", "mindfulness" starter packs selectable during onboarding or from settings. Extends the current onboarding starter habits.
-
-**Notifications**
-- **Per-habit reminders** (revisit D-006): opt-in only, per-habit toggle, single daily reminder time. Requires `flutter_local_notifications`, Android notification permission flow, and macOS UNUserNotificationCenter entitlement. Only ship if there is explicit user demand.
+- **Bulk import/export (`.json`)**: export all habits + completions + groups + vacations + shields + schedule history to a structured JSON file (versioned by `schemaVersion`). Import wipes local data and replaces from the file. Triggered from Settings → Data. Acts as a manual backup mechanism that complements Supabase sync.
+- **Server-side completion dedupe** (one-off SQL): clean up duplicate `(user_id, habit_id, day)` rows on Supabase. Different devices' autoincrement IDs caused dup rows during Phase 12 testing; the client now handles them, but the server should also be cleaned up.
+- **`ValueInputDialog` hours mode for sleep**: when manually overriding a sleep habit's value, accept hours instead of minutes. Internal storage stays in minutes; the dialog converts on display and on save. Matches the goal-entry behavior already in the new/edit habit dialogs.
+- **Launch-scan summary toast**: after the launch shield scan runs (which walks `last_seen_date + 1` through yesterday), surface a toast if any days were missed or shielded. E.g. "2 days shielded, 1 day missed" if the user was away for a few days. Suppressed when the scan range is empty (user opened the app yesterday too).
 
 ### Exit criteria
-- [ ] Sidebar and inspector panes are resizable by dragging on macOS.
-- [ ] User can manually spend or earn a shield from the UI.
-- [ ] Export produces a valid JSON file; import round-trips correctly.
-- [ ] Habit templates selectable in onboarding.
-- [ ] Reminder toggle visible per habit in edit dialog (if notifications shipped).
+- [ ] Settings → Data → Export produces a valid JSON file containing the full local DB state, restorable via Import on the same or another device.
+- [ ] Import refuses files whose `schemaVersion` doesn't match the current DB schema.
+- [ ] Phase 13 phase log includes the one-off SQL the user ran in Supabase to dedupe completions (with the date it was run).
+- [ ] Tapping a sleep habit on the daily view opens the value-input dialog showing hours (e.g. `7`), not minutes (`420`).
+- [ ] After a multi-day absence, the next app open shows a one-time toast summarizing what was shielded vs missed during the gap.
 
 ### Out of scope
-- iOS.
-- CI/CD (tracked separately post-1.0).
+- macOS resizable splits, manual shield apply/remove, global hotkey, habit templates, per-habit reminders, Health Connect water/calories, stats charts for health habits — all explicitly deferred per personal-iteration scope.
+- iOS, CI/CD.
 
 ---
 
