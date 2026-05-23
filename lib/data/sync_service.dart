@@ -168,17 +168,16 @@ class SyncService {
     // snapshot would destroy data.
     if (serverHabits.isEmpty) return false;
 
-    final sHabitIds      = serverHabits.map((r) => (r['id'] as num).toInt()).toSet();
     final sHistoryIds    = serverHistory.map((r) => (r['id'] as num).toInt()).toSet();
-    final sCompletionIds = serverCompletions.map((r) => (r['id'] as num).toInt()).toSet();
     final sVacationIds   = serverVacations.map((r) => (r['id'] as num).toInt()).toSet();
     final sShieldIds     = serverShields.map((r) => (r['id'] as num).toInt()).toSet();
 
     await _db.transaction(() async {
-      // Delete local rows absent from server (FK-safe: children first).
-      final lCompletions = await _db.getAllCompletions();
-      final delC = lCompletions.where((c) => !sCompletionIds.contains(c.id)).map((c) => c.id).toList();
-      if (delC.isNotEmpty) await (_db.delete(_db.completions)..where((c) => c.id.isIn(delC))).go();
+      // Habits and completions use soft-delete tombstones since Phase 11.
+      // Don't hard-delete local rows that are missing from the server — they
+      // may simply be local creations that haven't been pushed yet. The
+      // server's deleted=true row will arrive via the upsert step below and
+      // mark the local row deleted, which is the correct propagation path.
 
       final lShields = await _db.getAllDayShields();
       final delS = lShields.where((s) => !sShieldIds.contains(s.id)).map((s) => s.id).toList();
@@ -188,10 +187,6 @@ class SyncService {
       final lHistory = lHistMap.values.expand((v) => v).toList();
       final delH = lHistory.where((r) => !sHistoryIds.contains(r.id)).map((r) => r.id).toList();
       if (delH.isNotEmpty) await (_db.delete(_db.habitScheduleHistory)..where((r) => r.id.isIn(delH))).go();
-
-      final lHabits = await _db.getAllHabits(1);
-      final delHa = lHabits.where((h) => !sHabitIds.contains(h.id)).map((h) => h.id).toList();
-      if (delHa.isNotEmpty) await (_db.delete(_db.habits)..where((h) => h.id.isIn(delHa))).go();
 
       // Groups use soft-delete — don't hard-delete local groups missing from
       // server (the server's deleted=true tombstone arrives via the upsert

@@ -50,9 +50,12 @@ class DailyView extends ConsumerWidget {
         Future<void> onRefresh() async {
           final db = ref.read(dbProvider);
 
-          // Pull from Supabase if authenticated.
-          // Auto-push (AppScaffold debounce) handles the outbound direction.
+          // Push first so any unsynced local creations (a brand-new habit,
+          // a fresh shield/vacation) reach the server before pullAll's
+          // diff-delete pass runs. Otherwise pull-to-refresh shortly after
+          // a local create can wipe the new row.
           if (Supabase.instance.client.auth.currentSession != null) {
+            try { await SyncService(db).pushAll(); } catch (e) { debugPrint('pushAll error: $e'); }
             try { await SyncService(db).pullAll(); } catch (e) { debugPrint('pullAll error: $e'); }
           }
 
