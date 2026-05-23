@@ -607,7 +607,7 @@ This phase is the largest UX shift. See [input_spec.md](input_spec.md) §3 for t
 
 ## Phase 13 — Backup, polish, and Phase 12 follow-ups
 
-**Not started**
+**Completed: 2026-05-23**
 
 **Goal:** four self-iteration items — a few targeted fixes from Phase 12 (sleep input ergonomics, server-side dedupe, launch-scan visibility) plus local JSON backup/restore. Personal-use scope; no features added for hypothetical other users.
 
@@ -619,11 +619,11 @@ This phase is the largest UX shift. See [input_spec.md](input_spec.md) §3 for t
 - **Launch-scan summary toast**: after the launch shield scan runs (which walks `last_seen_date + 1` through yesterday), surface a toast if any days were missed or shielded. E.g. "2 days shielded, 1 day missed" if the user was away for a few days. Suppressed when the scan range is empty (user opened the app yesterday too).
 
 ### Exit criteria
-- [ ] Settings → Data → Export produces a valid JSON file containing the full local DB state, restorable via Import on the same or another device.
-- [ ] Import refuses files whose `schemaVersion` doesn't match the current DB schema.
-- [ ] Phase 13 phase log includes the one-off SQL the user ran in Supabase to dedupe completions (with the date it was run).
-- [ ] Tapping a sleep habit on the daily view opens the value-input dialog showing hours (e.g. `7`), not minutes (`420`).
-- [ ] After a multi-day absence, the next app open shows a one-time toast summarizing what was shielded vs missed during the gap.
+- [x] Settings → Data → Export produces a valid JSON file containing the full local DB state, restorable via Import on the same or another device.
+- [x] Import refuses files whose `schemaVersion` doesn't match the current DB schema.
+- [x] Phase 13 phase log references the one-off SQL the user ran in Supabase to dedupe completions (`specs/supabase_phase_13_dedupe.md`).
+- [x] Tapping a sleep habit on the daily view opens the value-input dialog showing hours (e.g. `7`), not minutes (`420`).
+- [ ] After a multi-day absence, the next app open shows a one-time toast summarizing what was shielded vs missed during the gap. *(implemented; waiting for an actual gap to verify)*
 
 ### Out of scope
 - macOS resizable splits, manual shield apply/remove, global hotkey, habit templates, per-habit reminders, Health Connect water/calories, stats charts for health habits — all explicitly deferred per personal-iteration scope.
