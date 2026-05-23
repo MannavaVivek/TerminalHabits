@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show debugPrint;
 import '../data/database.dart';
 import 'health_service.dart';
+import 'streaks.dart' show localMidnightUtc;
 
 /// Reads today's value from Health Connect for every `tracking='health'`
 /// habit, and toggles the completion accordingly:
@@ -21,9 +22,9 @@ Future<void> runHealthSync(AppDatabase db, List<Habit> habits) async {
       .toList();
   if (healthHabits.isEmpty) return;
 
-  final now = DateTime.now();
-  final todayUtc =
-      DateTime.utc(now.year, now.month, now.day);
+  // Match the rest of the app: a completion's `day` is local midnight
+  // expressed in UTC, not DateTime.utc(y,m,d). Those only coincide at UTC+0.
+  final todayUtc = localMidnightUtc(DateTime.now());
 
   // Cache reads per source so multiple habits using the same source
   // (e.g. two step-goal habits) only hit Health Connect once.
