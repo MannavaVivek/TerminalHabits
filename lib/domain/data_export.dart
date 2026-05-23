@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:drift/drift.dart' show Insertable;
+import 'package:drift/drift.dart' show Insertable, TableInfo, Table;
 import '../data/database.dart';
 import '../app_info.dart';
 
