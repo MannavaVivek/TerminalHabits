@@ -305,10 +305,11 @@ int _dayOutcome(
     final schedule = entry?.schedule ?? h.schedule;
     if (!isDueOnSchedule(schedule, d)) continue;
     due++;
-    final threshold =
-        (h.tracking == 'checkbox' || h.tracking == 'health')
-            ? 0.5
-            : (h.target ?? 1).toDouble();
+    // Health habits gate on value >= target (same as counter/duration).
+    // Only checkbox uses the 0.5 sentinel.
+    final threshold = h.tracking == 'checkbox'
+        ? 0.5
+        : (h.target ?? 1).toDouble();
     final comps = completionMap[h.id] ?? const [];
     if (comps.any((c) => c.day.toUtc() == dUtc && c.value >= threshold)) done++;
   }
