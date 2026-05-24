@@ -329,7 +329,18 @@ List<DayRatio> weeklyRatios(
       if (!isDueOnSchedule(entry?.schedule ?? h.schedule, day)) continue;
       due++;
       final comps = recentMap[h.id] ?? const [];
-      if (comps.any((c) => c.day.toUtc() == dayUtc)) done++;
+      Completion? comp;
+      for (final c in comps) {
+        if (c.day.toUtc() == dayUtc) { comp = c; break; }
+      }
+      if (comp == null) continue;
+      // Counter/duration/health are "done" only when value reaches target.
+      // Checkbox is done when any completion exists (value defaults to 1).
+      final t = h.tracking;
+      final threshold = (t == 'counter' || t == 'duration' || t == 'health')
+          ? (h.target ?? 1).toDouble()
+          : 0.5;
+      if (comp.value >= threshold) done++;
     }
     out.add(DayRatio(day: day, done: done, due: due, shielded: due > 0 && shieldedDays.contains(dayUtc)));
   }

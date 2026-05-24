@@ -122,11 +122,13 @@ class HabitRow extends ConsumerWidget {
                   ),
                 ),
                 SizedBox(
-                  width: 56,
+                  width: 80,
                   child: h.tracking != 'checkbox'
                       ? Text(
                           _progressLabel(h, dailyHabit.todayValue),
                           textAlign: TextAlign.right,
+                          overflow: TextOverflow.visible,
+                          softWrap: false,
                           style: TextStyle(
                               color: done ? col.green : col.fgMute,
                               fontSize: 11),
