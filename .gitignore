@@ -49,3 +49,6 @@ app.*.map.json
 
 # Supabase credentials — keep off git for public repos
 lib/config/supabase_config.dart
+
+# Built release artifacts
+dist/
