@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 import '../../app_info.dart';
+import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/tokens.dart';
 
@@ -43,14 +45,15 @@ class WindowChrome extends StatelessWidget {
   }
 }
 
-class _VersionMeta extends StatelessWidget {
+class _VersionMeta extends ConsumerWidget {
   final AppColors col;
   const _VersionMeta({required this.col});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeId = ref.watch(themeIdProvider).valueOrNull ?? 'matrix';
     return Text(
-      'v$kAppVersion · matrix',
+      'v$kAppVersion · $themeId',
       style: TextStyle(fontSize: 11, color: col.fgMute),
     );
   }
