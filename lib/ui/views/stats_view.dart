@@ -130,9 +130,13 @@ class _StatsBody extends StatelessWidget {
         prevData != null ? ratesData.rate - prevData.rate : null;
 
     // ── Contributions ────────────────────────────────────────────────────────
+    // Only count completions whose habit is still active — yearlyMap can
+    // include orphan completions from archived/deleted habits.
+    final activeHabitIds = {for (final h in habits) h.id};
     final Map<DateTime, int> completionsByDay = {};
-    for (final comps in yearlyMap.values) {
-      for (final c in comps) {
+    for (final entry in yearlyMap.entries) {
+      if (!activeHabitIds.contains(entry.key)) continue;
+      for (final c in entry.value) {
         final day = DateTime(c.day.toLocal().year, c.day.toLocal().month,
             c.day.toLocal().day);
         completionsByDay[day] = (completionsByDay[day] ?? 0) + 1;
@@ -333,7 +337,11 @@ class _StatsBody extends StatelessWidget {
       d = _nextDay(d);
     }
     var totalCompletions = 0;
-    for (final comps in yearlyMap.values) totalCompletions += comps.length;
+    final activeIds = {for (final h in habits) h.id};
+    for (final entry in yearlyMap.entries) {
+      if (!activeIds.contains(entry.key)) continue;
+      totalCompletions += entry.value.length;
+    }
     return _QuickGlance(
       daysTracked: daysTracked,
       avgCompletion: totalDue == 0 ? 0 : totalDone / totalDue,
